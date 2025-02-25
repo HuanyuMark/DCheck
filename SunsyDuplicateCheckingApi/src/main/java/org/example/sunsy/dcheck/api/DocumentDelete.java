@@ -17,12 +17,12 @@ public class DocumentDelete {
     private final String collectionId;
 
     @NonNull
-    private final MetadataMatchCondition metadataMetchCondition;
+    private final MetadataMatchCondition metadataMatchCondition;
 
     @Data
     @Builder
     public static class MetadataMatchCondition {
         @Singular
-        private final Map<String, Object> equals;
+        private final Map<String, Object> eqs;
     }
 }

@@ -5,6 +5,7 @@
         <groupId>org.example.sunsy</groupId>
         <artifactId>SunsyDuplicateChecking</artifactId>
         <version>0.0.1</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>SunsyDuplicateCheckingDefault</artifactId>
     <dependencies>

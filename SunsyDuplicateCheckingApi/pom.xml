@@ -5,6 +5,7 @@
         <groupId>org.example.sunsy</groupId>
         <artifactId>SunsyDuplicateChecking</artifactId>
         <version>0.0.1</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>SunsyDuplicateCheckingApi</artifactId>
     <dependencyManagement>
@@ -18,9 +19,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-    </repositories>
 
     <dependencies>
 
@@ -45,6 +43,8 @@
     </dependencies>
 
     <build>
+        <!-- 使用delombok生成的源码目录作为项目的源码目录 -->
+        <sourceDirectory>${source.generate.dir}</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -52,13 +52,15 @@
                 <version>3.8.1</version>
                 <configuration>
                     <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
+                        lombok
+                        <!--                        <exclude>-->
+                        <!--                            <groupId>org.projectlombok</groupId>-->
+                        <!--                            <artifactId>lombok</artifactId>-->
+                        <!--                        </exclude>-->
                     </excludes>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
 </project>

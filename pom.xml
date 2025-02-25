@@ -3,21 +3,29 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example.sunsy</groupId>
     <artifactId>SunsyDuplicateChecking</artifactId>
+    <version>0.0.1</version>
+
     <packaging>pom</packaging>
     <modules>
         <module>SunsyDuplicateCheckingApi</module>
         <module>SunsyDuplicateCheckingDefault</module>
     </modules>
-    <groupId>org.example.sunsy</groupId>
-    <version>${dcheck.version}</version>
 
     <properties>
         <java.version>1.8</java.version>
         <dcheck.version>0.0.1</dcheck.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <maven.compiler.release>${java.version}</maven.compiler.release>
+
+        <!-- 原始源码目录，我们后边要将源码目录切换到delombok.dir中 -->
+        <origin.source.dir>src/main/java</origin.source.dir>
+        <!-- 打包生成source时使用的目录 -->
+        <source.generate.dir>src/main/java</source.generate.dir>
+        <!-- lombok生成源码的目录 -->
+        <delombok.dir>${project.build.directory}/delombok</delombok.dir>
     </properties>
 
     <dependencyManagement>
@@ -32,21 +40,89 @@
             <dependency>
                 <groupId>org.example.sunsy</groupId>
                 <artifactId>SunsyDuplicateCheckingApi</artifactId>
-                <version>${dcheck.version}</version>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains</groupId>
+                <artifactId>annotations</artifactId>
+                <version>24.0.1</version>
+                <scope>compile</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-    </repositories>
 
     <dependencies>
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
-            <version>24.0.1</version>
-            <scope>compile</scope>
         </dependency>
-        <!-- dev dependency - end -->
     </dependencies>
+
+
+    <profiles>
+        <profile>
+            <!-- 发布profile -->
+            <id>release</id>
+
+            <properties>
+                <!-- 在该profile激活时，源码目录切换到delombok目录 -->
+                <source.generate.dir>${delombok.dir}</source.generate.dir>
+            </properties>
+
+            <build>
+                <plugins>
+                    <!-- lombok插件，用于将源码中的lombok相关注解替换为对应的代码 -->
+                    <plugin>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok-maven-plugin</artifactId>
+                        <version>1.18.20.0</version>
+                        <configuration>
+                            <encoding>UTF-8</encoding>
+                            <!-- 指定要解除lombok注释的代码在这个目录中 -->
+                            <sourceDirectory>${origin.source.dir}</sourceDirectory>
+                            <!--
+                                delombok后的源码默认是输出到target/generated-sources/delombok目录中的，这里我们修改输出到我们指定的目录，因为
+                                如果输出到target/generated-sources中会导致IDEA也将其识别为源码，最终就是导致IDEA报错，因为class重复
+                            -->
+                            <outputDirectory>${delombok.dir}</outputDirectory>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>delombok</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Source -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.2.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- 禁用注释检查 -->
+        <profile>
+            <id>disable-javadoc-doclint</id>
+            <activation>
+                <jdk>[1.8,)</jdk>
+            </activation>
+            <properties>
+                <javadoc.opts>-Xdoclint:none</javadoc.opts>
+            </properties>
+        </profile>
+    </profiles>
 </project>

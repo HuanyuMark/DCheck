@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 public class TestApp {
     @Test
     public void test() {
+        System.out.println("ok");
 //        System.out.println(ParagraphRelevancyQueryResult.Record.builder().document("ok?").build().getMetadata());
     }
 }
