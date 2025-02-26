@@ -10,15 +10,20 @@ import lombok.var;
 import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.MapSpi;
+import org.springframework.util.StringUtils;
 import tech.amikos.chromadb.Client;
 import tech.amikos.chromadb.Collection;
 import tech.amikos.chromadb.handler.ApiException;
+import tech.amikos.chromadb.model.QueryEmbedding;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Date 2025/02/26
@@ -27,6 +32,7 @@ import java.util.stream.Collectors;
  */
 public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine {
 
+    public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
     private final Map<String, Collection> cachedCollections = new ConcurrentSkipListMap<>();
     private final RetryPolicy<Object> collectionAccessPolicy = RetryPolicy.builder()
             .handle(ApiException.class)
@@ -40,30 +46,81 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     @NonNull
     private EmbeddingFunction embeddingFunction;
 
+    @Getter
+    @Setter
+    private Reranker reranker;
+
     public ChromaParagraphRelevancyEngine() {
+
     }
 
     @Override
     public void init() {
         var url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
-        client = new Client(url);
-        var policy = RetryPolicy.builder()
-                .handle(ApiException.class)
-                .withMaxRetries(3)
-                // 初始等待1s，最多30s,每次重试时间以2倍增长
-                .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 2)
-                .build();
-        try {
-            Failsafe.with(policy).run(() -> client.heartbeat());
-        } catch (FailsafeException e) {
-            throw new IllegalStateException("connect to chroma server fail:", e);
+        if (!StringUtils.hasText(url)) {
+            throw new IllegalStateException("invalid config '" + ApiConfig.DB_VECTOR_URL + "=" + url + "'");
         }
+        CompletableFuture.allOf(
+                CompletableFuture.runAsync(() -> {
+                    client = new Client(url);
+                    var policy = RetryPolicy.builder()
+                            .handle(ApiException.class)
+                            .withMaxRetries(3)
+                            // 初始等待1s，最多30s,每次重试时间以2倍增长
+                            .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 2)
+                            .build();
+                    try {
+                        Failsafe.with(policy).run(() -> client.heartbeat());
+                    } catch (FailsafeException e) {
+                        throw new IllegalStateException("connect to chroma server fail:", e.getCause());
+                    }
+                }),
+                CompletableFuture.runAsync(() -> {
+                    String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
+                    if (rerankModel == null) return;
+                    reranker = MapSpi.getInstance().getReranker(rerankModel);
+                    try {
+                        reranker.init();
+                    } catch (Exception e) {
+                        throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
+                    }
+                })
+        ).join();
     }
 
     @Override
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
-
-        return null;
+        Collection collection = getCollection(query.getCollectionId());
+        try {
+            return Failsafe.with(collectionAccessPolicy)
+                    .get(() -> {
+                        var response = collection.query(
+                                query.getParagraphs().stream().map(p -> {
+                                    if (p instanceof TextContent) return ((TextContent) p).getText().toString();
+                                    // TODO support other types
+                                    return "";
+                                }).collect(Collectors.toList()),
+                                query.getTopK(),
+                                null,
+                                null,
+                                QUERY_PARAGRAPH_INCLUDE
+                        );
+                        var builder = ParagraphRelevancyQueryResult.builder();
+                        IntStream.range(0, response.getDocuments().size())
+                                .mapToObj(i -> {
+                                    //TODO 构造结果
+                                    var metadata = response.getMetadatas().get(0).get(i);
+//                                    metadata.get()
+                                    return ParagraphRelevancyQueryResult.Record.builder()
+                                            .paragraph(TextParagraph.builder().build());
+                                });
+                        return builder.build();
+//                            response.getDocuments()
+                    });
+        } catch (FailsafeException e) {
+            throw new IllegalStateException("query paragraph fail: " + e.getCause().getMessage(), e.getCause());
+        }
+//        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -91,10 +148,10 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                                     textParagraphs.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
                             );
                         }
-                        // handle other types
+                        //TODO handle other types
                     });
         } catch (FailsafeException e) {
-            throw new IllegalStateException("add paragraph fail:", e);
+            throw new IllegalStateException("add paragraph fail:", e.getCause());
         }
     }
 
@@ -108,7 +165,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
             Failsafe.with(collectionAccessPolicy)
                     .run(() -> collection.deleteWhere(metadataMatch));
         } catch (FailsafeException e) {
-            throw new IllegalStateException("delete paragraph fail:", e);
+            throw new IllegalStateException("delete paragraph fail:", e.getCause());
         }
     }
 
@@ -128,11 +185,14 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                 return Failsafe.with(collectionAccessPolicy)
                         .get(() -> client.createCollection(
                                 collectionId,
-                                null,
+                                new HashMap<String, String>() {{
+                                    put("hnsw:space", "cosine");
+                                    put("createTime", String.valueOf(System.currentTimeMillis()));
+                                }},
                                 Boolean.TRUE,
                                 Objects.requireNonNull(embeddingFunction)));
             } catch (FailsafeException e) {
-                throw new IllegalStateException("access chroma collection fail:", e);
+                throw new IllegalStateException("access chroma collection fail:", e.getCause());
             }
         });
     }
@@ -145,7 +205,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                         cachedCollections.remove(collectionId);
                     });
         } catch (FailsafeException e) {
-            throw new IllegalStateException("delete chroma collection fail:", e);
+            throw new IllegalStateException("delete chroma collection fail:", e.getCause());
         }
     }
 

@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.example.dcheck.api.DocumentCollection;
 import org.example.dcheck.api.DocumentCreation;
 import org.example.dcheck.api.DocumentDelete;
-import org.example.dcheck.api.ParagraphRelevancyEngine;
 
 import java.util.List;
 
@@ -13,10 +12,11 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 @RequiredArgsConstructor
 public class ChromaDocumentCollection implements DocumentCollection {
 
-    private final ParagraphRelevancyEngine engine;
+    private final ChromaParagraphRelevancyEngine engine;
 
     @Override
     public String getId() {

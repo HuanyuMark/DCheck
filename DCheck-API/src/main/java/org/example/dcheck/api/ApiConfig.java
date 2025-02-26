@@ -11,11 +11,13 @@ import java.util.Properties;
  */
 @SuppressWarnings("unused")
 public class ApiConfig extends Properties {
-    public static final String EMBEDDING_MODEL_KEY = "embedding.model";
+    public static final String EMBEDDING_MODEL_KEY = "model.embedding.name";
 
     public static final String DEFAULT_VALUE = "default";
     public static final String DB_VECTOR_TYPE = "db.vector.type";
     public static final String DB_VECTOR_URL = "db.vector.url";
+    public static final String RERANKING_MODEL_KEY = "model.reranking.name";
+    public static final String RERANKING_MODEL_URL = "model.reranking.url";
 
 
     public ApiConfig() {

@@ -4,6 +4,7 @@ import lombok.var;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -19,6 +20,9 @@ import java.util.ServiceLoader;
  */
 @SuppressWarnings("unused")
 class Providers {
+
+    private final static ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+
 
     static <Service> List<Service> findAllImplementations(Class<Service> serviceClass) {
         var loader = ServiceLoader.load(serviceClass);
@@ -70,11 +74,14 @@ class Providers {
     }
 
     static Properties loadConfig(String configName) {
-        var resolver = new PathMatchingResourcePatternResolver();
         try {
             Properties config = new Properties();
             Resource[] resources = resolver.getResources("classpath*:org/example/dcheck/config/" + configName + ".properties");
             for (Resource resource : resources) {
+                PropertiesLoaderUtils.fillProperties(config, resource);
+            }
+            Resource[] localResources = resolver.getResources("file:dcheck-config.properties");
+            for (Resource resource : localResources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }
             return config;

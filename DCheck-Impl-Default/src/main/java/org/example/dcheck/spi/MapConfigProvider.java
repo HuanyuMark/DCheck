@@ -19,6 +19,9 @@ public class MapConfigProvider implements DCheckProvider {
     @Getter(lazy = true)
     private final Properties relevancyEngineMap = Providers.loadConfig("relevancy-engine-map");
 
+    @Getter(lazy = true)
+    private final Properties rerankingModelMap = Providers.loadConfig("reranking-model-map");
+
     protected MapConfigProvider() {
     }
 }

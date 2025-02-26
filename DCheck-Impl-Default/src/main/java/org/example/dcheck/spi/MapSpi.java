@@ -3,6 +3,7 @@ package org.example.dcheck.spi;
 import lombok.Getter;
 import lombok.var;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
+import org.example.dcheck.api.Reranker;
 import org.example.dcheck.impl.EmbeddingFunction;
 
 import java.lang.reflect.InvocationTargetException;
@@ -10,6 +11,7 @@ import java.util.Properties;
 
 /**
  * Date 2025/02/26
+ * 通过一个key，从MapConfigProvider找到映射配置中对应的服务提供者，然后返回
  *
  * @author 三石而立Sunsy
  */
@@ -25,9 +27,13 @@ public class MapSpi implements DCheckProvider {
         return createService(MapConfigProvider.getInstance().getRelevancyEngineMap(), "relevancy engine", relevancyEngineKey);
     }
 
+    public Reranker getReranker(String rerankerKey) {
+        return createService(MapConfigProvider.getInstance().getRerankingModelMap(), "reranker", rerankerKey);
+    }
+
     @SuppressWarnings("unchecked")
     protected <Service> Service createService(Properties map, String instanceName, String mapKey) {
-        var classname = MapConfigProvider.getInstance().getRelevancyEngineMap().getProperty(mapKey);
+        var classname = map.getProperty(mapKey);
         if (classname == null) {
             throw new IllegalArgumentException("unsupported " + instanceName + ": '" + mapKey + "'");
         }
