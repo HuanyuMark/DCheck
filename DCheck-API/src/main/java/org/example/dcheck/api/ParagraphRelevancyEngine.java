@@ -1,0 +1,25 @@
+package org.example.dcheck.api;
+
+/**
+ * Date 2025/02/25
+ * 相似度引擎，负责执行与相似度计算相关的所有核心逻辑
+ *
+ * @author 三石而立Sunsy
+ */
+@SuppressWarnings("unused")
+public interface ParagraphRelevancyEngine {
+    ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query);
+
+    void addParagraph(ParagraphRelevancyCreation creation);
+
+    void removeDocument(DocumentDelete delete);
+
+    DocumentCollection getOrCreateDocumentCollection(String id);
+
+    TempDocumentCollection newTempDocumentCollection();
+
+    default void init() {
+    }
+
+    ;
+}

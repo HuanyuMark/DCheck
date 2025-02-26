@@ -11,7 +11,8 @@
     <packaging>pom</packaging>
     <modules>
         <module>DCheck-API</module>
-        <module>DCheck-Impl-Default-RelevancyEngine</module>
+        <module>DCheck-Impl-Default</module>
+        <module>DCheck-Impl-Default-DocxProcessor</module>
     </modules>
 
     <properties>
@@ -48,6 +49,12 @@
                 <version>24.0.1</version>
                 <scope>compile</scope>
             </dependency>
+            <!-- https://mvnrepository.com/artifact/dev.failsafe/failsafe -->
+            <dependency>
+                <groupId>dev.failsafe</groupId>
+                <artifactId>failsafe</artifactId>
+                <version>3.3.2</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -58,6 +65,22 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <!-- 使用delombok生成的源码目录作为项目的源码目录 -->
+        <sourceDirectory>${source.generate.dir}</sourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <excludes>
+                        lombok
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
     <profiles>
         <profile>
