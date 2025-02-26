@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.example.sunsy</groupId>
-        <artifactId>SunsyDuplicateChecking</artifactId>
+        <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>SunsyDuplicateCheckingApi</artifactId>
+    <artifactId>DCheck-API</artifactId>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -26,6 +26,11 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
         </dependency>
 
         <!-- dev dependency -->
@@ -53,10 +58,6 @@
                 <configuration>
                     <excludes>
                         lombok
-                        <!--                        <exclude>-->
-                        <!--                            <groupId>org.projectlombok</groupId>-->
-                        <!--                            <artifactId>lombok</artifactId>-->
-                        <!--                        </exclude>-->
                     </excludes>
                 </configuration>
             </plugin>

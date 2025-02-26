@@ -5,7 +5,7 @@ package org.example.sunsy.dcheck.api;
  *
  * @author 三石而立Sunsy
  */
-public enum DocumentType {
+public enum BuiltinDocumentType implements DocumentType {
     DOCX,
 //    PDF,
     ;

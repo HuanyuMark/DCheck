@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example.sunsy</groupId>
-    <artifactId>SunsyDuplicateChecking</artifactId>
+    <artifactId>DCheck</artifactId>
     <version>0.0.1</version>
 
     <packaging>pom</packaging>
     <modules>
-        <module>SunsyDuplicateCheckingApi</module>
-        <module>SunsyDuplicateCheckingDefault</module>
+        <module>DCheck-API</module>
+        <module>DCheck-Impl-Default-RelevancyEngine</module>
     </modules>
 
     <properties>
@@ -39,7 +39,7 @@
             </dependency>
             <dependency>
                 <groupId>org.example.sunsy</groupId>
-                <artifactId>SunsyDuplicateCheckingApi</artifactId>
+                <artifactId>DCheck-API</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
