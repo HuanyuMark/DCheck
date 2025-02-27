@@ -1,8 +1,7 @@
 package org.example.dcheck.impl;
 
+import org.example.dcheck.api.Document;
 import org.example.dcheck.api.DocumentCollection;
-import org.example.dcheck.api.DocumentCreation;
-import org.example.dcheck.api.DocumentDelete;
 
 import java.util.List;
 
@@ -11,19 +10,21 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 public class MilvusDocumentCollection implements DocumentCollection {
     @Override
     public String getId() {
         return null;
     }
 
+
     @Override
-    public void addDocument(List<DocumentCreation> creations) {
+    public void addDocument(List<Document> creations) {
 
     }
 
     @Override
-    public void deleteDocument(DocumentDelete delete) {
+    public void deleteDocument(List<String> documentIds) {
 
     }
 
