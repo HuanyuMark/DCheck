@@ -24,6 +24,10 @@ public interface DocumentProcessor {
         }
     };
 
+    default void init() throws Exception {
+    }
+
+
     boolean support(@NotNull DocumentType type);
 
     /**

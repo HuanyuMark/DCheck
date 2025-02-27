@@ -35,6 +35,11 @@ public class DocumentProcessorProvider implements DCheckProvider, DocumentProces
     public DocumentProcessor getProcessor(DocumentType type) {
         return matchedCache.computeIfAbsent(type, (documentType) -> {
             for (DocumentProcessor impl : getImplementations()) {
+                try {
+                    impl.init();
+                } catch (Exception e) {
+                    throw new IllegalStateException("init document processor '" + impl.getClass() + "' fail: ", e);
+                }
                 if (impl.support(type)) {
                     log.info("[DocumentProcessor Spi Match]: assign processor '{}' to process document type '{}'", impl.getClass().getName(), documentType);
                     return impl;
