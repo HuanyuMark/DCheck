@@ -1,7 +1,12 @@
 package org.example.dcheck.api;
 
+import lombok.var;
+
+import java.util.List;
+
 /**
  * Date 2025/02/25
+ * the endpoint to start duplicate-check
  * 进行查重的入口
  *
  * @author 三石而立Sunsy
@@ -24,4 +29,17 @@ public interface DuplicateChecking {
      * 根据配置的检查，在指定集合里查重
      */
     CheckResult check(Check check, DocumentCollection collection);
+
+    /**
+     * 根据配置的检查，在指定集合里查重.
+     * Note: 该方法只适合零时使用，如果这些Document需要被持久化或者在其他地方复用，
+     * 请按照以下方式调用 1. {@link #getRelevancyEngine()} 2. {@link ParagraphRelevancyEngine#getOrCreateDocumentCollection(String)}
+     * 3. {@link #check(Check, DocumentCollection)}
+     */
+    default CheckResult check(Check check, List<Document> tempCheckArea) {
+        try (var collection = getRelevancyEngine().newTempDocumentCollection()) {
+            collection.addDocument(tempCheckArea);
+            return check(check, collection);
+        }
+    }
 }

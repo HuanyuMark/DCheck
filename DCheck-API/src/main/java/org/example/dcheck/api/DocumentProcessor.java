@@ -1,5 +1,7 @@
 package org.example.dcheck.api;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.stream.Stream;
 
 /**
@@ -10,10 +12,22 @@ import java.util.stream.Stream;
 @SuppressWarnings("unused")
 public interface DocumentProcessor {
 
-    boolean support(DocumentType type);
+    DocumentProcessor UNSUPPORTED = new DocumentProcessor() {
+        @Override
+        public boolean support(@NotNull DocumentType type) {
+            return false;
+        }
+
+        @Override
+        public Stream<DocumentParagraph> split(@NotNull Document document) {
+            return Stream.empty();
+        }
+    };
+
+    boolean support(@NotNull DocumentType type);
 
     /**
      * 文本切分
      */
-    Stream<DocumentParagraph> split(Document document);
+    Stream<DocumentParagraph> split(@NotNull Document document);
 }

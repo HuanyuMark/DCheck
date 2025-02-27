@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
@@ -16,20 +17,15 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class CheckResult {
     @Singular("paragraph")
-    private final List<RelevantParagraph> relevantParagraphs;
+    // 对于每一个段落，前 topKOfDocument 个最相似的文档
+    private final List<List<ParagraphRelevancyQueryResult.Record>> relevantParagraphs;
+    // 前 topKOfDocument 个最相似的文档
     @Singular("document")
     private final List<RelevantDocument> relevantDocuments;
 
     @Data
     @Builder
-    public static class RelevantParagraph {
-        @Singular("add")
-        private final List<Paragraph> paragraph;
-        private final double score;
-    }
-
-    @Data
-    @Builder
+    @AllArgsConstructor
     public static class RelevantDocument {
         private final String documentId;
         private final double score;

@@ -1,7 +1,5 @@
 package org.example.dcheck.api;
 
-import java.util.Map;
-
 /**
  * Date 2025/02/25
  *
@@ -17,7 +15,7 @@ public interface Paragraph {
 
     ParagraphLocation getLocation();
 
-    Map<String, Object> getMetadata();
-
     ParagraphType getParagraphType();
+
+    ParagraphMetadata getMetadata();
 }

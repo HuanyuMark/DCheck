@@ -18,10 +18,8 @@ public class ParagraphRelevancyQueryResult {
     @Singular
     private final List<List<Record>> records;
 
+    @Data
     @Builder
-    @ToString
-    @EqualsAndHashCode
-    @AllArgsConstructor
     public static class Record {
         @NonNull
         @Delegate

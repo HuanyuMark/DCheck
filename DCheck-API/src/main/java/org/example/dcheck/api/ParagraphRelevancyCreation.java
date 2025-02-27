@@ -5,7 +5,6 @@ import lombok.*;
 import lombok.experimental.Delegate;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Date: 2025/2/25
@@ -29,6 +28,6 @@ public class ParagraphRelevancyCreation {
     public static class Record {
         @Delegate
         private final DocumentParagraph paragraph;
-        private final Map<String, String> metadata;
+        private final ParagraphMetadata metadata;
     }
 }

@@ -11,7 +11,7 @@ import java.util.Properties;
 
 /**
  * Date 2025/02/26
- * 通过一个key，从MapConfigProvider找到映射配置中对应的服务提供者，然后返回
+ * get service by a key. supported by MapConfigProvider, find a service class by the associated key and then return its instance
  *
  * @author 三石而立Sunsy
  */

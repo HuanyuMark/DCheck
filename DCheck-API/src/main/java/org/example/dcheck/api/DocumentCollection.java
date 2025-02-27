@@ -11,9 +11,9 @@ import java.util.List;
 public interface DocumentCollection {
     String getId();
 
-    void addDocument(List<DocumentCreation> creations);
+    void addDocument(List<Document> creations);
 
-    void deleteDocument(DocumentDelete delete);
+    void deleteDocument(List<String> documentIds);
 
     void drop();
 

@@ -31,6 +31,11 @@ public class MilvusParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     }
 
     @Override
+    public void removeDocumentCollection(String collectionId) {
+
+    }
+
+    @Override
     public TempDocumentCollection newTempDocumentCollection() {
         return null;
     }

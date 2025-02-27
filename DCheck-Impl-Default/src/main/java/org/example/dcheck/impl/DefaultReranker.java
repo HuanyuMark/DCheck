@@ -5,15 +5,20 @@ import lombok.*;
 import okhttp3.*;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Date: 2025/2/26
- * 需要Python服务支持 <a href="https://gitee.com/GiteeHuanyu/DCheck-Impl-Default-Reranker">Reranker Server</a>
+ * depend on reranker server written by python <a href="https://gitee.com/GiteeHuanyu/DCheck-Impl-Default-Reranker">Reranker Server</a>
  *
  * @author 三石而立Sunsy
  */
@@ -28,57 +33,48 @@ public class DefaultReranker implements Reranker {
 
     private OkHttpClient client;
 
-    @Getter
-    @RequiredArgsConstructor
-    protected enum Requests {
-        INIT(new Request.Builder()
-                .method("GET", null)
-                .url("http://127.0.0.1:8080/api/v1/init")
-                .build()),
-        RERANK(new Request.Builder()
-                .method("POST", null)
-                .url("http://127.0.0.1:8080/api/v1/rerank")
-                .build());
-        private Request request;
-        private Request.Builder builder;
-
-        Requests(Request request) {
-            this.request = request;
-        }
-
-        public static void init() {
-            for (Requests ins : values()) {
-                ins.updateRequest();
-            }
-        }
-
-        public void updateRequest() {
-            // base config
-            request = request.newBuilder().header("User-Agent", "DCheck Java/0.0.x").build();
-
-            String urlStr = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_URL);
-            if (urlStr == null) return;
-            HttpUrl url;
-            try {
-                url = HttpUrl.get(urlStr);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("invalid config '" + ApiConfig.RERANKING_MODEL_URL + "=" + urlStr + "'", e);
-            }
-            request = request.newBuilder().url(request.url().newBuilder().host(url.host()).port(url.port()).build()).build();
-            builder = request.newBuilder();
-        }
-    }
-
-
     protected OkHttpClient buildClient() {
-        return new OkHttpClient.Builder().pingInterval(Duration.ofSeconds(7)).build();
-    }
+        return new OkHttpClient.Builder()
+                .pingInterval(Duration.ofSeconds(7))
+                // local run to reduce context shift cost
+                .dispatcher(new Dispatcher(new AbstractExecutorService() {
+                    @Override
+                    public void shutdown() {
+                    }
 
+                    @NotNull
+                    @Override
+                    public List<Runnable> shutdownNow() {
+                        return Collections.emptyList();
+                    }
+
+                    @Override
+                    public boolean isShutdown() {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean isTerminated() {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean awaitTermination(long timeout, @NotNull TimeUnit unit) {
+                        return true;
+                    }
+
+                    @Override
+                    public void execute(@NotNull Runnable command) {
+                        command.run();
+                    }
+                }))
+                .build();
+    }
 
     @Override
     public void init() {
-        Requests.init();
-        try (var resp = getClient().newCall(Requests.INIT.getRequest()).execute()) {
+        RequestTemplate.init();
+        try (var resp = getClient().newCall(RequestTemplate.INIT.getRequest()).execute()) {
             if (resp.body() == null) {
                 throw new IOException("response body is null");
             }
@@ -90,6 +86,11 @@ public class DefaultReranker implements Reranker {
         } catch (IOException e) {
             throw new IllegalStateException("init reranker server fail:", e);
         }
+    }
+
+    private String castToText(Content content) {
+        //TODO support other content type
+        return content instanceof TextContent ? ((TextContent) content).getText().toString() : "";
     }
 
     @Data
@@ -126,15 +127,10 @@ public class DefaultReranker implements Reranker {
         this.client = client;
     }
 
-    public String castToText(Content content) {
-        //TODO support other content type
-        return content instanceof TextContent ? ((TextContent) content).getText().toString() : "";
-    }
-
     @Override
     public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
         try (var resp = getClient().newCall(
-                Requests.RERANK.getBuilder()
+                RequestTemplate.RERANK.getBuilder()
                         .post(RequestBody.create(gson.toJson(
                                 new RerankRequest(
                                         query.getParagraphs().stream().map(this::castToText).collect(Collectors.toList()),
@@ -157,13 +153,62 @@ public class DefaultReranker implements Reranker {
                 throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
             }
 
-            // todo 构造结果
-//            var reranked = IntStream.range(0, relevancyResult.getRecords().size())
-//                    .mapToObj(i -> relevancyResult.getRecords().get(i).withRelevancy(rerankResponse.getScores()[i])).collect(Collectors.toList());
+            var reranked = IntStream.range(0, relevancyResult.getRecords().size())
+                    .mapToObj(i -> {
+                        var currentQueryEmbeddingResult = relevancyResult.getRecords().get(i);
+                        float[] currentQueryScores = rerankResponse.getScores()[i];
+                        if (currentQueryScores.length != currentQueryEmbeddingResult.size()) {
+                            throw new IllegalStateException("rerank fail: response scores length not match");
+                        }
+                        return IntStream.range(0, currentQueryEmbeddingResult.size())
+                                .mapToObj(j -> currentQueryEmbeddingResult.get(i).withRelevancy(currentQueryScores[j]))
+                                .collect(Collectors.toList());
+                    }).collect(Collectors.toList());
 
-            return relevancyResult;
+            return relevancyResult.withRecords(reranked);
         } catch (IOException e) {
             throw new IllegalStateException("rerank fail: " + e.getMessage(), e);
+        }
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    protected enum RequestTemplate {
+        INIT(new Request.Builder()
+                .method("GET", null)
+                .url("http://127.0.0.1:8080/api/v1/init")
+                .build()),
+        RERANK(new Request.Builder()
+                .method("POST", null)
+                .url("http://127.0.0.1:8080/api/v1/rerank")
+                .build());
+        private Request request;
+        private Request.Builder builder;
+
+        RequestTemplate(Request request) {
+            this.request = request;
+        }
+
+        public static void init() {
+            for (RequestTemplate ins : values()) {
+                ins.updateRequest();
+            }
+        }
+
+        public void updateRequest() {
+            // base config
+            request = request.newBuilder().header("User-Agent", "DCheck Java/0.0.x").build();
+
+            String urlStr = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_URL);
+            if (urlStr == null) return;
+            HttpUrl url;
+            try {
+                url = HttpUrl.get(urlStr);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("invalid config '" + ApiConfig.RERANKING_MODEL_URL + "=" + urlStr + "'", e);
+            }
+            request = request.newBuilder().url(request.url().newBuilder().host(url.host()).port(url.port()).build()).build();
+            builder = request.newBuilder();
         }
     }
 }

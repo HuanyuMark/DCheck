@@ -16,10 +16,10 @@ public interface ParagraphRelevancyEngine {
 
     DocumentCollection getOrCreateDocumentCollection(String id);
 
+    void removeDocumentCollection(String collectionId);
+
     TempDocumentCollection newTempDocumentCollection();
 
     default void init() {
     }
-
-    ;
 }

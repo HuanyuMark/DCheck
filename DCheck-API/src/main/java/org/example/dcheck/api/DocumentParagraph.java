@@ -19,6 +19,8 @@ public class DocumentParagraph {
     private final Supplier<Content> content;
     @NonNull
     private final ParagraphType paragraphType;
+    @NonNull
+    private final ParagraphLocation location;
 
     public Content getContent() {
         return content.get();

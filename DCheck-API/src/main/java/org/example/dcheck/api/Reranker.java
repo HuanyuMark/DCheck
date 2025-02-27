@@ -11,7 +11,8 @@ public interface Reranker {
     default void init() throws Exception {
     }
 
-    ;
-
     ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query);
+
+    Reranker NOP = (relevancyResult, query) -> relevancyResult;
+
 }

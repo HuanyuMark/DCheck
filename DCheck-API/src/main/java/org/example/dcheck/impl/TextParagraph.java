@@ -2,14 +2,13 @@ package org.example.dcheck.impl;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NonNull;
-import lombok.Singular;
 import org.example.dcheck.api.BuiltinParagraphType;
 import org.example.dcheck.api.DocumentCollection;
 import org.example.dcheck.api.Paragraph;
 import org.example.dcheck.api.ParagraphType;
 
-import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -25,10 +24,12 @@ public class TextParagraph implements Paragraph {
     private final String documentId;
     @NonNull
     private final Supplier<TextContent> content;
-    @Singular("metadata")
-    private final Map<String, Object> metadata;
+
     @NonNull
     private final TextParagraphLocation location;
+
+    @Getter(lazy = true)
+    private final TextParagraphMetadata metadata = new TextParagraphMetadata(documentId, location);
 
     @Override
     public TextContent getContent() {
@@ -39,4 +40,14 @@ public class TextParagraph implements Paragraph {
     public ParagraphType getParagraphType() {
         return BuiltinParagraphType.TEXT;
     }
+
+//    public static TextParagraphBuilderExt extBuilder() {
+//        return new TextParagraphBuilderExt();
+//    }
+//
+//
+//    public static class TextParagraphBuilderExt {
+//        private final TextParagraphBuilder superBuilder = TextParagraph.builder();
+//
+//    }
 }
