@@ -60,7 +60,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     @Getter
     @Setter
     @NonNull
-    private Gson gson;
+    private Gson gson = SerializerSupport.getGson();
     private volatile boolean init;
 
 
@@ -174,7 +174,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                                                 .paragraph(TextParagraph.builder()
                                                         .collection(documentCollection)
                                                         .content(() -> new TextContent(document))
-                                                        .location(gson.fromJson(((String) metadata.get("location")), TextParagraphLocation.class))
+                                                        .location(gson.fromJson(((String) metadata.get("location")), ParagraphLocation.class))
                                                         .documentId((String) metadata.get("documentId"))
                                                         .build())
                                                 .relevancy(score)

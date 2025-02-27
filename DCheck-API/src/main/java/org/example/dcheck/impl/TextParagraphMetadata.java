@@ -5,6 +5,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.example.dcheck.api.BuiltinParagraphType;
+import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
 import org.example.dcheck.api.ParagraphType;
 
@@ -23,16 +24,16 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 public class TextParagraphMetadata extends HashMap<String, Object> implements ParagraphMetadata {
     private final String documentId;
-    private final TextParagraphLocation location;
+    private final ParagraphLocation location;
 
-    public TextParagraphMetadata(String documentId, TextParagraphLocation location) {
+    public TextParagraphMetadata(String documentId, ParagraphLocation location) {
         this.documentId = documentId;
         this.location = location;
         put("documentId", documentId);
         put("location", location);
     }
 
-    public TextParagraphMetadata(Map<? extends String, ?> m, String documentId, TextParagraphLocation location) {
+    public TextParagraphMetadata(Map<? extends String, ?> m, String documentId, ParagraphLocation location) {
         super(m);
         this.documentId = documentId;
         this.location = location;

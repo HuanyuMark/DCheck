@@ -8,6 +8,5 @@ package org.example.dcheck.api;
 @SuppressWarnings("unused")
 public enum BuiltinDocumentType implements DocumentType {
     DOCX,
-//    PDF,
-    ;
+    PDF
 }

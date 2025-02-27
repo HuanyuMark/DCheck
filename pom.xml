@@ -13,6 +13,7 @@
         <module>DCheck-API</module>
         <module>DCheck-Impl-Default</module>
         <module>DCheck-Impl-Default-DocxProcessor</module>
+        <module>DCheck-Common</module>
     </modules>
 
     <properties>

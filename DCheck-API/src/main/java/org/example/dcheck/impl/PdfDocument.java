@@ -12,8 +12,8 @@ import org.example.dcheck.api.DocumentType;
  * @author 三石而立Sunsy
  */
 @Data
-public class DocxDocument implements Document {
+public class PdfDocument implements Document {
     private final String id;
     private final Content content;
-    private final DocumentType documentType = BuiltinDocumentType.DOCX;
+    private final DocumentType documentType = BuiltinDocumentType.PDF;
 }

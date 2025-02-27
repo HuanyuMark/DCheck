@@ -1,6 +1,11 @@
 package org.example.dcheck.spi;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.var;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -8,10 +13,8 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.ServiceLoader;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Date 2025/02/26
@@ -28,7 +31,8 @@ class Providers {
         var loader = ServiceLoader.load(serviceClass);
         var results = new ArrayList<Service>();
         loader.iterator().forEachRemaining(results::add);
-        return results;
+
+        return results.stream().map(AdaptedOrdered::new).sorted(Comparator.comparing(Ordered::getOrder)).map(AdaptedOrdered::getIns).collect(Collectors.toList());
     }
 
     static <Service> Service findImpl(Class<Service> serviceClass, String specifyKey) {
@@ -36,6 +40,7 @@ class Providers {
         var allImpl = loader.iterator();
         Service candidate = null;
         boolean multiple = false;
+
         while (allImpl.hasNext()) {
             var cur = allImpl.next();
             if (candidate != null) {
@@ -89,4 +94,31 @@ class Providers {
             throw new RuntimeException(e);
         }
     }
+
+    @Getter
+    @RequiredArgsConstructor
+    static class AdaptedOrdered<Ins> implements Ordered {
+
+        private final Ins ins;
+
+        private final int order;
+
+        public AdaptedOrdered(Ins ins) {
+            this.ins = ins;
+            order = initOrder();
+        }
+
+        private int initOrder() {
+            Order order = AnnotationUtils.findAnnotation(ins.getClass(), Order.class);
+            if (order != null) {
+                if (ins instanceof Ordered) {
+                    throw new IllegalStateException("class '" + ins.getClass() + "' is both @Ordered and Ordered");
+                }
+                return order.value();
+            }
+
+            return ins instanceof Ordered ? ((Ordered) ins).getOrder() : Ordered.LOWEST_PRECEDENCE;
+        }
+    }
+
 }

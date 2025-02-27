@@ -4,10 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NonNull;
-import org.example.dcheck.api.BuiltinParagraphType;
-import org.example.dcheck.api.DocumentCollection;
-import org.example.dcheck.api.Paragraph;
-import org.example.dcheck.api.ParagraphType;
+import org.example.dcheck.api.*;
 
 import java.util.function.Supplier;
 
@@ -26,21 +23,19 @@ public class TextParagraph implements Paragraph {
     private final Supplier<TextContent> content;
 
     @NonNull
-    private final TextParagraphLocation location;
+    private final ParagraphLocation location;
 
     @Getter(lazy = true)
     private final TextParagraphMetadata metadata = new TextParagraphMetadata(documentId, location);
+
+    private final ParagraphType paragraphType = BuiltinParagraphType.TEXT;
 
     @Override
     public TextContent getContent() {
         return content.get();
     }
 
-    @Override
-    public ParagraphType getParagraphType() {
-        return BuiltinParagraphType.TEXT;
-    }
-
+    //TODO 需不需要在这里定义 从 metadata中获取location和documentId的逻辑？
 //    public static TextParagraphBuilderExt extBuilder() {
 //        return new TextParagraphBuilderExt();
 //    }
