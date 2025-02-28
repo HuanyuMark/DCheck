@@ -4,8 +4,7 @@ import dev.langchain4j.data.document.DocumentLoader;
 import dev.langchain4j.data.document.DocumentParser;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser;
-import dev.langchain4j.data.document.splitter.DocumentByParagraphSplitter;
-import dev.langchain4j.data.document.splitter.DocumentBySentenceSplitter;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import lombok.Data;
 import lombok.var;
 import org.example.dcheck.api.*;
@@ -30,12 +29,13 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
     @Override
     public void init() {
         int maxParagraphLength = SharedDocumentProcessorConfig.getInstance().getMaxParagraphLength();
-        int maxOverlaySize = Math.min(maxParagraphLength / 4, 100);
-        splitter = new DocumentByParagraphSplitter(
-                maxParagraphLength,
-                maxOverlaySize,
-                //TODO define llm splitter to rewrite large segment to small ones
-                new DocumentBySentenceSplitter(maxParagraphLength, maxOverlaySize));
+//        int maxOverlaySize = Math.min(maxParagraphLength / 4, 100);
+        splitter = DocumentSplitters.recursive(maxParagraphLength, 20);
+//        splitter = new DocumentByParagraphSplitter(
+//                maxParagraphLength,
+//                maxOverlaySize,
+//                //TODO define llm splitter to rewrite large segment to small ones
+//                new DocumentBySentenceSplitter(maxParagraphLength, maxOverlaySize));
     }
 
     @Override

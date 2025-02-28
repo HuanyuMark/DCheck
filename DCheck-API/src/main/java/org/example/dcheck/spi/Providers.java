@@ -13,6 +13,8 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -85,6 +87,9 @@ class Providers {
             for (Resource resource : resources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }
+
+            if (!Files.exists(Paths.get("dcheck-config.properties"))) return config;
+
             Resource[] localResources = resolver.getResources("file:dcheck-config.properties");
             for (Resource resource : localResources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
