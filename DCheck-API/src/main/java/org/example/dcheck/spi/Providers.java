@@ -2,6 +2,7 @@ package org.example.dcheck.spi;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
  *
  * @author 三石而立Sunsy
  */
+@Slf4j
 @SuppressWarnings("unused")
 class Providers {
 
@@ -80,20 +82,35 @@ class Providers {
         }
     }
 
+    static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
+
     static Properties loadConfig(String configName) {
         try {
             Properties config = new Properties();
+
+            // 读取类路径中最匹配的配置
             Resource[] resources = resolver.getResources("classpath*:org/example/dcheck/config/" + configName + ".properties");
             for (Resource resource : resources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }
 
-            if (!Files.exists(Paths.get("dcheck-config.properties"))) return config;
+            if (resources.length == 0) {
+                log.warn("no config found in classpath, please add config file to classpath or jar file: org/example/dcheck/config/{}.properties", configName);
+            }
 
-            Resource[] localResources = resolver.getResources("file:dcheck-config.properties");
+            // 读取在jar包中的 aggregate 配置
+            for (Resource resource : resolver.getResources("classpath*:org/example/dcheck/config/" + AGGREGATE_CONFIG_NAME)) {
+                PropertiesLoaderUtils.fillProperties(config, resource);
+            }
+
+            // 读取在工作目录下的 aggregate 配置
+            if (!Files.exists(Paths.get(AGGREGATE_CONFIG_NAME))) return config;
+
+            Resource[] localResources = resolver.getResources("file:" + AGGREGATE_CONFIG_NAME);
             for (Resource resource : localResources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }
+
             return config;
         } catch (IOException e) {
             throw new RuntimeException(e);

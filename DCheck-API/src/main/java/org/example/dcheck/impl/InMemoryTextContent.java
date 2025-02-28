@@ -2,7 +2,7 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.example.dcheck.api.Content;
+import org.example.dcheck.api.TextContent;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
  * @author 三石而立Sunsy
  */
 @RequiredArgsConstructor
-public class TextContent implements Content {
+public class InMemoryTextContent implements TextContent {
     @Getter
     private final CharSequence text;
 

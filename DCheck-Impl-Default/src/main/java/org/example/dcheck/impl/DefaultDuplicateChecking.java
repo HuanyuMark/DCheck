@@ -2,6 +2,7 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
  *
  * @author 三石而立Sunsy
  */
+@Slf4j
 public class DefaultDuplicateChecking implements DuplicateChecking {
 
     @Getter
@@ -29,7 +31,9 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
         relevancyEngine = MapSpi.getInstance().getRelevancyEngine(apiConfig.getProperty(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
 
         try {
+            log.info("Starting init Relevancy Engine '{}'", relevancyEngine.getClass().getCanonicalName());
             relevancyEngine.init();
+            log.info("Finished init Relevancy Engine");
         } catch (Exception e) {
             throw new IllegalStateException("init relevancy engine fail:", e);
         }

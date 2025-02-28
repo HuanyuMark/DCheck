@@ -4,8 +4,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.experimental.Delegate;
 import org.example.dcheck.api.*;
 
+import java.lang.reflect.Type;
+import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /**
@@ -35,14 +39,32 @@ public class TextParagraph implements Paragraph {
         return content.get();
     }
 
-    //TODO 需不需要在这里定义 从 metadata中获取location和documentId的逻辑？
-//    public static TextParagraphBuilderExt extBuilder() {
-//        return new TextParagraphBuilderExt();
-//    }
-//
-//
-//    public static class TextParagraphBuilderExt {
-//        private final TextParagraphBuilder superBuilder = TextParagraph.builder();
-//
-//    }
+    public static MapBuilder mapBuilder() {
+        return new MapBuilder();
+    }
+
+    public static class MapBuilder {
+        @Delegate
+        private final TextParagraphBuilder builder = builder();
+
+        public MapBuilder fromFlat(Map<String, String> flatMap, BiFunction<String, Type, Object> deserializer) {
+            String docId = flatMap.get("documentId");
+            if (docId != null) {
+                Object docIdObj = deserializer.apply(docId, String.class);
+                if (!(docIdObj instanceof String)) {
+                    throw new IllegalArgumentException("documentId is not String");
+                }
+                builder.documentId(((String) docIdObj));
+            }
+            String location = flatMap.get("location");
+            if (location != null) {
+                Object locationObj = deserializer.apply(location, ParagraphLocation.class);
+                if (!(locationObj instanceof ParagraphLocation)) {
+                    throw new IllegalArgumentException("location is not ParagraphLocation");
+                }
+                builder.location(((ParagraphLocation) locationObj));
+            }
+            return this;
+        }
+    }
 }

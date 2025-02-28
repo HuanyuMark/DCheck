@@ -31,7 +31,7 @@ public interface ParagraphMetadata extends Map<String, Object> {
                 res.put(key.toString(), null);
                 continue;
             }
-            res.put(key.toString(), value instanceof CharSequence ? value.toString() : jsonSerializer.apply(value));
+            res.put(key.toString(), jsonSerializer.apply(value));
         }
         return res;
     }

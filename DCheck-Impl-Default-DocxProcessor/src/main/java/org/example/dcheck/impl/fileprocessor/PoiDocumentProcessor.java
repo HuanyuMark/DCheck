@@ -3,7 +3,7 @@ package org.example.dcheck.impl.fileprocessor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
-import org.example.dcheck.impl.TextContent;
+import org.example.dcheck.impl.InMemoryTextContent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -36,7 +36,7 @@ public class PoiDocumentProcessor implements DocumentProcessor {
             // slice large paragraph into small ones. see max paragraph length config above
             // use llm to rewrite large p to small ones...
             return xwpfDocument.getParagraphs()
-                    .stream().map(p -> new TextContent(p.getText()))
+                    .stream().map(p -> new InMemoryTextContent(p.getText()))
                     .map(c -> DocumentParagraph.builder()
                             .paragraphType(BuiltinParagraphType.TEXT)
                             .location(ContentMatchParagraphLocation.get())
