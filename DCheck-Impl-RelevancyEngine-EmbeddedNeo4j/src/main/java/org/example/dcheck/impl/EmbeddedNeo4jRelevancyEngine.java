@@ -93,12 +93,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         var collection = getCollection(query.getCollectionId());
         // do partition for batch
         var partitions = CollectionUtils.partition(query.getParagraphs(), 5);
-        try (Transaction tx = collection.beginTx()) {
+        try (var tx = (Neo4jTransaction) collection.beginTx()) {
             for (List<? extends Content> partition : partitions) {
                 List<Embedding> embeddings = embed(partition.stream());
                 embeddings.stream().map(embedding -> {
                     //TODO 反序列node为paragraph
-                    tx.findNodes(PARAGRAPH_LABEL, VECTOR_PROPERTY, embedding.asArray()).stream().limit(query.getTopK())
+                    tx.findNearestNeighbors(PARAGRAPH_LABEL, VECTOR_PROPERTY, embedding.asArray(), query.getTopK()).stream().limit(query.getTopK())
                             .map(n -> new AbstractMap.SimpleEntry<>(" ", n.getProperties(query.getIncludeMetadata().toArray(EMPTY_STRING_ARRAY))));
                     return null;
                 });
