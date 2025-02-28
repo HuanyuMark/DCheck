@@ -24,8 +24,10 @@ public class DocumentDelete {
     @Builder
     public static class MetadataMatchCondition {
         @Singular
-        private final Map<String, String> eqs;
+        private final Map<String, Object> eqs;
         @Singular
-        private final Map<String, Collection<String>> ins;
+        private final Map<String, Collection<Object>> ins;
+        @Singular
+        private final Map<String, Object> gts;
     }
 }

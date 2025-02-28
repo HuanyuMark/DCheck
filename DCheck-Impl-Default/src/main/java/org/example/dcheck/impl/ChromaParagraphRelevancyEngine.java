@@ -231,15 +231,38 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
         var collection = getCollection(delete.getCollectionId());
         try {
             var condition = delete.getMetadataMatchCondition();
+
             var eqs = condition.getEqs().entrySet().stream()
                     .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$eq", e.getValue())))
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            var uniqueField = new HashSet<>(eqs.keySet());
+
             var ins = condition.getIns().entrySet().stream()
                     .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$in", e.getValue())))
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            var where = new HashMap<String, Object>();
-            where.putAll(eqs);
+
+            for (String k : ins.keySet()) {
+                if (uniqueField.add(k)) {
+                    continue;
+                }
+                throw new IllegalArgumentException("field cannot apply $eq and $in statements both: " + k);
+            }
+
+            var gts = condition.getGts().entrySet().stream()
+                    .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$gt", e.getValue())))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            for (String k : gts.keySet()) {
+                if (uniqueField.add(k)) {
+                    continue;
+                }
+                throw new IllegalArgumentException("field cannot apply $gt and $in statements both: " + k);
+            }
+
+            var where = new HashMap<>(eqs);
             where.putAll(ins);
+            where.putAll(gts);
 
             // check if eqs and ins has same keys (field name)
             if (where.size() != eqs.size() + ins.size()) {
