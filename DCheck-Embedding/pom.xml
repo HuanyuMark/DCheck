@@ -6,26 +6,23 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>DCheck-Common</artifactId>
-
+    <artifactId>DCheck-Embedding</artifactId>
     <dependencies>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-API</artifactId>
+            <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>io.github.amikos-tech</groupId>
+            <artifactId>chromadb-java-client</artifactId>
+            <version>0.1.7</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.example.sunsy</groupId>
-            <artifactId>DCheck-API</artifactId>
-        </dependency>
-        <dependency>
-            <groupId></groupId>
-            <artifactId></artifactId>
         </dependency>
     </dependencies>
 </project>

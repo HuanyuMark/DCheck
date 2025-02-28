@@ -6,6 +6,9 @@ import java.util.stream.Stream;
 
 /**
  * Date: 2025/2/25
+ * process document. split document to small segment 'paragraph'
+ * 负责进行文档切分等对文档进行处理的操作
+ *
  * Note: use spring order mechanism to determine which processor supporting same type should be used.
  * @author 三石而立Sunsy
  * @see org.example.dcheck.spi.Providers#findAllImplementations(Class)

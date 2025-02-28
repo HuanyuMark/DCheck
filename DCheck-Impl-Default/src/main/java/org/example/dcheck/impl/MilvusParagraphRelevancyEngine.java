@@ -26,7 +26,7 @@ public class MilvusParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     }
 
     @Override
-    public DocumentCollection getOrCreateDocumentCollection(String id) {
+    public DocumentCollection getOrCreateDocumentCollection(String collectionId) {
         return null;
     }
 

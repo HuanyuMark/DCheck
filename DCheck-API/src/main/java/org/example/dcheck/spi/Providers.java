@@ -73,12 +73,25 @@ class Providers {
         return candidate;
     }
 
-    static <Ins extends DCheckProvider> Ins instantiate(Class<Ins> insClass) {
+    static <Ins> Ins instantiate(Class<Ins> insClass) {
         try {
             return insClass.getConstructor().newInstance();
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
                  NoSuchMethodException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    static <Service> Service createService(Properties map, String instanceName, String mapKey) {
+        var classname = map.getProperty(mapKey);
+        if (classname == null) {
+            throw new IllegalArgumentException("unsupported " + instanceName + ": '" + mapKey + "'");
+        }
+        try {
+            return instantiate((Class<Service>) Class.forName(classname));
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("create service fail: " + e.getMessage(), e);
         }
     }
 

@@ -17,6 +17,7 @@
         <module>DCheck-Impl-Default-Reranker</module>
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Test</module>
+        <module>DCheck-Embedding</module>
     </modules>
 
     <properties>
@@ -50,8 +51,16 @@
                 <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
                 <version>5.4.0-0.0.1</version>
             </dependency>
-
-
+            <dependency>
+                <groupId>org.example.sunsy</groupId>
+                <artifactId>DCheck-Common</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.sunsy</groupId>
+                <artifactId>DCheck-Embedding</artifactId>
+                <version>0.0.1</version>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>

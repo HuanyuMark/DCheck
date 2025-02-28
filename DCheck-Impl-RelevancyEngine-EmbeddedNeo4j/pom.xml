@@ -16,6 +16,16 @@
         </dependency>
 
         <dependency>
+            <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-Common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-Embedding</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
             <version>2025.01.0</version>

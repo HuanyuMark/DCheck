@@ -1,4 +1,4 @@
-package org.example.dcheck.impl;
+package org.example.dcheck.embedding;
 
 import tech.amikos.chromadb.EFException;
 import tech.amikos.chromadb.Embedding;

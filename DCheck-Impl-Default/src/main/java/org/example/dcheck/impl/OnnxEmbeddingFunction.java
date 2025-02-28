@@ -1,5 +1,6 @@
 package org.example.dcheck.impl;
 
+import org.example.dcheck.embedding.EmbeddingFunction;
 import tech.amikos.chromadb.EFException;
 import tech.amikos.chromadb.Embedding;
 

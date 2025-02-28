@@ -1,4 +1,4 @@
-package org.example.dcheck.impl;
+package org.example.dcheck.embedding;
 
 import ai.djl.huggingface.tokenizers.Encoding;
 import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
@@ -242,8 +242,8 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
                     lastHiddenState = Nd4j.create((float[][][]) results.get(0).getValue());
                     resources.add(lastHiddenState);
                 }
-                //TODO adapt long[] to double[]
-                INDArray attMask = Nd4j.create(attentionMask.stream().mapToDouble(i -> i).toArray(), inputShape, 'c');
+
+                INDArray attMask = Nd4j.create(Arrays.stream(attentionMask).mapToDouble(i -> i).toArray(), inputShape, 'c');
                 resources.add(attMask);
                 INDArray expandedMask = Nd4j.expandDims(attMask, 2).broadcast(lastHiddenState.shape());
                 resources.add(expandedMask);

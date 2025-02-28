@@ -15,4 +15,9 @@ public class DcheckAggregateTest {
         checking.init();
 //        checking.check()
     }
+
+    @Test
+    public void testArrayCopy() {
+
+    }
 }

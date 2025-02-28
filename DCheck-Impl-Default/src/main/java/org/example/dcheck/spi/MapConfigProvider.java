@@ -14,13 +14,14 @@ public class MapConfigProvider implements DCheckProvider {
     private static final MapConfigProvider instance = new MapConfigProvider();
 
     @Getter(lazy = true)
-    private final Properties embeddingFuncMap = Providers.loadConfig("embedding-model-map");
-
-    @Getter(lazy = true)
     private final Properties relevancyEngineMap = Providers.loadConfig("relevancy-engine-map");
 
     @Getter(lazy = true)
     private final Properties rerankingModelMap = Providers.loadConfig("reranking-model-map");
+
+    public Properties getEmbeddingFuncMap() {
+        return EmbeddingFunctionMapConfigProvider.getInstance().getEmbeddingFuncMap();
+    }
 
     protected MapConfigProvider() {
     }

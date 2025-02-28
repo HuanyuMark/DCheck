@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
+import org.example.dcheck.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.MapSpi;
 import org.springframework.util.StringUtils;
@@ -23,7 +24,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -34,14 +34,12 @@ import java.util.stream.IntStream;
  * @author 三石而立Sunsy
  */
 @Slf4j
-public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine {
+public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEngine implements ParagraphRelevancyEngine {
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
 
     private final Map<String, Collection> chromaCollections = new ConcurrentSkipListMap<>();
-    private final Map<String, ChromaDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
-    private final Set<TempDocumentCollection> tempDocumentCollections = ConcurrentHashMap.newKeySet();
-
+    private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
 
     private Client client;
     @Getter
@@ -64,15 +62,12 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     private Gson gson = SerializerSupport.getGson();
 
 
-    private volatile boolean init;
-
-
     public ChromaParagraphRelevancyEngine() {
 
     }
 
     @Override
-    public void init() {
+    public void doInit() {
         if (init) {
             return;
         }
@@ -100,6 +95,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                             throw new IllegalStateException("init embedding function fail:", e);
                         }
                     }),
+
                     // init chroma client
                     CompletableFuture.runAsync(() -> {
                         client = new Client(url);
@@ -109,14 +105,28 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                                 // 初始等待1s，最多30s,每次重试时间以2倍增长
                                 .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 2)
                                 .build();
+
+                        // make sure the connection is ok
                         log.info("Starting chroma connection testing");
                         try {
                             Failsafe.with(policy).run(() -> client.heartbeat());
                             log.info("Finished chroma connection testing");
                         } catch (FailsafeException e) {
-                            throw new IllegalStateException("connect to chroma server fail:", e.getCause());
+                            throw new IllegalStateException("connect to chroma server fail: " + e.getMessage(), e.getCause());
+                        }
+
+                        // Server End: clean temp document collection
+                        try {
+                            for (Collection collection : Failsafe.with(policy).get(() -> client.listCollections())) {
+                                if (collection.getName().startsWith(TEMP_COLLECTION_PREFIX)) {
+                                    Failsafe.with(policy).run(() -> client.deleteCollection(collection.getName()));
+                                }
+                            }
+                        } catch (FailsafeException e) {
+                            throw new IllegalStateException("clean temp document collection fail: " + e.getMessage(), e.getCause());
                         }
                     }),
+
                     // init reranker
                     CompletableFuture.runAsync(() -> {
                         String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
@@ -132,7 +142,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                     })
             ).join();
 
-            // Backup plan: delete all temp docs
+            // Backup plan: clean temp document collection
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 {
                     setName(ChromaParagraphRelevancyEngine.this.getClass().getName() + "::shutdownHook");
@@ -162,7 +172,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
         init();
         var documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
-        Collection collection = documentCollection.getCollection();
+        Collection collection = getCollection(documentCollection.getId());
         Collection.QueryResponse response;
         try {
             // 1. query embedding
@@ -270,12 +280,9 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     }
 
     @Override
-    public ChromaDocumentCollection getOrCreateDocumentCollection(String collectionId) {
+    public EngineAdaptedDocumentCollection getOrCreateDocumentCollection(String collectionId) {
         init();
-        return documentCollections.computeIfAbsent(collectionId, key -> {
-            Collection collection = getCollection(key);
-            return new ChromaDocumentCollection(collection, this);
-        });
+        return documentCollections.computeIfAbsent(collectionId, key -> new EngineAdaptedDocumentCollection(getCollection(key).getName(), this));
     }
 
     @Override
@@ -289,20 +296,6 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
         }
         chromaCollections.remove(collectionId);
         documentCollections.remove(collectionId);
-    }
-
-    @Override
-    public TempDocumentCollection newTempDocumentCollection() {
-        init();
-        var co = new TempDocumentCollectionAdaptor(getOrCreateDocumentCollection(UUID.randomUUID().toString())) {
-            @Override
-            public void drop() {
-                super.drop();
-                tempDocumentCollections.remove(this);
-            }
-        };
-        tempDocumentCollections.add(co);
-        return co;
     }
 
     protected Collection getCollection(String collectionId) {

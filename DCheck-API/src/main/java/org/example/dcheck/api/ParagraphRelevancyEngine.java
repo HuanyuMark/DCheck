@@ -14,7 +14,7 @@ public interface ParagraphRelevancyEngine {
 
     void removeDocument(DocumentDelete delete);
 
-    DocumentCollection getOrCreateDocumentCollection(String id);
+    DocumentCollection getOrCreateDocumentCollection(String collectionId);
 
     void removeDocumentCollection(String collectionId);
 

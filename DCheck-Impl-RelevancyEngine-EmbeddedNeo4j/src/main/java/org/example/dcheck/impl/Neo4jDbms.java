@@ -20,10 +20,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * @author 三石而立Sunsy
  */
 @Slf4j
-public class Neo4jMultiDatabaseAdaptor {
+public class Neo4jDbms {
     private final Path rootPath;
 
-    public Neo4jMultiDatabaseAdaptor(Path rootPath) {
+    public Neo4jDbms(Path rootPath) {
         this.rootPath = rootPath;
     }
 
