@@ -31,7 +31,7 @@ public class ApiConfig extends Properties {
     public String getString(String key) {
         String o = getProperty(key);
         if (o == null) {
-            throw new IllegalArgumentException("invalid ApiConfig '" + key + "=" + o + "'");
+            throw new IllegalArgumentException("invalid ApiConfig '" + key + "=" + null + "'");
         }
         return o;
     }

@@ -9,13 +9,14 @@ import lombok.Data;
 import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
-import org.example.dcheck.impl.TextContent;
+import org.example.dcheck.impl.InMemoryTextContent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Stream;
 
 /**
  * Date 2025/02/27
+ * 支持处理 {@link BuiltinDocumentType#fastValues()} 中的所有文件类型
  *
  * @author 三石而立Sunsy
  */
@@ -40,7 +41,7 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
 
     @Override
     public boolean support(@NotNull DocumentType type) {
-        return type == BuiltinDocumentType.DOCX || type == BuiltinDocumentType.PDF;
+        return BuiltinDocumentType.fastValues().contains(type);
     }
 
 
@@ -49,7 +50,7 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
         var lcDoc = DocumentLoader.load(new DCheckDocumentSource(document), documentParser);
         return splitter.split(lcDoc).stream().map(seg -> {
             // clean ref to seg
-            var content = new TextContent(seg.text());
+            var content = new InMemoryTextContent(seg.text());
             return DocumentParagraph.builder()
                     // now nowhere to introspect the location, maybe we should define a new splitter to do this
                     .location(ContentMatchParagraphLocation.get())

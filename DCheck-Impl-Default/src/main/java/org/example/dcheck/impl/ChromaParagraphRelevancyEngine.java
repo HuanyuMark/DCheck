@@ -54,6 +54,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
             // 初始等待1s，最多30s,每次重试时间以2倍增长
             .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
             .build();
+
     @Getter
     @Setter
     private Reranker reranker = Reranker.NOP;
@@ -61,6 +62,8 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     @Setter
     @NonNull
     private Gson gson = SerializerSupport.getGson();
+
+
     private volatile boolean init;
 
 
@@ -90,7 +93,9 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                     // init embedding function
                     CompletableFuture.runAsync(() -> {
                         try {
+                            log.info("Starting init Embedding Function '{}'", embeddingFunction.getClass().getCanonicalName());
                             embeddingFunction.init();
+                            log.info("Finished init Embedding Function");
                         } catch (Exception e) {
                             throw new IllegalStateException("init embedding function fail:", e);
                         }
@@ -104,8 +109,10 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                                 // 初始等待1s，最多30s,每次重试时间以2倍增长
                                 .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 2)
                                 .build();
+                        log.info("Starting chroma connection testing");
                         try {
                             Failsafe.with(policy).run(() -> client.heartbeat());
+                            log.info("Finished chroma connection testing");
                         } catch (FailsafeException e) {
                             throw new IllegalStateException("connect to chroma server fail:", e.getCause());
                         }
@@ -115,8 +122,10 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
                         String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
                         if (rerankModel == null) return;
                         reranker = MapSpi.getInstance().getReranker(rerankModel);
+                        log.info("Starting init Reranker '{}'", rerankModel.getClass().getCanonicalName());
                         try {
                             reranker.init();
+                            log.info("Finished init Reranker");
                         } catch (Exception e) {
                             throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
                         }
@@ -124,14 +133,27 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
             ).join();
 
             // Backup plan: delete all temp docs
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                if (tempDocumentCollections.isEmpty()) {
-                    log.info("[TempDocumentCollection Leak Detection]: all collections has been closed, good job!");
-                    return;
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                {
+                    setName(ChromaParagraphRelevancyEngine.this.getClass().getName() + "::shutdownHook");
                 }
-                log.warn("[TempDocumentCollection Leak Detection]: remember closing the collection after using (try-with-resources statement is best practice)");
-                tempDocumentCollections.forEach(TempDocumentCollection::close);
-            }));
+
+                @Override
+                public void run() {
+                    if (tempDocumentCollections.isEmpty()) {
+                        log.info("[TempDocumentCollection Leak Detection]: all collections has been closed, good job!");
+                        return;
+                    }
+                    log.warn("[TempDocumentCollection Leak Detection]: remember closing the collection after using (try-with-resources statement is best practice)");
+                    for (TempDocumentCollection collection : tempDocumentCollections) {
+                        try {
+                            collection.close();
+                        } catch (Exception e) {
+                            log.warn("close leaked collection fail: {}", e.getMessage(), e);
+                        }
+                    }
+                }
+            });
             init = true;
         }
     }
@@ -141,55 +163,62 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
         init();
         var documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         Collection collection = documentCollection.getCollection();
-
+        Collection.QueryResponse response;
         try {
             // 1. query embedding
-            var queryEmbeddingRes = Failsafe.with(collectionAccessPolicy)
-                    .get(() -> {
-                        var response = collection.query(
-                                query.getParagraphs().stream().map(p -> {
-                                    if (p instanceof TextContent) return ((TextContent) p).getText().toString();
-                                    // TODO support other types
-                                    return "";
-                                }).collect(Collectors.toList()),
-                                query.getTopK(),
-                                // exclude self
-                                Collections.singletonMap("documentId", Collections.singletonMap("$ne", query.getCollectionId())),
-                                null,
-                                QUERY_PARAGRAPH_INCLUDE
-                        );
-                        var builder = ParagraphRelevancyQueryResult.builder();
-                        var result = IntStream.range(0, response.getDocuments().size())
-                                .mapToObj(i -> {
-                                    var queryResultDocument = response.getDocuments().get(i);
-                                    var queryResultMetadata = response.getMetadatas().get(i);
-                                    var queryResultScore = response.getDistances().get(i);
-                                    return IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
-                                        // TODO refer to metadata.type, we can reconstruct multiple paragraph type
-                                        // now only support text type
-                                        var document = queryResultDocument.get(j);
-                                        var metadata = queryResultMetadata.get(j);
-                                        var score = queryResultScore.get(j);
-                                        return ParagraphRelevancyQueryResult.Record.builder()
-                                                .paragraph(TextParagraph.builder()
-                                                        .collection(documentCollection)
-                                                        .content(() -> new TextContent(document))
-                                                        .location(gson.fromJson(((String) metadata.get("location")), ParagraphLocation.class))
-                                                        .documentId((String) metadata.get("documentId"))
-                                                        .build())
-                                                .relevancy(score)
-                                                .build();
-                                    }).collect(Collectors.toList());
-                                }).collect(Collectors.toList());
-                        return builder.records(result).build();
-                    });
-
-            //2. rerank
-            return reranker.rerank(queryEmbeddingRes, query);
+            response = Failsafe.with(collectionAccessPolicy)
+                    .get(() -> collection.query(
+                            query.getParagraphs().stream().map(p -> {
+                                if (p instanceof InMemoryTextContent)
+                                    return ((InMemoryTextContent) p).getText().toString();
+                                if (p instanceof TextContent) {
+                                    try {
+                                        return new String(IOUtils.toByteArray(p.getInputStream()));
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                                // TODO support other types
+                                return "";
+                            }).collect(Collectors.toList()),
+                            query.getTopK(),
+                            // exclude self
+                            Collections.singletonMap("documentId", Collections.singletonMap("$ne", query.getCollectionId())),
+                            null,
+                            QUERY_PARAGRAPH_INCLUDE
+                    ));
         } catch (FailsafeException e) {
             throw new IllegalStateException("query paragraph fail: " + e.getCause().getMessage(), e.getCause());
         }
-//        throw new UnsupportedOperationException();
+
+        var builder = ParagraphRelevancyQueryResult.builder();
+        var result = IntStream.range(0, response.getDocuments().size())
+                .mapToObj(i -> {
+                    var queryResultDocument = response.getDocuments().get(i);
+                    var queryResultMetadata = response.getMetadatas().get(i);
+                    var queryResultScore = response.getDistances().get(i);
+                    return IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
+                        // TODO refer to metadata.type, we can reconstruct multiple paragraph type
+                        // now only support text type
+                        var document = queryResultDocument.get(j);
+                        @SuppressWarnings("unchecked")
+                        var metadata = (Map<String, String>) ((Object) queryResultMetadata.get(j));
+                        var score = queryResultScore.get(j);
+                        return ParagraphRelevancyQueryResult.Record.builder()
+                                .paragraph(TextParagraph.mapBuilder()
+                                        .fromFlat(metadata, gson::fromJson)
+                                        .collection(documentCollection)
+                                        .content(() -> new InMemoryTextContent(document))
+                                        .build())
+                                .relevancy(score)
+                                .build();
+                    }).collect(Collectors.toList());
+                }).collect(Collectors.toList());
+
+        var queryEmbeddingRes = builder.records(result).build();
+
+        //2. rerank
+        return reranker.rerank(queryEmbeddingRes, query);
     }
 
     @Override
@@ -197,32 +226,34 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
         init();
         var collection = getCollection(creation.getCollectionId());
         var batch = creation.getBatch().stream().collect(Collectors.groupingBy(ParagraphRelevancyCreation.Record::getParagraphType));
-        try {
-            Failsafe.with(collectionAccessPolicy)
-                    .run(() -> {
-                        var textParagraphs = batch.get(BuiltinParagraphType.TEXT);
-                        if (textParagraphs != null) {
-                            collection.add(
-                                    null,
-                                    textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getMetadata).map(m -> m.toFlatMap(gson::toJson)).collect(Collectors.toList()),
-                                    textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getParagraph).map(p -> {
-                                        if (p.getContent() instanceof TextContent)
-                                            return ((TextContent) p.getContent()).getText().toString();
+        var textParagraphs = batch.get(BuiltinParagraphType.TEXT);
+        if (textParagraphs != null) {
+            try {
+                Failsafe.with(collectionAccessPolicy)
+                        .run(() -> collection.add(
+                                null,
+                                textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getMetadata).map(m -> m.toFlatMap(gson::toJson)).collect(Collectors.toList()),
+                                textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getParagraph).map(p -> {
+                                    if (p.getContent() instanceof InMemoryTextContent)
+                                        return ((InMemoryTextContent) p.getContent()).getText().toString();
+                                    if (p.getContent() instanceof TextContent) {
                                         try {
                                             return new String(IOUtils.toByteArray(p.getContent().getInputStream()));
                                         } catch (IOException e) {
                                             throw new IllegalStateException("read text paragraph fail:", e);
                                         }
-                                    }).collect(Collectors.toList()),
-                                    // 这里的id是否需要预先生成？
-                                    textParagraphs.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
-                            );
-                        }
-                        //TODO handle other types
-                    });
-        } catch (FailsafeException e) {
-            throw new IllegalStateException("add paragraph fail:", e.getCause());
+                                    }
+                                    throw new UnsupportedOperationException();
+                                }).collect(Collectors.toList()),
+                                // 这里的id是否需要预先生成？
+                                textParagraphs.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
+                        ));
+            } catch (FailsafeException e) {
+                throw new IllegalStateException("add paragraph fail:", e.getCause());
+            }
         }
+
+        //TODO handle other types
     }
 
     @Override
@@ -230,55 +261,7 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
         init();
         var collection = getCollection(delete.getCollectionId());
         try {
-            var condition = delete.getMetadataMatchCondition();
-
-            var eqs = condition.getEqs().entrySet().stream()
-                    .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$eq", e.getValue())))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            var uniqueField = new HashSet<>(eqs.keySet());
-
-            var ins = condition.getIns().entrySet().stream()
-                    .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$in", e.getValue())))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            for (String k : ins.keySet()) {
-                if (uniqueField.add(k)) {
-                    continue;
-                }
-                throw new IllegalArgumentException("field cannot apply $eq and $in statements both: " + k);
-            }
-
-            var gts = condition.getGts().entrySet().stream()
-                    .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$gt", e.getValue())))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            for (String k : gts.keySet()) {
-                if (uniqueField.add(k)) {
-                    continue;
-                }
-                throw new IllegalArgumentException("field cannot apply $gt and $in statements both: " + k);
-            }
-
-            var where = new HashMap<>(eqs);
-            where.putAll(ins);
-            where.putAll(gts);
-
-            // check if eqs and ins has same keys (field name)
-            if (where.size() != eqs.size() + ins.size()) {
-                Set<String> bigSet;
-                Set<String> smallSet;
-                if (eqs.size() > ins.size()) {
-                    bigSet = new HashSet<>(eqs.keySet());
-                    smallSet = ins.keySet();
-                } else {
-                    bigSet = new HashSet<>(ins.keySet());
-                    smallSet = eqs.keySet();
-                }
-                bigSet.retainAll(smallSet);
-                throw new IllegalArgumentException("field cannot apply $eq and $in statements both: " + bigSet);
-            }
-
+            var where = ChromaDSLFactory.where(delete.getMetadataMatchCondition());
             Failsafe.with(collectionAccessPolicy)
                     .run(() -> collection.deleteWhere(where));
         } catch (FailsafeException e) {
@@ -300,14 +283,12 @@ public class ChromaParagraphRelevancyEngine implements ParagraphRelevancyEngine 
         init();
         try {
             Failsafe.with(collectionAccessPolicy)
-                    .run(() -> {
-                        client.deleteCollection(collectionId);
-                        chromaCollections.remove(collectionId);
-                        documentCollections.remove(collectionId);
-                    });
+                    .run(() -> client.deleteCollection(collectionId));
         } catch (FailsafeException e) {
             throw new IllegalStateException("delete chroma collection fail:", e.getCause());
         }
+        chromaCollections.remove(collectionId);
+        documentCollections.remove(collectionId);
     }
 
     @Override

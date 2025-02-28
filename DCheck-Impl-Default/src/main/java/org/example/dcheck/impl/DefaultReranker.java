@@ -1,8 +1,12 @@
 package org.example.dcheck.impl;
 
 import com.google.gson.Gson;
+import dev.failsafe.Failsafe;
+import dev.failsafe.FailsafeException;
+import dev.failsafe.RetryPolicy;
 import lombok.*;
 import okhttp3.*;
+import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
@@ -30,6 +34,16 @@ public class DefaultReranker implements Reranker {
     @Setter
     @NonNull
     private Gson gson = new Gson();
+
+    @Getter
+    @Setter
+    @NonNull
+    private RetryPolicy<Object> retryPolicy = RetryPolicy.builder()
+            .handle(IOException.class)
+            .withMaxRetries(3)
+            // 初始等待1s，最多30s,每次重试时间以2倍增长
+            .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
+            .build();
 
     private OkHttpClient client;
 
@@ -90,7 +104,12 @@ public class DefaultReranker implements Reranker {
 
     private String castToText(Content content) {
         //TODO support other content type
-        return content instanceof TextContent ? ((TextContent) content).getText().toString() : "";
+        try {
+            return content instanceof InMemoryTextContent ? ((InMemoryTextContent) content).getText().toString() :
+                    content instanceof TextContent ? new String(IOUtils.toByteArray(content.getInputStream())) : "";
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Data
@@ -127,48 +146,56 @@ public class DefaultReranker implements Reranker {
         this.client = client;
     }
 
-    @Override
-    public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
-        try (var resp = getClient().newCall(
-                RequestTemplate.RERANK.getBuilder()
-                        .post(RequestBody.create(gson.toJson(
-                                new RerankRequest(
-                                        query.getParagraphs().stream().map(this::castToText).collect(Collectors.toList()),
-                                        relevancyResult.getRecords().stream()
-                                                .map(records -> records.stream()
-                                                        .map(ParagraphRelevancyQueryResult.Record::getContent)
-                                                        .map(this::castToText)
-                                                        .collect(Collectors.toList()))
-                                                .collect(Collectors.toList())
-                                )
-                        ), JSON_TYPE))
-                        .build()
-        ).execute()) {
-            if (resp.body() == null) {
-                throw new IOException("response body is null");
-            }
-
-            var rerankResponse = gson.fromJson(new String(resp.body().bytes()), RerankResponse.class);
-            if (!rerankResponse.isSuccess()) {
-                throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
-            }
-
-            var reranked = IntStream.range(0, relevancyResult.getRecords().size())
-                    .mapToObj(i -> {
-                        var currentQueryEmbeddingResult = relevancyResult.getRecords().get(i);
-                        float[] currentQueryScores = rerankResponse.getScores()[i];
-                        if (currentQueryScores.length != currentQueryEmbeddingResult.size()) {
-                            throw new IllegalStateException("rerank fail: response scores length not match");
-                        }
-                        return IntStream.range(0, currentQueryEmbeddingResult.size())
-                                .mapToObj(j -> currentQueryEmbeddingResult.get(i).withRelevancy(currentQueryScores[j]))
-                                .collect(Collectors.toList());
-                    }).collect(Collectors.toList());
-
-            return relevancyResult.withRecords(reranked);
-        } catch (IOException e) {
+    protected String getRerankResponseBody(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
+        try {
+            return Failsafe.with(retryPolicy).get(() -> {
+                try (var r = getClient().newCall(
+                        RequestTemplate.RERANK.getBuilder()
+                                .post(RequestBody.create(gson.toJson(
+                                        new RerankRequest(
+                                                query.getParagraphs().stream().map(this::castToText).collect(Collectors.toList()),
+                                                relevancyResult.getRecords().stream()
+                                                        .map(records -> records.stream()
+                                                                .map(ParagraphRelevancyQueryResult.Record::getContent)
+                                                                .map(this::castToText)
+                                                                .collect(Collectors.toList()))
+                                                        .collect(Collectors.toList())
+                                        )
+                                ), JSON_TYPE))
+                                .build()
+                ).execute()) {
+                    if (r.body() == null) {
+                        throw new IOException("response body is null");
+                    }
+                    return new String(r.body().bytes());
+                }
+            });
+        } catch (FailsafeException e) {
             throw new IllegalStateException("rerank fail: " + e.getMessage(), e);
         }
+    }
+
+
+    @Override
+    public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
+        var rerankResponse = gson.fromJson(getRerankResponseBody(relevancyResult, query), RerankResponse.class);
+        if (!rerankResponse.isSuccess()) {
+            throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
+        }
+
+        var reranked = IntStream.range(0, relevancyResult.getRecords().size())
+                .mapToObj(i -> {
+                    var currentQueryEmbeddingResult = relevancyResult.getRecords().get(i);
+                    float[] currentQueryScores = rerankResponse.getScores()[i];
+                    if (currentQueryScores.length != currentQueryEmbeddingResult.size()) {
+                        throw new IllegalStateException("rerank fail: response scores length not match");
+                    }
+                    return IntStream.range(0, currentQueryEmbeddingResult.size())
+                            .mapToObj(j -> currentQueryEmbeddingResult.get(i).withRelevancy(currentQueryScores[j]))
+                            .collect(Collectors.toList());
+                }).collect(Collectors.toList());
+
+        return relevancyResult.withRecords(reranked);
     }
 
     @Getter

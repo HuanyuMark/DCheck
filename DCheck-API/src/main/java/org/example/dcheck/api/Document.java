@@ -9,7 +9,9 @@ package org.example.dcheck.api;
 public interface Document {
     String getId();
 
-    DocumentType getDocumentType();
+    default DocumentType getDocumentType() {
+        return BuiltinDocumentType.UNKNOWN;
+    }
 
     Content getContent();
 }

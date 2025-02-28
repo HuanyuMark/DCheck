@@ -5,6 +5,8 @@
     <file url="file://$PROJECT_DIR$/DCheck-Common/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-DocxProcessor/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-DocxProcessor/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Test/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Test/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-Reranker/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-Reranker/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/java" charset="UTF-8" />

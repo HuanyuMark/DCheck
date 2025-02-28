@@ -21,14 +21,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChromaDocumentCollection implements DocumentCollection {
 
-    protected final ReentrantLock deleteLock = new ReentrantLock();
     private final String id;
-
     private final ChromaParagraphRelevancyEngine engine;
     private final Collection collection;
+
+    protected final ReentrantLock deleteLock = new ReentrantLock();
     private final Object waitForDeleteMonitor = new Object();
     @Getter
-    private volatile boolean exists;
+    private volatile boolean exists = true;
 
     public ChromaDocumentCollection(Collection collection, ChromaParagraphRelevancyEngine engine) {
         this.id = collection.getName();
@@ -38,10 +38,7 @@ public class ChromaDocumentCollection implements DocumentCollection {
 
     @Override
     public void addDocument(List<Document> documents) {
-        if (!isExists()) {
-            throw new IllegalStateException("Collection not exists");
-        }
-        waitIfNecessary();
+        ensureOps();
         // ...
         var batch = documents.stream().flatMap(document -> {
             var processor = DocumentProcessorProvider.getInstance().getProcessor(document.getDocumentType());
@@ -54,7 +51,7 @@ public class ChromaDocumentCollection implements DocumentCollection {
                             .paragraph(documentParagraph)
                             .metadata(TextParagraphMetadata.builder()
                                     .documentId(document.getId())
-                                    .location(((TextParagraphLocation) documentParagraph.getLocation()))
+                                    .location(documentParagraph.getLocation())
                                     .build())
                             .build();
                 }
@@ -67,27 +64,30 @@ public class ChromaDocumentCollection implements DocumentCollection {
 
     @Override
     public void deleteDocument(List<String> documentIds) {
-        if (!isExists()) {
-            throw new IllegalStateException("Collection not exists");
-        }
-        waitIfNecessary();
+        ensureOps();
         engine.removeDocument(DocumentDelete.builder()
                 .collectionId(id)
-                .metadataMatchCondition(DocumentDelete.MetadataMatchCondition.builder()
+                .metadataMatchCondition(MetadataMatchCondition.builder()
                         .in("documentId", documentIds)
                         .build())
                 .build());
     }
 
+    protected void ensureOps() {
+        waitIfNecessary();
+        if (isExists()) return;
+        throw new IllegalStateException("Collection not exists");
+    }
+
     protected void waitIfNecessary() {
-        if (deleteLock.isLocked()) {
-            try {
-                synchronized (waitForDeleteMonitor) {
-                    waitForDeleteMonitor.wait();
-                }
-            } catch (InterruptedException e) {
-                throw new IllegalStateException("wait for delete interrupted", e);
+        if (!deleteLock.isLocked()) return;
+
+        try {
+            synchronized (waitForDeleteMonitor) {
+                waitForDeleteMonitor.wait();
             }
+        } catch (InterruptedException e) {
+            throw new IllegalStateException("wait for delete interrupted", e);
         }
     }
 

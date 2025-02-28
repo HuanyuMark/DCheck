@@ -2,9 +2,6 @@ package org.example.dcheck.api;
 
 import lombok.*;
 
-import java.util.Collection;
-import java.util.Map;
-
 /**
  * Date 2025/02/25
  *
@@ -19,15 +16,4 @@ public class DocumentDelete {
 
     @NonNull
     private final MetadataMatchCondition metadataMatchCondition;
-
-    @Data
-    @Builder
-    public static class MetadataMatchCondition {
-        @Singular
-        private final Map<String, Object> eqs;
-        @Singular
-        private final Map<String, Collection<Object>> ins;
-        @Singular
-        private final Map<String, Object> gts;
-    }
 }
