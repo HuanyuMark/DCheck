@@ -180,23 +180,53 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
             ArrayList<AutoCloseable> resources = new ArrayList<>();
             try {
                 Encoding[] e = tokenizer.batchEncode(documents, true, false);
-                ArrayList<Long> inputIds = new ArrayList<>();
-                ArrayList<Long> attentionMask = new ArrayList<>();
-                ArrayList<Long> tokenIdtypes = new ArrayList<>();
+
+
                 int maxIds = 0;
+                int inputIdsLength = 0;
+                int attentionMaskLength = 0;
+                int tokenIdtypesLength = 0;
                 for (Encoding encoding : e) {
                     maxIds = Math.max(maxIds, encoding.getIds().length);
-                    inputIds.addAll(Arrays.asList(Arrays.stream(encoding.getIds()).boxed().toArray(Long[]::new)));
-                    attentionMask.addAll(Arrays.asList(Arrays.stream(encoding.getAttentionMask()).boxed().toArray(Long[]::new)));
-                    tokenIdtypes.addAll(Arrays.asList(Arrays.stream(encoding.getTypeIds()).boxed().toArray(Long[]::new)));
+                    inputIdsLength += encoding.getIds().length;
+                    attentionMaskLength += encoding.getAttentionMask().length;
+                    tokenIdtypesLength += encoding.getTypeIds().length;
                 }
+
+                long[] inputIds = new long[inputIdsLength];
+                long[] attentionMask = new long[attentionMaskLength];
+                long[] tokenIdtypes = new long[tokenIdtypesLength];
+
+                int inputIdsCur = 0;
+                int attentionMaskCur = 0;
+                int tokenIdtypesCur = 0;
+                for (Encoding encoding : e) {
+                    System.arraycopy(encoding.getIds(), 0, inputIds, inputIdsCur, encoding.getIds().length);
+                    System.arraycopy(encoding.getAttentionMask(), 0, attentionMask, attentionMaskCur, encoding.getAttentionMask().length);
+                    System.arraycopy(encoding.getTypeIds(), 0, tokenIdtypes, tokenIdtypesCur, encoding.getTypeIds().length);
+                    inputIdsCur += encoding.getIds().length;
+                    attentionMaskCur += encoding.getAttentionMask().length;
+                    tokenIdtypesCur += encoding.getTypeIds().length;
+                }
+//
+//                ArrayList<Long> inputIds = new ArrayList<>();
+//                ArrayList<Long> attentionMask = new ArrayList<>();
+//                ArrayList<Long> tokenIdtypes = new ArrayList<>();
+//                int maxIds = 0;
+//                for (Encoding encoding : e) {
+//                    maxIds = Math.max(maxIds, encoding.getIds().length);
+//                    List<Long> longs = Arrays.asList(Arrays.stream(encoding.getIds()).boxed().toArray(Long[]::new));
+//                    inputIds.addAll(longs);
+//                    attentionMask.addAll(Arrays.asList(Arrays.stream(encoding.getAttentionMask()).boxed().toArray(Long[]::new)));
+//                    tokenIdtypes.addAll(Arrays.asList(Arrays.stream(encoding.getTypeIds()).boxed().toArray(Long[]::new)));
+//                }
                 long[] inputShape = new long[]{e.length, maxIds};
 
-                OnnxTensor inputTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(inputIds.stream().mapToLong(i -> i).toArray()), inputShape);
+                OnnxTensor inputTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(inputIds), inputShape);
                 resources.add(inputTensor);
-                OnnxTensor attentionTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(attentionMask.stream().mapToLong(i -> i).toArray()), inputShape);
+                OnnxTensor attentionTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(attentionMask), inputShape);
                 resources.add(attentionTensor);
-                OnnxTensor _tokenIdtypes = OnnxTensor.createTensor(env, LongBuffer.wrap(tokenIdtypes.stream().mapToLong(i -> i).toArray()), inputShape);
+                OnnxTensor _tokenIdtypes = OnnxTensor.createTensor(env, LongBuffer.wrap(tokenIdtypes), inputShape);
                 resources.add(_tokenIdtypes);
 
 
@@ -212,6 +242,7 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
                     lastHiddenState = Nd4j.create((float[][][]) results.get(0).getValue());
                     resources.add(lastHiddenState);
                 }
+                //TODO adapt long[] to double[]
                 INDArray attMask = Nd4j.create(attentionMask.stream().mapToDouble(i -> i).toArray(), inputShape, 'c');
                 resources.add(attMask);
                 INDArray expandedMask = Nd4j.expandDims(attMask, 2).broadcast(lastHiddenState.shape());
