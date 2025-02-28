@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-import lombok.var;
+import lombok.experimental.ExtensionMethod;
 import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
 import org.example.dcheck.common.util.CollectionUtils;
@@ -16,6 +16,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
+import org.neo4j.kernel.impl.coreapi.Neo4jTransaction;
 import org.springframework.util.StringUtils;
 import tech.amikos.chromadb.EFException;
 import tech.amikos.chromadb.Embedding;
@@ -34,6 +35,7 @@ import java.util.stream.Stream;
  *
  * @author 三石而立Sunsy
  */
+@ExtensionMethod(Neo4jTransaction.class)
 public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngine implements Closeable {
     public static final String DB_ROOT = "db.vector.embedded-neo4j.data-path";
     protected Neo4jDbms dbms;
@@ -84,6 +86,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     }
 
     protected static final String[] EMPTY_STRING_ARRAY = new String[0];
+
 
     @Override
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {

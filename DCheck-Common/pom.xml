@@ -23,9 +23,9 @@
             <groupId>org.example.sunsy</groupId>
             <artifactId>DCheck-API</artifactId>
         </dependency>
-        <dependency>
-            <groupId></groupId>
-            <artifactId></artifactId>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId></groupId>-->
+        <!--            <artifactId></artifactId>-->
+        <!--        </dependency>-->
     </dependencies>
 </project>
