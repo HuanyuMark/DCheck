@@ -11,7 +11,7 @@ public class DcheckAggregateTest {
 
     @Test
     public void test() {
-        DuplicateChecking checking = DuplicateCheckingProvider.getInstance().getImpl();
+        DuplicateChecking checking = DuplicateCheckingProvider.getInstance().getChecking();
         checking.init();
 //        checking.check()
     }

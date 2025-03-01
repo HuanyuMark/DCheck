@@ -11,7 +11,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>DCheck-API</module>
-        <module>DCheck-Impl-Default</module>
+        <module>DCheck-Impl-Default-RelevancyEngine</module>
         <module>DCheck-Impl-Default-DocxProcessor</module>
         <module>DCheck-Common</module>
         <module>DCheck-Impl-Default-Reranker</module>
@@ -24,6 +24,7 @@
     <properties>
         <java.version>1.8</java.version>
         <dcheck.version>0.0.1</dcheck.version>
+        <lombok.version>1.18.36</lombok.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
 
@@ -44,13 +45,19 @@
             </dependency>
             <dependency>
                 <groupId>org.example.sunsy</groupId>
-                <artifactId>DCheck-Impl-Default</artifactId>
+                <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
                 <groupId>org.example.sunsy</groupId>
+                <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.example.sunsy</groupId>
                 <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
-                <version>5.4.0-0.0.1</version>
+                <version>0.0.1</version>
             </dependency>
             <dependency>
                 <groupId>org.example.sunsy</groupId>
@@ -73,6 +80,12 @@
                 <version>2.7.8</version>
                 <scope>import</scope>
                 <type>pom</type>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains</groupId>
@@ -89,7 +102,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.36</version>
+                <version>${lombok.version}</version>
                 <optional>true</optional>
             </dependency>
         </dependencies>
@@ -155,6 +168,13 @@
                             -->
                             <outputDirectory>${delombok.dir}</outputDirectory>
                         </configuration>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </dependency>
+                        </dependencies>
                         <executions>
                             <execution>
                                 <phase>generate-sources</phase>

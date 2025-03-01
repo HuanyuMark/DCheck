@@ -14,7 +14,8 @@ import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
-import org.example.dcheck.spi.MapSpi;
+import org.example.dcheck.spi.EmbeddingFuncMapProvider;
+import org.example.dcheck.spi.RerankerMapProvider;
 import org.springframework.util.StringUtils;
 import tech.amikos.chromadb.Client;
 import tech.amikos.chromadb.Collection;
@@ -101,7 +102,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             }
 
             var embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
-            embeddingFunction = MapSpi.getInstance().getFunc(embeddingModel);
+            embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
 
             var url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
             if (!StringUtils.hasText(url)) {
@@ -155,7 +156,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     CompletableFuture.runAsync(() -> {
                         String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
                         if (rerankModel == null) return;
-                        reranker = MapSpi.getInstance().getReranker(rerankModel);
+                        reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
                         log.info("Starting init Reranker '{}'", rerankModel.getClass().getCanonicalName());
                         try {
                             reranker.init();

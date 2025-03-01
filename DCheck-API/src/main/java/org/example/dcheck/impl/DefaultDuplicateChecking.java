@@ -7,7 +7,7 @@ import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
-import org.example.dcheck.spi.MapSpi;
+import org.example.dcheck.spi.RelevancyEngineMapProvider;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -20,27 +20,39 @@ import java.util.stream.Collectors;
  * @author 三石而立Sunsy
  */
 @Slf4j
-@Getter
 public class DefaultDuplicateChecking implements DuplicateChecking {
 
     private ParagraphRelevancyEngine relevancyEngine;
 
+    private volatile boolean init;
+
+    public ParagraphRelevancyEngine getRelevancyEngine() {
+        init();
+        return relevancyEngine;
+    }
+
     @Override
     public void init() {
-        var apiConfig = ConfigProvider.getInstance().getApiConfig();
-        relevancyEngine = MapSpi.getInstance().getRelevancyEngine(apiConfig.getProperty(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
+        if (init) return;
+        synchronized (this) {
+            if (init) return;
+            var apiConfig = ConfigProvider.getInstance().getApiConfig();
+            relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(apiConfig.getProperty(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
 
-        try {
-            log.info("Starting init Relevancy Engine '{}'", relevancyEngine.getClass().getCanonicalName());
-            relevancyEngine.init();
-            log.info("Finished init Relevancy Engine");
-        } catch (Exception e) {
-            throw new IllegalStateException("init relevancy engine fail:", e);
+            try {
+                log.info("Starting init Relevancy Engine '{}'", relevancyEngine.getClass().getCanonicalName());
+                relevancyEngine.init();
+                log.info("Finished init Relevancy Engine");
+            } catch (Exception e) {
+                throw new IllegalStateException("init relevancy engine fail:", e);
+            }
+            init = true;
         }
     }
 
     @Override
     public CheckResult check(Check check, DocumentCollection collection) {
+        init();
         var queryResult = relevancyEngine.queryParagraph(
                 ParagraphRelevancyQuery.builder()
                         .documentId(check.getDocument().getId())

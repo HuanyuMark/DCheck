@@ -6,7 +6,8 @@ import lombok.NonNull;
 
 /**
  * Date: 2025/2/25
- *
+ * represent a check task.
+ * core api to start a duplicate checking
  * @author 三石而立Sunsy
  */
 @Data

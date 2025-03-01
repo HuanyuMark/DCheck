@@ -26,5 +26,9 @@ public enum BuiltinParagraphLocationType implements ParagraphLocationType {
         public ParagraphLocation getIfSingleton() {
             return ContentMatchParagraphLocation.get();
         }
+    };
+
+    BuiltinParagraphLocationType() {
+        ALL_TYPES.put(this.name(), this);
     }
 }

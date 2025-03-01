@@ -9,7 +9,8 @@ import java.util.List;
  * Date 2025/02/25
  * the endpoint to start duplicate-check
  * 进行查重的入口
- * 通过 {@link DuplicateCheckingProvider#getImpl()} 获取实现
+ * 通过 {@link DuplicateCheckingProvider#getChecking()} 获取实现
+ * @see DuplicateCheckingProvider DuplicateCheckingProvider
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")

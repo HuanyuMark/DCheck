@@ -1,12 +1,16 @@
 package org.example.dcheck.api;
 
+import org.example.dcheck.spi.ConfigProvider;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Properties;
 
 /**
  * Date 2025/02/26
- *
+ * common interface to access all config in dcheck.
+ * you can access the config instance by {@link ConfigProvider#getApiConfig()}
+ * there are some loading mechanism to load config. see in the provider...
+ * @see ConfigProvider
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")

@@ -16,7 +16,7 @@
 
         <dependency>
             <groupId>org.example.sunsy</groupId>
-            <artifactId>DCheck-Impl-Default</artifactId>
+            <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.example.sunsy</groupId>

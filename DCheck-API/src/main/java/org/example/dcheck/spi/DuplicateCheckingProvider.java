@@ -10,11 +10,15 @@ import org.example.dcheck.api.DuplicateChecking;
  */
 public class DuplicateCheckingProvider implements DCheckProvider {
 
-    @Getter(lazy = true)
+    @Getter
     private final static DuplicateCheckingProvider instance = new DuplicateCheckingProvider();
 
     @Getter(lazy = true)
-    private final DuplicateChecking impl = Providers.findImpl(DuplicateChecking.class, "dcheck.checking.impl");
+    private final DuplicateChecking checking =
+            Providers.findAllImplementations(DuplicateChecking.class)
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(IllegalStateException::new);
 
     protected DuplicateCheckingProvider() {
     }

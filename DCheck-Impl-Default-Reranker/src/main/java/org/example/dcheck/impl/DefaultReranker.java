@@ -1,18 +1,16 @@
 package org.example.dcheck.impl;
 
-import com.google.gson.Gson;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import lombok.*;
 import okhttp3.*;
-import org.example.dcheck.api.ApiConfig;
-import org.example.dcheck.api.ParagraphRelevancyQuery;
-import org.example.dcheck.api.ParagraphRelevancyQueryResult;
-import org.example.dcheck.api.Reranker;
+import org.example.dcheck.api.*;
 import org.example.dcheck.common.util.ContentConvert;
+import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.lang.NonNull;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -34,9 +32,11 @@ public class DefaultReranker implements Reranker {
 
     public static final MediaType JSON_TYPE = MediaType.get("application/json");
     @Getter
-    @Setter
-    @NonNull
-    private Gson gson = new Gson();
+    private Codec codec;
+
+    public void setCodec(@NonNull Codec codec) {
+        this.codec = codec;
+    }
 
     @Getter
     @Setter
@@ -90,12 +90,20 @@ public class DefaultReranker implements Reranker {
 
     @Override
     public void init() {
+        if (getCodec() == null) {
+            setCodec(CodecProvider.getInstance()
+                    .getCodecs()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
+        }
+
         RequestTemplate.init();
         try (var resp = getClient().newCall(RequestTemplate.INIT.getRequest()).execute()) {
             if (resp.body() == null) {
                 throw new IOException("response body is null");
             }
-            var initResponse = gson.fromJson(new String(resp.body().bytes()), BaseResponse.class);
+            var initResponse = (BaseResponse) codec.convertTo(new String(resp.body().bytes()), BaseResponse.class);
             if (initResponse.isSuccess()) {
                 return;
             }
@@ -144,7 +152,7 @@ public class DefaultReranker implements Reranker {
             return Failsafe.with(retryPolicy).get(() -> {
                 try (var r = getClient().newCall(
                         RequestTemplate.RERANK.getBuilder()
-                                .post(RequestBody.create(gson.toJson(
+                                .post(RequestBody.create((String) codec.convertTo(
                                         new RerankRequest(
                                                 query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),
                                                 relevancyResult.getRecords().stream()
@@ -153,7 +161,7 @@ public class DefaultReranker implements Reranker {
                                                                 .map(ContentConvert::castToText)
                                                                 .collect(Collectors.toList()))
                                                         .collect(Collectors.toList())
-                                        )
+                                        ), String.class
                                 ), JSON_TYPE))
                                 .build()
                 ).execute()) {
@@ -171,7 +179,7 @@ public class DefaultReranker implements Reranker {
 
     @Override
     public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
-        var rerankResponse = gson.fromJson(getRerankResponseBody(relevancyResult, query), RerankResponse.class);
+        var rerankResponse = (RerankResponse) codec.convertTo(getRerankResponseBody(relevancyResult, query), RerankResponse.class);
         if (!rerankResponse.isSuccess()) {
             throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
         }

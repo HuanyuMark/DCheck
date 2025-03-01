@@ -3,7 +3,8 @@ package org.example.dcheck.api;
 /**
  * Date 2025/02/25
  * 相似度引擎，负责执行与相似度计算相关的所有核心逻辑
- *
+ * the core api to do duplicate checking
+ * @see DuplicateChecking
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")

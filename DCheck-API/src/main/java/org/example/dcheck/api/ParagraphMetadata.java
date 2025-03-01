@@ -9,7 +9,8 @@ import java.util.function.Function;
 
 /**
  * Date 2025/02/27
- *
+ * strict constraint type of paragraph metadata.
+ * list the common metadata of paragraph.
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")

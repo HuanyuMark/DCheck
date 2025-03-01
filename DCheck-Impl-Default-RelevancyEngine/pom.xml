@@ -7,7 +7,7 @@
         <version>0.0.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>DCheck-Impl-Default</artifactId>
+    <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
     <dependencies>
         <dependency>
             <groupId>org.example.sunsy</groupId>

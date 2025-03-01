@@ -12,7 +12,7 @@ import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
-import org.example.dcheck.spi.EmbeddingFuncMapSpi;
+import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -110,7 +110,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
 
             try {
-                tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + UUID.randomUUID()));
+                tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + System.currentTimeMillis()));
             } catch (IOException e) {
                 throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
             }
@@ -155,7 +155,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             }
 
             var embeddingModel = apiConfig.getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
-            embeddingFunction = EmbeddingFuncMapSpi.getInstance().getFunc(embeddingModel);
+            embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
 
             try {
                 embeddingFunction.init();
@@ -288,12 +288,11 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         var collection = getCollection(delete.getCollectionId());
         try (Transaction tx = collection.beginTx()) {
             for (Map.Entry<String, String> kv : delete.getMetadataMatchCondition().getEqs().entrySet()) {
-                tx.findNodes(PARAGRAPH_LABEL, kv.getKey(), kv.getValue());
-//                tx.
+                tx.findNodes(PARAGRAPH_LABEL, kv.getKey(), kv.getValue()).forEachRemaining(Node::delete);
             }
             for (Map.Entry<String, Collection<String>> kvs : delete.getMetadataMatchCondition().getIns().entrySet()) {
                 for (String value : kvs.getValue()) {
-                    tx.findNodes(PARAGRAPH_LABEL, kvs.getKey(), value).remove();
+                    tx.findNodes(PARAGRAPH_LABEL, kvs.getKey(), value).forEachRemaining(Node::delete);
                 }
             }
             tx.commit();

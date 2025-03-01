@@ -8,6 +8,34 @@
     </parent>
     <groupId>org.example</groupId>
     <artifactId>DCheck-Impl-Default-Reranker</artifactId>
-    <name>Archetype - DCheck-Impl-Default-Reranker</name>
-    <url>http://maven.apache.org</url>
+    <dependencies>
+        <dependency>
+            <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-API</artifactId>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-Common</artifactId>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/okhttp -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.9.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.failsafe</groupId>
+            <artifactId>failsafe</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
 </project>

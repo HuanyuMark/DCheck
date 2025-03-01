@@ -6,7 +6,6 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
-    <groupId>org.example</groupId>
     <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
 
     <properties>

@@ -8,8 +8,7 @@
     </parent>
     <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
 
-    <version>5.4.0-0.0.1</version>
-
+    <!--    <version>5.4.0-0.0.1</version>-->
     <dependencies>
 
         <dependency>

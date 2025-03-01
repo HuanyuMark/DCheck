@@ -30,7 +30,9 @@ class Providers {
 
     private final static ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
-
+    /**
+     * load all impl at startup. maybe lead to performance problem.
+     */
     static <Service> List<Service> findAllImplementations(Class<Service> serviceClass) {
         var loader = ServiceLoader.load(serviceClass);
         var results = new ArrayList<Service>();
