@@ -1,7 +1,5 @@
 package org.example.dcheck.api;
 
-import org.springframework.core.ResolvableType;
-
 import java.lang.reflect.Type;
 
 /**
@@ -10,23 +8,13 @@ import java.lang.reflect.Type;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-public interface Codec<TransportData> {
+public interface Codec {
 
     String getName();
 
-    boolean supportTransportData(Object input);
-
-    default Type getTansportDataType() {
-        return ResolvableType.forType(this.getClass()).as(Codec.class).getGeneric(0).getType();
+    default <Target> Target convertTo(Object input, Type targetType) {
+        return convertTo(input, (Object) targetType);
     }
 
-    /**
-     * deserialize
-     */
-    <T> T formTransportData(Type objType, Object input);
-
-    /**
-     * serialize
-     */
-    TransportData toTransportData(Object obj);
+    <Target> Target convertTo(Object input, Object targetTypeHint);
 }

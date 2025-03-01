@@ -9,9 +9,9 @@ import org.example.dcheck.embedding.EmbeddingFunction;
  *
  * @author 三石而立Sunsy
  */
-public class MapSpi implements DCheckProvider {
+public class EmbeddingFuncMapSpi implements DCheckProvider {
     @Getter(lazy = true)
-    private static final MapSpi instance = new MapSpi();
+    private static final EmbeddingFuncMapSpi instance = new EmbeddingFuncMapSpi();
 
     public EmbeddingFunction getFunc(String modelKey) {
         return Providers.createService(EmbeddingFunctionMapConfigProvider.getInstance().getEmbeddingFuncMap(), "embedding model", modelKey);

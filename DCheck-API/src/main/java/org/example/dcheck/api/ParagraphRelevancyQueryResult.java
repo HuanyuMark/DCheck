@@ -13,6 +13,7 @@ import java.util.List;
 @Data
 @Builder
 @SuppressWarnings("unused")
+@AllArgsConstructor
 public class ParagraphRelevancyQueryResult {
     @With
     @Singular
@@ -20,6 +21,7 @@ public class ParagraphRelevancyQueryResult {
 
     @Data
     @Builder
+    @AllArgsConstructor
     public static class Record {
         @NonNull
         @Delegate

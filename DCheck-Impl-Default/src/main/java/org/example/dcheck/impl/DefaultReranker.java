@@ -6,8 +6,11 @@ import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import lombok.*;
 import okhttp3.*;
-import org.apache.commons.io.IOUtils;
-import org.example.dcheck.api.*;
+import org.example.dcheck.api.ApiConfig;
+import org.example.dcheck.api.ParagraphRelevancyQuery;
+import org.example.dcheck.api.ParagraphRelevancyQueryResult;
+import org.example.dcheck.api.Reranker;
+import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
 
@@ -102,16 +105,6 @@ public class DefaultReranker implements Reranker {
         }
     }
 
-    private String castToText(Content content) {
-        //TODO support other content type
-        try {
-            return content instanceof InMemoryTextContent ? ((InMemoryTextContent) content).getText().toString() :
-                    content instanceof TextContent ? new String(IOUtils.toByteArray(content.getInputStream())) : "";
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @Data
     protected static class BaseResponse {
         private boolean success;
@@ -153,11 +146,11 @@ public class DefaultReranker implements Reranker {
                         RequestTemplate.RERANK.getBuilder()
                                 .post(RequestBody.create(gson.toJson(
                                         new RerankRequest(
-                                                query.getParagraphs().stream().map(this::castToText).collect(Collectors.toList()),
+                                                query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),
                                                 relevancyResult.getRecords().stream()
                                                         .map(records -> records.stream()
                                                                 .map(ParagraphRelevancyQueryResult.Record::getContent)
-                                                                .map(this::castToText)
+                                                                .map(ContentConvert::castToText)
                                                                 .collect(Collectors.toList()))
                                                         .collect(Collectors.toList())
                                         )

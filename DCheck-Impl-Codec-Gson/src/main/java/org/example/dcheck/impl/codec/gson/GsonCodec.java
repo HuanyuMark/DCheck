@@ -1,11 +1,9 @@
-package org.example.dcheck.impl;
+package org.example.dcheck.impl.codec.gson;
 
 import com.google.gson.*;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
-import lombok.var;
+import lombok.*;
 import org.example.dcheck.api.BuiltinParagraphLocationType;
+import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphLocationType;
 
@@ -17,24 +15,27 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Date 2025/02/27
+ * Date: 2025/3/1
  *
  * @author 三石而立Sunsy
  */
-public class SerializerSupport {
+@Data
+public class GsonCodec implements Codec {
+    private final String name = "DCheck-Impl-Codec-Gson";
+
     @Getter
     @Setter
     @NonNull
-    private static Gson gson;
+    private Gson gson;
 
     @Getter
-    private static final GsonBuilder defaultGsonBuilder = new GsonBuilder();
+    private final GsonBuilder defaultGsonBuilder = new GsonBuilder();
 
     @Getter
-    private static final Map<String, ParagraphLocationType> paragraphLocationTypeMap = new HashMap<>(Arrays.stream(BuiltinParagraphLocationType.values()).map(e -> new AbstractMap.SimpleEntry<>(e.name(), e)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    private final Map<String, ParagraphLocationType> paragraphLocationTypeMap = new HashMap<>(Arrays.stream(BuiltinParagraphLocationType.values()).map(e -> new AbstractMap.SimpleEntry<>(e.name(), e)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
-    static {
-        gson = defaultGsonBuilder
+    {
+        setGson(defaultGsonBuilder
                 .registerTypeAdapter(ParagraphLocation.class, (JsonDeserializer<ParagraphLocation>) (json, typeOfT, context) -> {
                     var obj = json.getAsJsonObject();
                     var type = (ParagraphLocationType) context.deserialize(obj.get("type"), ParagraphLocationType.class);
@@ -52,6 +53,21 @@ public class SerializerSupport {
                     }
                     return paragraphLocationType;
                 })
-                .create();
+                .create());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <Target> Target convertTo(Object input, Object targetTypeHint) {
+        if (!(targetTypeHint instanceof Type)) {
+            throw new IllegalArgumentException("unsupported target type: " + targetTypeHint);
+        }
+        if (targetTypeHint instanceof Class) {
+            if (JsonElement.class.isAssignableFrom((Class<?>) targetTypeHint))
+                return (Target) gson.toJsonTree(input);
+            if (String.class.isAssignableFrom((Class<?>) targetTypeHint))
+                return (Target) gson.toJson(input);
+        }
+        return gson.fromJson(gson.toJsonTree(input), (Type) targetTypeHint);
     }
 }

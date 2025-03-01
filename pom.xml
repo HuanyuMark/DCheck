@@ -18,6 +18,7 @@
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Test</module>
         <module>DCheck-Embedding</module>
+        <module>DCheck-Impl-Codec-Gson</module>
     </modules>
 
     <properties>
@@ -59,6 +60,11 @@
             <dependency>
                 <groupId>org.example.sunsy</groupId>
                 <artifactId>DCheck-Embedding</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.sunsy</groupId>
+                <artifactId>DCheck-Impl-Codec-Gson</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>

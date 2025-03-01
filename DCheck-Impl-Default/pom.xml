@@ -17,7 +17,18 @@
 
         <dependency>
             <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-Common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example.sunsy</groupId>
             <artifactId>DCheck-Embedding</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example.sunsy</groupId>
+            <artifactId>DCheck-Impl-Codec-Gson</artifactId>
+            <version>0.0.1</version>
         </dependency>
 
         <dependency>

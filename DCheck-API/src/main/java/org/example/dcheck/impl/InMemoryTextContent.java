@@ -13,9 +13,9 @@ import java.nio.charset.StandardCharsets;
  *
  * @author 三石而立Sunsy
  */
+@Getter
 @RequiredArgsConstructor
 public class InMemoryTextContent implements TextContent {
-    @Getter
     private final CharSequence text;
 
     @Override

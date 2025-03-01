@@ -20,10 +20,15 @@ import java.util.stream.Collectors;
 public class ParagraphRelevancyQuery {
     private final String collectionId;
     @NonNull
+    private final String documentId;
+    @NonNull
     private final List<Supplier<? extends Content>> paragraphs;
     @Builder.Default
     private final int topK = 5;
-    @Singular("includeMetadata")
+    /**
+     * return all metadata if empty
+     */
+    @Singular("includeMetadataField")
     private final Set<String> includeMetadata;
 
     public List<? extends Content> getParagraphs() {

@@ -2,12 +2,10 @@ package org.example.dcheck.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
+import org.example.dcheck.api.DocumentCollection;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
 import org.example.dcheck.api.TempDocumentCollection;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,17 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public abstract class AbstractParagraphRelevancyEngine implements ParagraphRelevancyEngine {
-
-    protected static final String TEMP_COLLECTION_PREFIX;
-
-    static {
-        try {
-            // use the name with unescaped char to avoid name conflict
-            TEMP_COLLECTION_PREFIX = URLEncoder.encode("tmp\0\\", StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     protected final Set<TempDocumentCollection> tempDocumentCollections = ConcurrentHashMap.newKeySet();
 
@@ -79,7 +66,7 @@ public abstract class AbstractParagraphRelevancyEngine implements ParagraphRelev
     @Override
     public TempDocumentCollection newTempDocumentCollection() {
         init();
-        var co = new TempDocumentCollectionAdaptor(getOrCreateDocumentCollection(TEMP_COLLECTION_PREFIX + UUID.randomUUID().toString())) {
+        var co = new TempDocumentCollectionAdaptor(doNewTempDocumentCollection()) {
             @Override
             public void drop() {
                 super.drop();
@@ -88,5 +75,13 @@ public abstract class AbstractParagraphRelevancyEngine implements ParagraphRelev
         };
         tempDocumentCollections.add(co);
         return co;
+    }
+
+    protected DocumentCollection doNewTempDocumentCollection() {
+        return getOrCreateDocumentCollection(generateTempDocumentCollectionId());
+    }
+
+    protected String generateTempDocumentCollectionId() {
+        return UUID.randomUUID().toString();
     }
 }

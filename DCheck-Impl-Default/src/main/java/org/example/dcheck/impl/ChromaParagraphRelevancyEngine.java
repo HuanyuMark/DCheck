@@ -1,6 +1,5 @@
 package org.example.dcheck.impl;
 
-import com.google.gson.Gson;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
@@ -11,7 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
+import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.embedding.EmbeddingFunction;
+import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.MapSpi;
 import org.springframework.util.StringUtils;
@@ -21,6 +22,9 @@ import tech.amikos.chromadb.handler.ApiException;
 import tech.amikos.chromadb.model.QueryEmbedding;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -34,9 +38,20 @@ import java.util.stream.IntStream;
  * @author 三石而立Sunsy
  */
 @Slf4j
+@SuppressWarnings("unused")
 public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEngine implements ParagraphRelevancyEngine {
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
+    protected static final String TEMP_COLLECTION_PREFIX;
+
+    static {
+        try {
+            // use the name with unescaped char to avoid name conflict
+            TEMP_COLLECTION_PREFIX = URLEncoder.encode("tmp\0\\", StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private final Map<String, Collection> chromaCollections = new ConcurrentSkipListMap<>();
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
@@ -57,10 +72,11 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     @Setter
     private Reranker reranker = Reranker.NOP;
     @Getter
-    @Setter
-    @NonNull
-    private Gson gson = SerializerSupport.getGson();
+    private Codec codec;
 
+    public void setCodec(@NonNull Codec codec) {
+        this.codec = codec;
+    }
 
     public ChromaParagraphRelevancyEngine() {
 
@@ -74,6 +90,14 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         synchronized (this) {
             if (init) {
                 return;
+            }
+
+            if (codec == null) {
+                codec = CodecProvider.getInstance()
+                        .getCodecs()
+                        .stream()
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
             }
 
             var embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
@@ -118,7 +142,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         // Server End: clean temp document collection
                         try {
                             for (Collection collection : Failsafe.with(policy).get(() -> client.listCollections())) {
-                                if (collection.getName().startsWith(TEMP_COLLECTION_PREFIX)) {
+                                if (isTempDocumentCollection(collection.getName())) {
                                     Failsafe.with(policy).run(() -> client.deleteCollection(collection.getName()));
                                 }
                             }
@@ -141,29 +165,6 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         }
                     })
             ).join();
-
-            // Backup plan: clean temp document collection
-            Runtime.getRuntime().addShutdownHook(new Thread() {
-                {
-                    setName(ChromaParagraphRelevancyEngine.this.getClass().getName() + "::shutdownHook");
-                }
-
-                @Override
-                public void run() {
-                    if (tempDocumentCollections.isEmpty()) {
-                        log.info("[TempDocumentCollection Leak Detection]: all collections has been closed, good job!");
-                        return;
-                    }
-                    log.warn("[TempDocumentCollection Leak Detection]: remember closing the collection after using (try-with-resources statement is best practice)");
-                    for (TempDocumentCollection collection : tempDocumentCollections) {
-                        try {
-                            collection.close();
-                        } catch (Exception e) {
-                            log.warn("close leaked collection fail: {}", e.getMessage(), e);
-                        }
-                    }
-                }
-            });
             init = true;
         }
     }
@@ -178,22 +179,10 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             // 1. query embedding
             response = Failsafe.with(collectionAccessPolicy)
                     .get(() -> collection.query(
-                            query.getParagraphs().stream().map(p -> {
-                                if (p instanceof InMemoryTextContent)
-                                    return ((InMemoryTextContent) p).getText().toString();
-                                if (p instanceof TextContent) {
-                                    try {
-                                        return new String(IOUtils.toByteArray(p.getInputStream()));
-                                    } catch (IOException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                }
-                                // TODO support other types
-                                return "";
-                            }).collect(Collectors.toList()),
+                            query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),
                             query.getTopK(),
                             // exclude self
-                            Collections.singletonMap("documentId", Collections.singletonMap("$ne", query.getCollectionId())),
+                            Collections.singletonMap("documentId", Collections.singletonMap("$ne", query.getDocumentId())),
                             null,
                             QUERY_PARAGRAPH_INCLUDE
                     ));
@@ -216,7 +205,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         var score = queryResultScore.get(j);
                         return ParagraphRelevancyQueryResult.Record.builder()
                                 .paragraph(TextParagraph.mapBuilder()
-                                        .fromFlat(metadata, gson::fromJson)
+                                        .fromFlat(metadata, codec::convertTo)
                                         .collection(documentCollection)
                                         .content(() -> new InMemoryTextContent(document))
                                         .build())
@@ -242,7 +231,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                 Failsafe.with(collectionAccessPolicy)
                         .run(() -> collection.add(
                                 null,
-                                textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getMetadata).map(m -> m.toFlatMap(gson::toJson)).collect(Collectors.toList()),
+                                textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getMetadata).map(m -> m.toFlatMap(form -> codec.convertTo(form, String.class))).collect(Collectors.toList()),
                                 textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getParagraph).map(p -> {
                                     if (p.getContent() instanceof InMemoryTextContent)
                                         return ((InMemoryTextContent) p.getContent()).getText().toString();
@@ -314,5 +303,14 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                 throw new IllegalStateException("access chroma collection fail:", e.getCause());
             }
         });
+    }
+
+    @Override
+    protected String generateTempDocumentCollectionId() {
+        return TEMP_COLLECTION_PREFIX + UUID.randomUUID();
+    }
+
+    protected boolean isTempDocumentCollection(String collectionId) {
+        return collectionId.startsWith(TEMP_COLLECTION_PREFIX);
     }
 }

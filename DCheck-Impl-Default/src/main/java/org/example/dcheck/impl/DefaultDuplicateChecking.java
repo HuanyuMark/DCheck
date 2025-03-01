@@ -20,9 +20,9 @@ import java.util.stream.Collectors;
  * @author 三石而立Sunsy
  */
 @Slf4j
+@Getter
 public class DefaultDuplicateChecking implements DuplicateChecking {
 
-    @Getter
     private ParagraphRelevancyEngine relevancyEngine;
 
     @Override
@@ -43,6 +43,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     public CheckResult check(Check check, DocumentCollection collection) {
         var queryResult = relevancyEngine.queryParagraph(
                 ParagraphRelevancyQuery.builder()
+                        .documentId(check.getDocument().getId())
                         .collectionId(collection.getId())
                         .topK(check.getTopKOfEachParagraph())
                         .paragraphs(DocumentProcessorProvider.getInstance().split(check.getDocument()).map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()))
