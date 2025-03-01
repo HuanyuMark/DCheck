@@ -1,7 +1,6 @@
 package org.example.dcheck.impl;
 
 import org.example.dcheck.embedding.EmbeddingFunction;
-import tech.amikos.chromadb.EFException;
 import tech.amikos.chromadb.Embedding;
 
 import java.io.InputStream;
@@ -13,29 +12,30 @@ import java.util.function.Supplier;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings({"unused", "unusedThrown"})
 public class OnnxEmbeddingFunction implements EmbeddingFunction {
     @Override
-    public void init() throws Exception {
+    public void init() {
 
     }
 
     @Override
-    public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws EFException {
+    public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) {
         return null;
     }
 
     @Override
-    public Embedding embedQuery(String query) throws EFException {
+    public Embedding embedQuery(String query) {
         return null;
     }
 
     @Override
-    public List<Embedding> embedDocuments(List<String> documents) throws EFException {
+    public List<Embedding> embedDocuments(List<String> documents) {
         return null;
     }
 
     @Override
-    public List<Embedding> embedDocuments(String[] documents) throws EFException {
+    public List<Embedding> embedDocuments(String[] documents) {
         return null;
     }
 }
