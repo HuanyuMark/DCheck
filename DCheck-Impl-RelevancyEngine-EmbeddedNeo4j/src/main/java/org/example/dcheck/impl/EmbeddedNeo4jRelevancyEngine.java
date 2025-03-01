@@ -45,11 +45,11 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     /////
     //@see https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/vector-indexes/
     // here are builtin api config
-    public static final String DB_ROOT = "db.vector.embedded-neo4j.data-path";
-    public static final String SIMILARITY_FUNCTION = "db.vector.embedded-neo4j.similarity_function";
-    public static final String QUANTIZATION_ENABLE = "db.vector.embedded-neo4j.quantization.enable";
-    public static final String HNSW_M = "db.vector.embedded-neo4j.hnsw.m";
-    public static final String HNSW_EF_CONSTRUCTION = "db.vector.embedded-neo4j.hnsw.ef_construction";
+    public static final String DB_ROOT = "relevancy-engine.embedded-neo4j.data-path";
+    public static final String SIMILARITY_FUNCTION = "relevancy-engine.embedded-neo4j.config.similarity_function";
+    public static final String QUANTIZATION_ENABLE = "relevancy-engine.embedded-neo4j.config.relevancy-engine.embedded-neo4j.quantization.enable";
+    public static final String HNSW_M = "relevancy-engine.embedded-neo4j.config.hnsw.m";
+    public static final String HNSW_EF_CONSTRUCTION = "relevancy-engine.embedded-neo4j.config.hnsw.ef_construction";
     /////
 
     protected static final Label PARAGRAPH_LABEL = Label.label("Paragraph");

@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.example.sunsy</groupId>
+        <groupId>org.example.dcheck</groupId>
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
         <relativePath>../pom.xml</relativePath>
@@ -10,23 +10,23 @@
     <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
     <dependencies>
         <dependency>
-            <groupId>org.example.sunsy</groupId>
+            <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-API</artifactId>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.example.sunsy</groupId>
+            <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Common</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.example.sunsy</groupId>
+            <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Embedding</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.example.sunsy</groupId>
+            <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Impl-Codec-Gson</artifactId>
             <version>0.0.1</version>
         </dependency>

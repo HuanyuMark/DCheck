@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.example.sunsy</groupId>
+        <groupId>org.example.dcheck</groupId>
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
@@ -20,7 +20,7 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>org.example.sunsy</groupId>
+            <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-API</artifactId>
         </dependency>
         <!--        <dependency>-->

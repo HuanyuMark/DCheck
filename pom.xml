@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example.sunsy</groupId>
+    <groupId>org.example.dcheck</groupId>
     <artifactId>DCheck</artifactId>
     <version>0.0.1</version>
 
@@ -39,38 +39,43 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-API</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
                 <version>0.0.1</version>
             </dependency>
 
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Common</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Embedding</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
-                <groupId>org.example.sunsy</groupId>
+                <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-Default-Reranker</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Impl-Codec-Gson</artifactId>
                 <version>0.0.1</version>
             </dependency>
