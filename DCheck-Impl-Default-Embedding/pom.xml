@@ -6,18 +6,19 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>DCheck-Impl-Embedding</artifactId>
-    <dependencies>
-        <dependency>
-            <groupId>org.example.dcheck</groupId>
-            <artifactId>DCheck-API</artifactId>
-            <scope>compile</scope>
-        </dependency>
+    <artifactId>DCheck-Impl-Default-Embedding</artifactId>
 
+    <dependencies>
         <dependency>
             <groupId>io.github.amikos-tech</groupId>
             <artifactId>chromadb-java-client</artifactId>
+            <scope>compile</scope>
             <version>0.1.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Embedding</artifactId>
+            <version>0.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

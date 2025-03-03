@@ -1,7 +1,7 @@
 package org.example.dcheck.spi;
 
 import lombok.Getter;
-import org.example.dcheck.embedding.EmbeddingFunction;
+import org.example.dcheck.api.embedding.EmbeddingFunction;
 
 /**
  * Date 2025/02/26

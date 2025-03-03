@@ -1,4 +1,4 @@
-package org.example.dcheck.embedding;
+package org.example.dcheck.impl;
 
 import ai.djl.huggingface.tokenizers.Encoding;
 import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
@@ -6,12 +6,13 @@ import ai.onnxruntime.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.example.dcheck.api.embedding.Embedding;
+import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.api.ops.impl.transforms.clip.ClipByValue;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.shade.guava.primitives.Floats;
 import tech.amikos.chromadb.EFException;
-import tech.amikos.chromadb.Embedding;
 
 import java.io.FileInputStream;
 import java.io.IOException;

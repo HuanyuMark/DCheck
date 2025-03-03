@@ -6,10 +6,11 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
+import org.example.dcheck.api.embedding.Embedding;
+import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.common.util.MessageFormat;
-import org.example.dcheck.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
@@ -21,8 +22,6 @@ import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
 import org.neo4j.kernel.impl.core.NodeEntity;
 import org.springframework.util.StringUtils;
-import tech.amikos.chromadb.EFException;
-import tech.amikos.chromadb.Embedding;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -272,7 +271,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 //TODO support other types
                 throw new UnsupportedOperationException();
             }).collect(Collectors.toList()));
-        } catch (EFException e) {
+        } catch (Exception e) {
             throw new IllegalStateException("embed content fail: " + e.getMessage(), e);
         }
     }

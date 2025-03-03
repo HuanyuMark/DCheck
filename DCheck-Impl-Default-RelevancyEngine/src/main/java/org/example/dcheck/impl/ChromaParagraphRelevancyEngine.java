@@ -10,15 +10,18 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
+import org.example.dcheck.api.embedding.Embedding;
+import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.ContentConvert;
-import org.example.dcheck.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
 import org.springframework.util.StringUtils;
-import tech.amikos.chromadb.*;
+import tech.amikos.chromadb.ChromaCollection;
+import tech.amikos.chromadb.Client;
 import tech.amikos.chromadb.Collection;
+import tech.amikos.chromadb.GetEmbeddingInclude;
 import tech.amikos.chromadb.handler.ApiException;
 import tech.amikos.chromadb.model.AnyOfGetEmbeddingIncludeItems;
 import tech.amikos.chromadb.model.GetEmbedding;
@@ -197,7 +200,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         } else {
             try {
                 req.setQueryEmbeddings(embeddingFunction.embedDocuments(query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList())).stream().map(Embedding::asArray).collect(Collectors.toList()));
-            } catch (EFException e) {
+            } catch (Exception e) {
                 throw new IllegalStateException("calculate paragraph embeddings fail: " + e.getMessage(), e);
             }
         }
@@ -344,7 +347,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                                     put("createTime", String.valueOf(System.currentTimeMillis()));
                                 }},
                                 Boolean.TRUE,
-                                Objects.requireNonNull(embeddingFunction))));
+                                ChromaEmbeddingFunctionWrapper.wrap(embeddingFunction))));
             } catch (FailsafeException e) {
                 throw new IllegalStateException("access chroma collection fail:", e.getCause());
             }

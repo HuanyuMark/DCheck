@@ -17,8 +17,9 @@
         <module>DCheck-Impl-Default-Reranker</module>
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Test</module>
-        <module>DCheck-Impl-Embedding</module>
+        <module>DCheck-Embedding</module>
         <module>DCheck-Impl-Codec-Gson</module>
+        <module>DCheck-Impl-Default-Embedding</module>
     </modules>
 
     <properties>
@@ -67,6 +68,11 @@
             <dependency>
                 <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Embedding</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-Default-Embedding</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>
@@ -138,9 +144,6 @@
                             <artifactId>lombok</artifactId>
                         </path>
                     </annotationProcessorPaths>
-                    <excludes>
-                        lombok
-                    </excludes>
                 </configuration>
             </plugin>
         </plugins>
