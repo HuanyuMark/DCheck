@@ -16,6 +16,11 @@ public interface DocumentCollection {
 
     void deleteDocument(List<String> documentIds);
 
+    default List<Boolean> hasDocument(List<String> documentIds) {
+        //TODO implement in implementation class...
+        throw new UnsupportedOperationException();
+    }
+
     void drop();
 
     boolean isExists();

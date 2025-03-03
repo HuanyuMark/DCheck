@@ -176,8 +176,18 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         var documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         Collection collection = getCollection(documentCollection.getId());
         Collection.QueryResponse response;
+//        if(query.getParagraphs() == null) {
+//            Failsafe.with(collectionAccessPolicy)
+//                    .get(() -> {
+//                        collection.get(
+//                                null,
+//                                Integer.MAX_VALUE,
+//                                Collections.singletonMap(""),
+//                                ,Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DOCUMENTS));
+//                    })
+//        }
         try {
-            // 1. query embedding
+            // 1. query KNN by embedding
             response = Failsafe.with(collectionAccessPolicy)
                     .get(() -> collection.query(
                             query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),

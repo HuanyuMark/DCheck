@@ -53,11 +53,14 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     @Override
     public CheckResult check(Check check, DocumentCollection collection) {
         init();
+        var queryBuilder = ParagraphRelevancyQuery.builder()
+                .documentId(check.getDocument().getId())
+                .collectionId(collection.getId())
+                .topK(check.getTopKOfEachParagraph());
+        // if check.documentId is in collection, we assume queryBuilder.paragraphs() is null
+
         var queryResult = relevancyEngine.queryParagraph(
-                ParagraphRelevancyQuery.builder()
-                        .documentId(check.getDocument().getId())
-                        .collectionId(collection.getId())
-                        .topK(check.getTopKOfEachParagraph())
+                queryBuilder
                         .paragraphs(DocumentProcessorProvider.getInstance().split(check.getDocument()).map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()))
                         .build()
         );
