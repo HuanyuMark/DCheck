@@ -2,6 +2,7 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.UnknownDocument;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -26,28 +27,11 @@ public class DcheckAggregateTest {
 
     @Test
     public void quickStart() throws IOException {
-        // 获取查重入口类实例（spi机制）
-        DuplicateChecking checking = DuplicateCheckingProvider.getInstance().getChecking();
-        // 可以选择一个合适的时间初始化，也可以不手动调用。
-        // 但是要注意该方法较为耗时。如果不提前初始化，会在第一次调用其他api时耗时很多
-        checking.init();
+        DuplicateChecking checking = getDuplicateChecking();
 
         // 临时构建文档集合（从中查找重复内容）
         // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
-        List<Document> tempDiffCollection;
-
-        try (Stream<Path> stream = Files.list(Paths.get("diff-files"))) {
-            tempDiffCollection = stream
-                    .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
-                        try {
-                            return Files.newInputStream(p);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }))
-                    .map(e -> new UnknownDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
-                    .collect(Collectors.toList());
-        }
+        List<Document> tempDiffCollection = getDocuments();
 
         // 选择第一个文档（可以不存在于集合中）
         // 如果你需要互相对比集合中各个文档。建议把这些文档都加入到该集合，节省性能
@@ -63,41 +47,15 @@ public class DcheckAggregateTest {
                         .build(),
                 tempDiffCollection);
 
-        checkResult.getRelevantDocuments().forEach(doc->{
-            System.out.println("docId: "+doc.getDocumentId()+" score: "+doc.getScore());
-        });
-        for (int i = 0; i < checkResult.getRelevantParagraphs().size(); i++) {
-            int finalI = i;
-            checkResult.getRelevantParagraphs().get(i).forEach(paragraph->{
-                System.out.println("paragraph of doc '"+ finalI +"': "+paragraph.getDocumentId()+" relevancy: "+paragraph.getRelevancy()+" location: "+paragraph.getLocation());
-            });
-        }
+        print(checkResult);
     }
 
     @Test
     public void quickStartDurable() throws IOException {
         // 获取查重入口类实例（spi机制）
-        DuplicateChecking checking = DuplicateCheckingProvider.getInstance().getChecking();
-        // 可以选择一个合适的时间初始化，也可以不手动调用。
-        // 但是要注意该方法较为耗时。如果不提前初始化，会在第一次调用其他api时耗时很多
-        checking.init();
+        DuplicateChecking checking = getDuplicateChecking();
 
-        // 临时构建文档集合（从中查找重复内容）
-        // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
-        List<Document> diffCollection;
-
-        try (Stream<Path> stream = Files.list(Paths.get("diff-files"))) {
-            diffCollection = stream
-                    .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
-                        try {
-                            return Files.newInputStream(p);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }))
-                    .map(e -> new UnknownDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
-                    .collect(Collectors.toList());
-        }
+        List<Document> diffCollection = getDocuments();
 
         // 选择第一个文档（可以不存在于集合中）
         // 如果你需要互相对比集合中各个文档。建议把这些文档都加入到该集合，节省性能
@@ -107,6 +65,8 @@ public class DcheckAggregateTest {
         DocumentCollection collection = checking.getRelevancyEngine().getOrCreateDocumentCollection("test");
         collection.addDocument(diffCollection);
 
+        // 你可以在
+
         CheckResult checkResult = checking.check(
                 Check.builder()
                         .document(diffTarget)
@@ -115,6 +75,45 @@ public class DcheckAggregateTest {
                         .build(),
                 collection);
 
+        print(checkResult);
+    }
+
+    @NotNull
+    private static List<Document> getDocuments() throws IOException {
+        // 临时构建文档集合（从中查找重复内容）
+        // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
+        List<Document> diffCollection;
+        Path input = Paths.get("diff-files");
+        try (Stream<Path> stream = Files.list(input)) {
+            diffCollection = stream
+                    .filter(Files::isRegularFile)
+                    .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
+                        try {
+                            return Files.newInputStream(p);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }))
+                    .map(e -> new UnknownDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
+                    .collect(Collectors.toList());
+            if(diffCollection.isEmpty()) {
+                throw new IllegalStateException("请将查重文件放入到目标目录中，目标目录中没有文件！Please place the duplicate checking files into the target directory. The target directory is empty!\n" +
+                        "目标目录/target directory: "+ input.toAbsolutePath());
+            }
+        }
+        return diffCollection;
+    }
+
+    @NotNull
+    private static DuplicateChecking getDuplicateChecking() {
+        DuplicateChecking checking = DuplicateCheckingProvider.getInstance().getChecking();
+        // 可以选择一个合适的时间初始化，也可以不手动调用。
+        // 但是要注意该方法较为耗时。如果不提前初始化，会在第一次调用其他api时耗时很多
+        checking.init();
+        return checking;
+    }
+
+    private static void print(CheckResult checkResult) {
         checkResult.getRelevantDocuments().forEach(doc->{
             System.out.println("docId: "+doc.getDocumentId()+" score: "+doc.getScore());
         });

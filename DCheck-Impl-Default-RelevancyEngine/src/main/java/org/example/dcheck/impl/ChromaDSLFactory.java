@@ -24,8 +24,12 @@ public class ChromaDSLFactory {
         var ins = condition.getIns().entrySet().stream()
                 .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$in", e.getValue())))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        var nes = condition.getNes().entrySet().stream()
+                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$ne", e.getValue())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         var where = new HashMap<>(eqs);
         where.putAll(ins);
+        where.putAll(nes);
         return where;
     }
 }

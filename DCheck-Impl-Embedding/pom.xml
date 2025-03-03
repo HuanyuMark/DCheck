@@ -6,7 +6,7 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>DCheck-Embedding</artifactId>
+    <artifactId>DCheck-Impl-Embedding</artifactId>
     <dependencies>
         <dependency>
             <groupId>org.example.dcheck</groupId>

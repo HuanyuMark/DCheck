@@ -1,9 +1,6 @@
 package org.example.dcheck.api;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.NonNull;
-import lombok.Singular;
+import lombok.*;
 
 import java.util.List;
 
@@ -14,7 +11,8 @@ import java.util.List;
  */
 @Data
 @Builder
-public class DocumentQuery {
+@AllArgsConstructor
+public class DocumentIdQuery {
     @NonNull
     private final String collectionId;
     @NonNull

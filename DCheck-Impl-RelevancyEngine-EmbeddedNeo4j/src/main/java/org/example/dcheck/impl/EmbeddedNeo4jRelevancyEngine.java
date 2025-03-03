@@ -176,6 +176,25 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             return "." + property;
         }).collect(Collectors.joining(","));
         var includeProperties = candidateProperties.isEmpty() ? ".*," : candidateProperties + ",";
+        //TODO 新增一个在数据库中查询已存在paragraph.embeddings然后KNN查询的cypher
+        /*
+        * var cypher = MessageFormat.format(
+    """
+    MATCH (source: {PARAGRAPH_LABEL})
+    WHERE source.$DOCUMENT_ID_PROPERTY = $targetDocumentId
+    WITH source.$VECTOR_PROPERTY AS targetVector
+    CALL db.index.vector.queryNodes($VECTOR_INDEX, $topK, targetVector)
+    YIELD node, score
+    WHERE node.$DOCUMENT_ID_PROPERTY != $selfDocumentId
+    RETURN node {{{includeProperties}}}, score
+    """,
+    Map.of(
+        "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
+        "includeProperties", includeProperties,
+        "VECTOR_PROPERTY", VECTOR_PROPERTY,
+        "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
+    ));
+        * */
         var cypher = MessageFormat.format(
                 """
                         MATCH (p: {PARAGRAPH_LABEL})
@@ -198,6 +217,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         var collection = getCollection(query.getCollectionId());
         DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         // do partition for batch
+        //TODO 需要处理为null情况
+        assert query.getParagraphs() != null;
         var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
         try (var tx = collection.beginTx()) {
             var records = partitions.stream().flatMap(partition -> embed(partition.stream()).stream().map(embedding -> tx.execute(getQueryParagraphCypher(query.getIncludeMetadata()),
@@ -296,6 +317,16 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 }
             }
             tx.commit();
+        }
+    }
+
+    @Override
+    public List<Boolean> hasDocument(DocumentIdQuery query) {
+        var collection = getCollection(query.getCollectionId());
+        try (Transaction tx = collection.beginTx()) {
+            var res = query.getDocumentIds().stream().map(id-> tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, id).stream().findFirst().map(n->Boolean.TRUE).orElse(Boolean.FALSE)).toList();
+            tx.commit();
+            return res;
         }
     }
 

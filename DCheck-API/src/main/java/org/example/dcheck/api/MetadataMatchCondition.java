@@ -21,9 +21,11 @@ public class MetadataMatchCondition {
     private final Map<String, String> eqs;
     @Singular
     private final Map<String, Collection<String>> ins;
+    @Singular
+    private final Map<String,String> nes;
 
     public void validate() throws IllegalArgumentException {
-        var uniqueFields = new HashSet<String>(eqs.keySet());
+        var uniqueFields = new HashSet<>(eqs.keySet());
         for (String field : ins.keySet()) {
             if (uniqueFields.add(field)) {
                 continue;

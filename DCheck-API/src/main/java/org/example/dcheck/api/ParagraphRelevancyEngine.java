@@ -1,5 +1,7 @@
 package org.example.dcheck.api;
 
+import java.util.List;
+
 /**
  * Date 2025/02/25
  * 相似度引擎，负责执行与相似度计算相关的所有核心逻辑
@@ -14,6 +16,8 @@ public interface ParagraphRelevancyEngine {
     void addParagraph(ParagraphRelevancyCreation creation);
 
     void removeDocument(DocumentDelete delete);
+
+    List<Boolean> hasDocument(DocumentIdQuery query);
 
     DocumentCollection getOrCreateDocumentCollection(String collectionId);
 

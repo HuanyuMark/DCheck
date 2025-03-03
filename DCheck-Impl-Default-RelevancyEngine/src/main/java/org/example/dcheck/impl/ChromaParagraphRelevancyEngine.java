@@ -17,9 +17,11 @@ import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
 import org.springframework.util.StringUtils;
-import tech.amikos.chromadb.Client;
+import tech.amikos.chromadb.*;
 import tech.amikos.chromadb.Collection;
 import tech.amikos.chromadb.handler.ApiException;
+import tech.amikos.chromadb.model.AnyOfGetEmbeddingIncludeItems;
+import tech.amikos.chromadb.model.GetEmbedding;
 import tech.amikos.chromadb.model.QueryEmbedding;
 
 import java.io.IOException;
@@ -54,7 +56,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
-    private final Map<String, Collection> chromaCollections = new ConcurrentSkipListMap<>();
+    private final Map<String, ChromaCollection> chromaCollections = new ConcurrentSkipListMap<>();
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
 
     private Client client;
@@ -170,33 +172,42 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
+    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Collections.singletonList(GetEmbeddingInclude.EMBEDDINGS);
+
     @Override
+    @SuppressWarnings("unchecked")
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
         init();
         var documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
-        Collection collection = getCollection(documentCollection.getId());
+        ChromaCollection collection = getCollection(documentCollection.getId());
         Collection.QueryResponse response;
-//        if(query.getParagraphs() == null) {
-//            Failsafe.with(collectionAccessPolicy)
-//                    .get(() -> {
-//                        collection.get(
-//                                null,
-//                                Integer.MAX_VALUE,
-//                                Collections.singletonMap(""),
-//                                ,Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DOCUMENTS));
-//                    })
-//        }
+        var req = new QueryEmbedding();
+        if (query.getParagraphs() == null) {
+            List<List<Float>> embeddings;
+            try {
+                embeddings = Failsafe.with(collectionAccessPolicy)
+                        .get(() -> collection.get(new GetEmbedding()
+                                .where(ChromaDSLFactory.where(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build()))
+                                .include(GET_EMBEDDING_INCLUDES)
+                        ).getEmbeddings());
+                req.setQueryEmbeddings((List<Object>) ((Object) embeddings));
+            } catch (FailsafeException e) {
+                throw new IllegalStateException("query document embeddings fail: " + e.getMessage(), e);
+            }
+        } else {
+            try {
+                req.setQueryEmbeddings(embeddingFunction.embedDocuments(query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList())).stream().map(Embedding::asArray).collect(Collectors.toList()));
+            } catch (EFException e) {
+                throw new IllegalStateException("calculate paragraph embeddings fail: " + e.getMessage(), e);
+            }
+        }
+        req.setNResults(query.getTopK());
+        req.setWhere(ChromaDSLFactory.where(MetadataMatchCondition.builder().ne("documentId", query.getDocumentId()).build()));
+        req.setInclude(QUERY_PARAGRAPH_INCLUDE);
         try {
             // 1. query KNN by embedding
             response = Failsafe.with(collectionAccessPolicy)
-                    .get(() -> collection.query(
-                            query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),
-                            query.getTopK(),
-                            // exclude self
-                            Collections.singletonMap("documentId", Collections.singletonMap("$ne", query.getDocumentId())),
-                            null,
-                            QUERY_PARAGRAPH_INCLUDE
-                    ));
+                    .get(() -> collection.query(req));
         } catch (FailsafeException e) {
             throw new IllegalStateException("query paragraph fail: " + e.getCause().getMessage(), e.getCause());
         }
@@ -279,6 +290,30 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
+    /**
+     * low performance. Facade Batch
+     * chroma doc: batch op 'get' is nonexistent
+     * */
+    @Override
+    public List<Boolean> hasDocument(DocumentIdQuery query) {
+        var collection = getCollection(query.getCollectionId());
+        try {
+            return query.getDocumentIds().stream().map(id -> {
+                var req = new GetEmbedding();
+                req.limit(1);
+                req.where(ChromaDSLFactory.where(MetadataMatchCondition.builder()
+                        .eq("documentId", id)
+                        .build()));
+                req.include(Collections.emptyList());
+                return Failsafe.with(collectionAccessPolicy)
+                        .get(() -> collection.get(req))
+                        .getIds().stream().findFirst().map(v -> Boolean.TRUE).orElse(Boolean.FALSE);
+            }).collect(Collectors.toList());
+        } catch (FailsafeException e) {
+            throw new IllegalStateException("query has document fail: " + e.getMessage(), e.getCause());
+        }
+    }
+
     @Override
     public EngineAdaptedDocumentCollection getOrCreateDocumentCollection(String collectionId) {
         init();
@@ -298,18 +333,18 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         documentCollections.remove(collectionId);
     }
 
-    protected Collection getCollection(String collectionId) {
+    protected ChromaCollection getCollection(String collectionId) {
         return chromaCollections.computeIfAbsent(collectionId, (key) -> {
             try {
                 return Failsafe.with(collectionAccessPolicy)
-                        .get(() -> client.createCollection(
+                        .get(() -> new ChromaCollection(client.createCollection(
                                 collectionId,
                                 new HashMap<String, String>() {{
                                     put("hnsw:space", "cosine");
                                     put("createTime", String.valueOf(System.currentTimeMillis()));
                                 }},
                                 Boolean.TRUE,
-                                Objects.requireNonNull(embeddingFunction)));
+                                Objects.requireNonNull(embeddingFunction))));
             } catch (FailsafeException e) {
                 throw new IllegalStateException("access chroma collection fail:", e.getCause());
             }

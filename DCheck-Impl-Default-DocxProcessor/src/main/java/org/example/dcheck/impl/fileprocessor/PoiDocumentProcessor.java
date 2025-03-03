@@ -1,5 +1,6 @@
 package org.example.dcheck.impl.fileprocessor;
 
+import lombok.var;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
@@ -7,6 +8,8 @@ import org.example.dcheck.impl.InMemoryTextContent;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -35,13 +38,18 @@ public class PoiDocumentProcessor implements DocumentProcessor {
             //TODO
             // slice large paragraph into small ones. see max paragraph length config above
             // use llm to rewrite large p to small ones...
-            return xwpfDocument.getParagraphs()
-                    .stream().map(p -> new InMemoryTextContent(p.getText()))
-                    .map(c -> DocumentParagraph.builder()
-                            .paragraphType(BuiltinParagraphType.TEXT)
-                            .location(ContentMatchParagraphLocation.get())
-                            .content(() -> c)
-                            .build());
+            var contents = xwpfDocument.getParagraphs()
+                    .stream().map(p -> new InMemoryTextContent(p.getText())).collect(Collectors.toList());
+
+            return IntStream.range(0, contents.size())
+                    .mapToObj(i -> {
+                        var content = contents.get(i);
+                        return DocumentParagraph.builder()
+                                .paragraphType(BuiltinParagraphType.TEXT)
+                                .location(ContentMatchParagraphLocation.formLine(content.getText().toString(),i))
+                                .content(() -> content)
+                                .build();
+                    });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

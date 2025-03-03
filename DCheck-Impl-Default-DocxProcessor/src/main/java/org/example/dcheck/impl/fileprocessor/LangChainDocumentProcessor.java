@@ -5,6 +5,7 @@ import dev.langchain4j.data.document.DocumentParser;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import dev.langchain4j.data.segment.TextSegment;
 import lombok.Data;
 import lombok.var;
 import org.example.dcheck.api.*;
@@ -12,6 +13,8 @@ import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.InMemoryTextContent;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -27,6 +30,7 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
 
 
     private final DocumentParser documentParser = new ApacheTikaDocumentParser();
+
     @Override
     public void init() {
         int maxParagraphLength = SharedDocumentProcessorConfig.getInstance().getMaxParagraphLength();
@@ -48,12 +52,14 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
     @Override
     public Stream<DocumentParagraph> split(@NotNull Document document) {
         var lcDoc = DocumentLoader.load(new DCheckDocumentSource(document), documentParser);
-        return splitter.split(lcDoc).stream().map(seg -> {
+        var segments = splitter.split(lcDoc);
+        return IntStream.range(0, segments.size()).mapToObj(i -> {
+            var seg = segments.get(i);
             // clean ref to seg
             var content = new InMemoryTextContent(seg.text());
             return DocumentParagraph.builder()
                     // now nowhere to introspect the location, maybe we should define a new splitter to do this
-                    .location(ContentMatchParagraphLocation.get())
+                    .location(ContentMatchParagraphLocation.formLine(seg.text(), i))
                     .content(() -> content)
                     .paragraphType(BuiltinParagraphType.TEXT)
                     .build();

@@ -17,7 +17,7 @@
         <module>DCheck-Impl-Default-Reranker</module>
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Test</module>
-        <module>DCheck-Embedding</module>
+        <module>DCheck-Impl-Embedding</module>
         <module>DCheck-Impl-Codec-Gson</module>
     </modules>
 

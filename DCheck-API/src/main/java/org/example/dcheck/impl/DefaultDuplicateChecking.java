@@ -10,6 +10,7 @@ import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -58,12 +59,11 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                 .collectionId(collection.getId())
                 .topK(check.getTopKOfEachParagraph());
         // if check.documentId is in collection, we assume queryBuilder.paragraphs() is null
-
-        var queryResult = relevancyEngine.queryParagraph(
-                queryBuilder
-                        .paragraphs(DocumentProcessorProvider.getInstance().split(check.getDocument()).map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()))
-                        .build()
-        );
+        if (!relevancyEngine.hasDocument(new DocumentIdQuery(collection.getId(), Collections.singletonList(check.getDocument().getId()))).get(0)) {
+            queryBuilder
+                    .paragraphs(DocumentProcessorProvider.getInstance().split(check.getDocument()).map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()));
+        }
+        var queryResult = relevancyEngine.queryParagraph(queryBuilder.build());
 
         @Getter
         @RequiredArgsConstructor
