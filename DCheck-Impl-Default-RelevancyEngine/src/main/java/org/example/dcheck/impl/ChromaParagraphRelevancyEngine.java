@@ -362,4 +362,9 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     protected boolean isTempDocumentCollection(String collectionId) {
         return collectionId.startsWith(TEMP_COLLECTION_PREFIX);
     }
+
+    @Override
+    public void close() {
+
+    }
 }

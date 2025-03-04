@@ -38,7 +38,7 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
     private final TextEmbeddingFunction textEmbeddingFunction = new TextEmbeddingFunction();
 
     @Override
-    public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws EFException {
+    public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) {
         //TODO 支持多模态嵌入
         throw new UnsupportedOperationException();
     }
@@ -67,8 +67,8 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
 
         public static final String MODEL_NAME = "all-MiniLM-L6-v2";
         public static final Path MODEL_CACHE_DIR = Paths.get("dcheck-env", "cache", "chroma", "onnx_models", MODEL_NAME);
-        private static final Path modelPath = Paths.get(MODEL_CACHE_DIR.toString(), "onnx");
-        private static final Path modelFile = Paths.get(modelPath.toString(), "model.onnx");
+        private static final Path modelPath = MODEL_CACHE_DIR.resolve("onnx");
+        private static final Path modelFile = modelPath.resolve("model.onnx");
         private static final String ARCHIVE_FILENAME = "onnx.tar.gz";
         private static final String MODEL_DOWNLOAD_URL = "https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz";
         private static final String MODEL_SHA256_CHECKSUM = "913d7300ceae3b2dbc2c50d1de4baacab4be7b9380491c27fab7418616a16ec3";
@@ -279,9 +279,10 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
                 if (!Files.exists(MODEL_CACHE_DIR)) {
                     Files.createDirectories(MODEL_CACHE_DIR);
                 }
-                Path archivePath = Paths.get(MODEL_CACHE_DIR.toString(), ARCHIVE_FILENAME);
+
+                Path archivePath = MODEL_CACHE_DIR.resolve(ARCHIVE_FILENAME);
                 if (!archivePath.toFile().exists()) {
-                    System.err.println("Model not found under " + archivePath + ". Downloading...");
+                    log.warn("Model not found under {}. Downloading...", archivePath);
                     Files.copy(in, archivePath, StandardCopyOption.REPLACE_EXISTING);
                 }
                 if (!MODEL_SHA256_CHECKSUM.equals(getSHA256Checksum(archivePath.toString()))) {
@@ -298,7 +299,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         /**
          * Check if the model is present at the expected location
          *
-         * @return
          */
         private boolean validateModel() {
             return modelFile.toFile().exists() && modelFile.toFile().isFile();
@@ -328,7 +328,7 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         }
 
         @Override
-        public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws EFException {
+        public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) {
             throw new UnsupportedOperationException();
         }
     }

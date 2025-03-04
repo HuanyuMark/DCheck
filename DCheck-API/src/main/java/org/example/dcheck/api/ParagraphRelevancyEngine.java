@@ -6,11 +6,12 @@ import java.util.List;
  * Date 2025/02/25
  * 相似度引擎，负责执行与相似度计算相关的所有核心逻辑
  * the core api to do duplicate checking
- * @see DuplicateChecking
+ *
  * @author 三石而立Sunsy
+ * @see DuplicateChecking
  */
 @SuppressWarnings("unused")
-public interface ParagraphRelevancyEngine {
+public interface ParagraphRelevancyEngine extends AutoCloseable {
     ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query);
 
     void addParagraph(ParagraphRelevancyCreation creation);

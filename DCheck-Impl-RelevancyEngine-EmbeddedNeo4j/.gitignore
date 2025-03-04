@@ -36,4 +36,5 @@ build/
 
 ### Mac OS ###
 .DS_Store
-/dcheck-env/
+
+/src/main/resources/neo4j/plugins/

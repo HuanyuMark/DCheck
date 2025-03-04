@@ -20,10 +20,8 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexSetting;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
-import org.neo4j.kernel.impl.core.NodeEntity;
 import org.springframework.util.StringUtils;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,7 +38,7 @@ import java.util.stream.Stream;
  */
 @Slf4j
 @SuppressWarnings("unused")
-public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngine implements Closeable {
+public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngine {
     /////
     //@see https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/vector-indexes/
     // here are builtin api config
@@ -167,70 +165,72 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     }
 
     protected String getQueryParagraphCypher(Collection<String> includeMetadata) {
-        var candidateProperties = includeMetadata.isEmpty() ? "" : includeMetadata.stream().map(field -> {
+        var includeProperties = includeMetadata.isEmpty() ? ".*" : includeMetadata.stream().map(field -> {
             String property = field.trim();
             if (property.isEmpty()) {
                 throw new IllegalArgumentException("field cannot be empty");
             }
             return "." + property;
         }).collect(Collectors.joining(","));
-        var includeProperties = candidateProperties.isEmpty() ? ".*," : candidateProperties + ",";
-        //TODO 新增一个在数据库中查询已存在paragraph.embeddings然后KNN查询的cypher
-        /*
-        * var cypher = MessageFormat.format(
-    """
-    MATCH (source: {PARAGRAPH_LABEL})
-    WHERE source.$DOCUMENT_ID_PROPERTY = $targetDocumentId
-    WITH source.$VECTOR_PROPERTY AS targetVector
-    CALL db.index.vector.queryNodes($VECTOR_INDEX, $topK, targetVector)
-    YIELD node, score
-    WHERE node.$DOCUMENT_ID_PROPERTY != $selfDocumentId
-    RETURN node {{{includeProperties}}}, score
-    """,
-    Map.of(
-        "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
-        "includeProperties", includeProperties,
-        "VECTOR_PROPERTY", VECTOR_PROPERTY,
-        "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
-    ));
-        * */
         var cypher = MessageFormat.format(
                 """
                         MATCH (p: {PARAGRAPH_LABEL})
-                        WHERE p.$DOCUMENT_ID_PROPERTY != $selfDocumentId
+                        WHERE p.{DOCUMENT_ID_PROPERTY} != $selfDocumentId
                         CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
                         YIELD node,score
-                        RETURN node {{includeProperties}{VECTOR_PROPERTY}: null},score
+                        RETURN apoc.map.removeKey(node {{includeProperties}}, $VECTOR_PROPERTY) as node,score
                         """,
                 Map.of(
                         "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
-                        "includeProperties", includeProperties,
-                        "VECTOR_PROPERTY", VECTOR_PROPERTY
+                        "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
+                        "includeProperties", includeProperties
                 ));
         log.debug("QueryParagraphCypher:\n {}", cypher);
         return cypher;
     }
 
+    protected static final String QueryEmbeddingCypher = MessageFormat.format(
+            """
+                    MATCH (p: {PARAGRAPH_LABEL})
+                    WHERE p.{DOCUMENT_ID_PROPERTY} == $queryDocument
+                    RETURN p.{VECTOR_PROPERTY} as {VECTOR_PROPERTY}
+                    """,
+            Map.of(
+                    "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
+                    "VECTOR_PROPERTY", VECTOR_PROPERTY,
+                    "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
+            ));
+
     @Override
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
         var collection = getCollection(query.getCollectionId());
         DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
-        // do partition for batch
-        //TODO 需要处理为null情况
-        assert query.getParagraphs() != null;
-        var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
         try (var tx = collection.beginTx()) {
-            var records = partitions.stream().flatMap(partition -> embed(partition.stream()).stream().map(embedding -> tx.execute(getQueryParagraphCypher(query.getIncludeMetadata()),
+            Stream<Embedding> queryEmbeddings;
+            if (query.getParagraphs() == null) {
+                queryEmbeddings = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
+                        .stream()
+                        .map(properties -> properties.get(VECTOR_PROPERTY))
+                        .map(vector -> Embedding.fromArray(((float[]) vector)));
+            } else {
+                // do partition for batch
+                var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
+                queryEmbeddings = partitions.stream().flatMap(partition -> embed(partition.stream()).stream());
+            }
+
+            String cypher = getQueryParagraphCypher(query.getIncludeMetadata());
+            var records = queryEmbeddings.map(embedding -> tx.execute(cypher,
                             Map.of(
                                     "embedding", embedding.asArray(),
                                     "selfDocumentId", query.getDocumentId(),
-                                    "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
                                     "VECTOR_INDEX", VECTOR_INDEX,
-                                    "topK", query.getTopK()
+                                    "topK", query.getTopK(),
+                                    "VECTOR_PROPERTY", VECTOR_PROPERTY
                             ))
                     .stream()
                     .map(result -> {
-                        var nodeProperties = ((NodeEntity) result.get("node")).getAllProperties();
+                        @SuppressWarnings("unchecked")
+                        var nodeProperties = ((Map<String, Object>) result.get("node"));
                         var flatProperties = nodeProperties.entrySet().stream().filter(kv -> kv.getValue() instanceof String)
                                 .map(kv -> new AbstractMap.SimpleEntry<>(kv.getKey(), (((String) kv.getValue()))))
                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -250,7 +250,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         );
 
                         return new ParagraphRelevancyQueryResult.Record(paragraph, (double) result.get("score"));
-                    }).toList())).toList();
+                    }).toList()).toList();
             tx.commit();
             return new ParagraphRelevancyQueryResult(records);
         }
@@ -323,7 +323,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     public List<Boolean> hasDocument(DocumentIdQuery query) {
         var collection = getCollection(query.getCollectionId());
         try (Transaction tx = collection.beginTx()) {
-            var res = query.getDocumentIds().stream().map(id-> tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, id).stream().findFirst().map(n->Boolean.TRUE).orElse(Boolean.FALSE)).toList();
+            var res = query.getDocumentIds().stream().map(id -> tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, id).stream().findFirst().map(n -> Boolean.TRUE).orElse(Boolean.FALSE)).toList();
             tx.commit();
             return res;
         }

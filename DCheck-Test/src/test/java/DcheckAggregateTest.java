@@ -1,5 +1,4 @@
 import org.example.dcheck.api.*;
-import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.UnknownDocument;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
@@ -11,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -26,7 +24,7 @@ import java.util.stream.Stream;
 public class DcheckAggregateTest {
 
     @Test
-    public void quickStart() throws IOException {
+    public void quickStart() throws Exception {
         DuplicateChecking checking = getDuplicateChecking();
 
         // 临时构建文档集合（从中查找重复内容）
@@ -48,10 +46,12 @@ public class DcheckAggregateTest {
                 tempDiffCollection);
 
         print(checkResult);
+
+        checking.close();
     }
 
     @Test
-    public void quickStartDurable() throws IOException {
+    public void quickStartDurable() throws Exception {
         // 获取查重入口类实例（spi机制）
         DuplicateChecking checking = getDuplicateChecking();
 
@@ -76,6 +76,8 @@ public class DcheckAggregateTest {
                 collection);
 
         print(checkResult);
+
+        checking.close();
     }
 
     @NotNull
@@ -114,14 +116,10 @@ public class DcheckAggregateTest {
     }
 
     private static void print(CheckResult checkResult) {
-        checkResult.getRelevantDocuments().forEach(doc->{
-            System.out.println("docId: "+doc.getDocumentId()+" score: "+doc.getScore());
-        });
+        checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
         for (int i = 0; i < checkResult.getRelevantParagraphs().size(); i++) {
             int finalI = i;
-            checkResult.getRelevantParagraphs().get(i).forEach(paragraph->{
-                System.out.println("paragraph of doc '"+ finalI +"': "+paragraph.getDocumentId()+" relevancy: "+paragraph.getRelevancy()+" location: "+paragraph.getLocation());
-            });
+            checkResult.getRelevantParagraphs().get(i).forEach(paragraph -> System.out.println("paragraph of doc '" + finalI + "': " + paragraph.getDocumentId() + " relevancy: " + paragraph.getRelevancy() + " location: " + paragraph.getLocation()));
         }
     }
 }

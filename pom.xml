@@ -11,13 +11,13 @@
     <packaging>pom</packaging>
     <modules>
         <module>DCheck-API</module>
+        <module>DCheck-Embedding</module>
+        <module>DCheck-Common</module>
         <module>DCheck-Impl-Default-RelevancyEngine</module>
         <module>DCheck-Impl-Default-DocxProcessor</module>
-        <module>DCheck-Common</module>
         <module>DCheck-Impl-Default-Reranker</module>
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Test</module>
-        <module>DCheck-Embedding</module>
         <module>DCheck-Impl-Codec-Gson</module>
         <module>DCheck-Impl-Default-Embedding</module>
     </modules>

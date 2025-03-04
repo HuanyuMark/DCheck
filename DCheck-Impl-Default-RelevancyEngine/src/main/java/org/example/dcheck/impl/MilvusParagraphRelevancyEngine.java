@@ -47,4 +47,8 @@ public class MilvusParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     public TempDocumentCollection newTempDocumentCollection() {
         return null;
     }
+
+    @Override
+    public void close() {
+    }
 }

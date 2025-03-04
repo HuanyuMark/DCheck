@@ -10,11 +10,12 @@ import java.util.List;
  * the endpoint to start duplicate-check
  * 进行查重的入口
  * 通过 {@link DuplicateCheckingProvider#getChecking()} 获取实现
- * @see DuplicateCheckingProvider DuplicateCheckingProvider
+ *
  * @author 三石而立Sunsy
+ * @see DuplicateCheckingProvider DuplicateCheckingProvider
  */
 @SuppressWarnings("unused")
-public interface DuplicateChecking {
+public interface DuplicateChecking extends AutoCloseable {
 
     /**
      * 初始化. 同步方法，会准备所有需要的资源，包括完成从网络下载资源，解压等工作。可以在正式

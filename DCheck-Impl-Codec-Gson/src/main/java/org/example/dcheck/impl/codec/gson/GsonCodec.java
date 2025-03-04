@@ -33,6 +33,9 @@ public class GsonCodec implements Codec {
     @Getter
     private final GsonBuilder defaultGsonBuilder = new GsonBuilder();
 
+    public GsonCodec() {
+    }
+
     {
         setGson(defaultGsonBuilder
                 .registerTypeAdapter(ParagraphLocation.class, (JsonDeserializer<ParagraphLocation>) (json, typeOfT, context) -> {

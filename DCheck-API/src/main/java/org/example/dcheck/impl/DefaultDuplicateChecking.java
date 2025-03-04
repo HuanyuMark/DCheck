@@ -92,4 +92,11 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                 .relevantParagraphs(queryResult.getRecords())
                 .build();
     }
+
+
+    @Override
+    public void close() throws Exception {
+        if (!init) return;
+        relevancyEngine.close();
+    }
 }
