@@ -70,7 +70,8 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         private static final Path modelPath = MODEL_CACHE_DIR.resolve("onnx");
         private static final Path modelFile = modelPath.resolve("model.onnx");
         private static final String ARCHIVE_FILENAME = "onnx.tar.gz";
-        private static final String MODEL_DOWNLOAD_URL = "https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz";
+        //        private static final URL MODEL_DOWNLOAD_URL = "https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz";
+        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(DefaultEmbeddingFunction.class.getResource("org/example/dcheck/models/onnx.tar.gz"));
         private static final String MODEL_SHA256_CHECKSUM = "913d7300ceae3b2dbc2c50d1de4baacab4be7b9380491c27fab7418616a16ec3";
         OrtSession session;
         private HuggingFaceTokenizer tokenizer;
@@ -275,7 +276,7 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         }
 
         private void downloadAndSetupModel() throws EFException {
-            try (InputStream in = new URL(MODEL_DOWNLOAD_URL).openStream()) {
+            try (InputStream in = MODEL_DOWNLOAD_URL.openStream()) {
                 if (!Files.exists(MODEL_CACHE_DIR)) {
                     Files.createDirectories(MODEL_CACHE_DIR);
                 }

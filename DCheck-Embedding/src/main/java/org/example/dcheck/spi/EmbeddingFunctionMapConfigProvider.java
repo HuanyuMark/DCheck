@@ -11,7 +11,7 @@ import java.util.Properties;
  */
 public class EmbeddingFunctionMapConfigProvider implements DCheckProvider {
 
-    @Getter(lazy = true)
+    @Getter
     private static final EmbeddingFunctionMapConfigProvider instance = new EmbeddingFunctionMapConfigProvider();
 
 

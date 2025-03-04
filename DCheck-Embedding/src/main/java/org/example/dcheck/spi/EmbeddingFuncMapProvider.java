@@ -10,7 +10,7 @@ import org.example.dcheck.api.embedding.EmbeddingFunction;
  * @author 三石而立Sunsy
  */
 public class EmbeddingFuncMapProvider implements DCheckProvider {
-    @Getter(lazy = true)
+    @Getter
     private static final EmbeddingFuncMapProvider instance = new EmbeddingFuncMapProvider();
 
     public EmbeddingFunction getFunc(String modelKey) {
