@@ -32,7 +32,7 @@ import java.util.zip.GZIPInputStream;
 
 @Slf4j
 @SuppressWarnings("unused")
-public class DefaultEmbeddingFunction implements EmbeddingFunction {
+public class BgeEmbeddingFunction implements EmbeddingFunction {
 
     private final TextEmbeddingFunction textEmbeddingFunction = new TextEmbeddingFunction();
 
@@ -62,10 +62,9 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         public static final Path MODEL_CACHE_DIR = Paths.get("dcheck-env", "cache", "chroma", "onnx_models", MODEL_NAME);
         private static final Path modelPath = MODEL_CACHE_DIR.resolve("onnx");
         private static final Path modelFile = modelPath.resolve("model.onnx");
-        private static final String ARCHIVE_FILENAME = "onnx.tar.gz";
+        private static final String ARCHIVE_FILENAME = "bge-m3.onnx.tar.gz";
         //        private static final URL MODEL_DOWNLOAD_URL = "https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz";
-        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(DefaultEmbeddingFunction.class.getClassLoader().getResource("org/example/dcheck/models/onnx.tar.gz"));
-        private static final String MODEL_SHA256_CHECKSUM = "913d7300ceae3b2dbc2c50d1de4baacab4be7b9380491c27fab7418616a16ec3";
+        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(BgeEmbeddingFunction.class.getClassLoader().getResource("org/example/dcheck/models/bge-m3.onnx.tar.gz"));
         OrtSession session;
         private HuggingFaceTokenizer tokenizer;
         private OrtEnvironment env;
@@ -279,12 +278,9 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
                     log.warn("Model not found under {}. Downloading...", archivePath);
                     Files.copy(in, archivePath, StandardCopyOption.REPLACE_EXISTING);
                 }
-                if (!MODEL_SHA256_CHECKSUM.equals(getSHA256Checksum(archivePath.toString()))) {
-                    throw new RuntimeException("Checksum does not match. Delete the whole directory " + MODEL_CACHE_DIR + " and try again.");
-                }
                 extractTarGz(archivePath, MODEL_CACHE_DIR);
                 archivePath.toFile().delete();
-            } catch (IOException | NoSuchAlgorithmException e) {
+            } catch (IOException e) {
                 throw new EFException(e);
             }
         }
@@ -292,7 +288,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
 
         /**
          * Check if the model is present at the expected location
-         *
          */
         private boolean validateModel() {
             return modelFile.toFile().exists() && modelFile.toFile().isFile();

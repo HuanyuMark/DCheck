@@ -13,6 +13,8 @@
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-Embedding/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-Reranker/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-Default-Reranker/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Impl-Embedding-Remote/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Impl-Embedding-Remote/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Test/src/main/java" charset="UTF-8" />

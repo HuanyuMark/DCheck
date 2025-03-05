@@ -18,5 +18,8 @@ public interface EmbeddingFunction {
 
     List<Embedding> embedDocuments(String[] documents) throws Exception;
 
-    List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws Exception;
+    //TODO 支持多模态嵌入
+    default List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws Exception {
+        throw new UnsupportedOperationException();
+    }
 }

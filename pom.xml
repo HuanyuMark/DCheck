@@ -20,6 +20,7 @@
         <module>DCheck-Test</module>
         <module>DCheck-Impl-Codec-Gson</module>
         <module>DCheck-Impl-Default-Embedding</module>
+        <module>DCheck-Impl-Embedding-Remote</module>
     </modules>
 
     <properties>
