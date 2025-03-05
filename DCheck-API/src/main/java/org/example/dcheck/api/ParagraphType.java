@@ -1,5 +1,7 @@
 package org.example.dcheck.api;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,4 +25,7 @@ public interface ParagraphType {
     Class<? extends ParagraphMetadata> getMetadataClass();
 
     Class<? extends Paragraph> getParagraphClass();
+
+    @Nullable
+    ParagraphMetadata createExtension(Map<String, Object> all, String documentId, ParagraphLocation location);
 }

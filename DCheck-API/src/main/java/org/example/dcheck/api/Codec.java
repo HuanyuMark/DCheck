@@ -1,5 +1,7 @@
 package org.example.dcheck.api;
 
+import org.springframework.core.ParameterizedTypeReference;
+
 import java.lang.reflect.Type;
 
 /**
@@ -18,16 +20,22 @@ public interface Codec {
 
 
     /**
-     * 1. do serialization/deserialization
-     * 2. do type conversion
+     * 1. do serialization/deserialization<br>
+     * 2. do type conversion<br>
      */
     default <Target> Target convertTo(Object input, Type targetType) {
         return convertTo(input, (Object) targetType);
     }
 
+
+    default <Target> Target convertTo(Object input, ParameterizedTypeReference<?> targetType) {
+        return convertTo(input, (Object) targetType);
+    }
+
     /**
-     * 1. do serialization/deserialization
-     * 2. do type conversion
+     * 1. do serialization/deserialization<br>
+     * 2. do type conversion<br>
+     * all impl should support hint: {@link Type}/{@link org.springframework.core.ParameterizedTypeReference}
      */
     <Target> Target convertTo(Object input, Object targetTypeHint);
 }

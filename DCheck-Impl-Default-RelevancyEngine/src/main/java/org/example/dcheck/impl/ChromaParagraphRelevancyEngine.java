@@ -12,6 +12,7 @@ import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
+import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
@@ -49,6 +50,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
     protected static final String TEMP_COLLECTION_PREFIX;
+    private static final int CHUNK_SIZE = 20;
 
     static {
         try {
@@ -229,8 +231,8 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         var metadata = (Map<String, String>) ((Object) queryResultMetadata.get(j));
                         var score = queryResultScore.get(j);
                         return ParagraphRelevancyQueryResult.Record.builder()
-                                .paragraph(TextParagraph.mapBuilder()
-                                        .fromFlat(metadata, codec::convertTo)
+                                .paragraph(TextParagraph.builder()
+                                        .metadata(codec.convertTo(metadata, ParagraphMetadata.class))
                                         .collection(documentCollection)
                                         .content(() -> new InMemoryTextContent(document))
                                         .build())
@@ -253,25 +255,31 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         var textParagraphs = batch.get(BuiltinParagraphType.TEXT);
         if (textParagraphs != null) {
             try {
-                Failsafe.with(collectionAccessPolicy)
+                CollectionUtils.partition(textParagraphs, CHUNK_SIZE).forEach(chunk -> Failsafe.with(collectionAccessPolicy)
                         .run(() -> collection.add(
                                 null,
-                                textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getMetadata).map(m -> m.toFlatMap(form -> codec.convertTo(form, String.class))).collect(Collectors.toList()),
-                                textParagraphs.stream().map(ParagraphRelevancyCreation.Record::getParagraph).map(p -> {
-                                    if (p.getContent() instanceof InMemoryTextContent)
-                                        return ((InMemoryTextContent) p.getContent()).getText().toString();
-                                    if (p.getContent() instanceof TextContent) {
-                                        try {
-                                            return new String(IOUtils.toByteArray(p.getContent().getInputStream()));
-                                        } catch (IOException e) {
-                                            throw new IllegalStateException("read text paragraph fail:", e);
-                                        }
-                                    }
-                                    throw new UnsupportedOperationException();
-                                }).collect(Collectors.toList()),
+                                chunk.stream()
+                                        .map(ParagraphRelevancyCreation.Record::getMetadata)
+                                        .map(m -> m.toFlatMap(form -> codec.convertTo(form, String.class)))
+                                        .collect(Collectors.toList()),
+                                chunk.stream()
+                                        .map(ParagraphRelevancyCreation.Record::getParagraph)
+                                        .map(p -> {
+                                            if (p.getContent() instanceof InMemoryTextContent)
+                                                return ((InMemoryTextContent) p.getContent()).getText().toString();
+                                            if (p.getContent() instanceof TextContent) {
+                                                try {
+                                                    return new String(IOUtils.toByteArray(p.getContent().getInputStream()));
+                                                } catch (IOException e) {
+                                                    throw new IllegalStateException("read text paragraph fail:", e);
+                                                }
+                                            }
+                                            throw new UnsupportedOperationException();
+                                        }).collect(Collectors.toList()),
                                 // 这里的id是否需要预先生成？
-                                textParagraphs.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
-                        ));
+                                chunk.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
+                        )));
+
             } catch (FailsafeException e) {
                 throw new IllegalStateException("add paragraph fail:", e.getCause());
             }
@@ -296,7 +304,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     /**
      * low performance. Facade Batch
      * chroma doc: batch op 'get' is nonexistent
-     * */
+     */
     @Override
     public List<Boolean> hasDocument(DocumentIdQuery query) {
         var collection = getCollection(query.getCollectionId());

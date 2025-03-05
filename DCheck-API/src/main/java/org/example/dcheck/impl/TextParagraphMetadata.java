@@ -62,5 +62,9 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
             }
             return this;
         }
+
+        public TextParagraphMetadata build() {
+            return builder.build();
+        }
     }
 }

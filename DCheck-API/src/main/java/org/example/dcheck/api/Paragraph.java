@@ -10,13 +10,7 @@ package org.example.dcheck.api;
 public interface Paragraph {
     DocumentCollection getCollection();
 
-    String getDocumentId();
-
     Content getContent();
-
-    ParagraphLocation getLocation();
-
-    ParagraphType getParagraphType();
 
     ParagraphMetadata getMetadata();
 }
