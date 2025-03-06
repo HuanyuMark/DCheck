@@ -114,22 +114,13 @@ public class GsonCodec implements Codec {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <Target> Target convertTo(Object input, Object targetTypeHint) {
-        Type hint;
-        if (targetTypeHint instanceof ParameterizedTypeReference) {
-            hint = ((ParameterizedTypeReference<?>) targetTypeHint).getType();
-        } else if (!(targetTypeHint instanceof Type)) {
-            throw new IllegalArgumentException("unsupported target type: " + targetTypeHint);
-        } else {
-            hint = (Type) targetTypeHint;
-        }
-
-        if (hint instanceof Class) {
-            if (JsonElement.class.isAssignableFrom((Class<?>) hint))
+    public <Target> Target convertTo(Object input, Type targetType) {
+        if (targetType instanceof Class) {
+            if (JsonElement.class.isAssignableFrom((Class<?>) targetType))
                 return (Target) gson.toJsonTree(input);
-            if (String.class.isAssignableFrom((Class<?>) hint))
+            if (String.class.isAssignableFrom((Class<?>) targetType))
                 return (Target) gson.toJson(input);
         }
-        return gson.fromJson(gson.toJsonTree(input), hint);
+        return gson.fromJson(gson.toJsonTree(input), targetType);
     }
 }
