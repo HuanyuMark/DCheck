@@ -1,6 +1,6 @@
 package org.example.dcheck.api;
 
-import org.jetbrains.annotations.Nullable;
+import org.springframework.lang.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

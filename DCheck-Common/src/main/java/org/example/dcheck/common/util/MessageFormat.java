@@ -21,7 +21,7 @@ public class MessageFormat {
     public static String format(String template, Map<String, Object> args) {
         var builder = new StringBuilder(template);
         for (Map.Entry<String, Object> entry : args.entrySet()) {
-            var key = "{" + entry.getKey() + "}";
+            var key = "{" + entry.getKey().trim() + "}";
             var value = Objects.toString(entry.getValue());
             int idx;
             int startIdx = 0;

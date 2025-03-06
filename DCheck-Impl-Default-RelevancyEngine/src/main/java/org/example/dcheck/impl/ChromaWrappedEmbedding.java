@@ -10,15 +10,15 @@ import java.util.List;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-public class ChromaEmbeddingWrapper extends Embedding {
+public class ChromaWrappedEmbedding extends Embedding {
 
-    public static ChromaEmbeddingWrapper wrap(org.example.dcheck.api.embedding.Embedding target) {
-        return new ChromaEmbeddingWrapper(target);
+    public static ChromaWrappedEmbedding wrap(org.example.dcheck.api.embedding.Embedding target) {
+        return new ChromaWrappedEmbedding(target);
     }
 
     protected final org.example.dcheck.api.embedding.Embedding target;
 
-    public ChromaEmbeddingWrapper(org.example.dcheck.api.embedding.Embedding target) {
+    public ChromaWrappedEmbedding(org.example.dcheck.api.embedding.Embedding target) {
         super(target.asArray());
         this.target = target;
     }
@@ -36,5 +36,10 @@ public class ChromaEmbeddingWrapper extends Embedding {
     @Override
     public float[] asArray() {
         return target.asArray();
+    }
+
+    @Override
+    public String toString() {
+        return target.toString();
     }
 }

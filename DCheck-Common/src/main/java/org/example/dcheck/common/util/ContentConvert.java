@@ -1,16 +1,11 @@
 package org.example.dcheck.common.util;
 
-import lombok.var;
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.TextContent;
 import org.example.dcheck.impl.InMemoryTextContent;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.stream.Collectors;
 
 /**
  * Date: 2025/3/1
@@ -40,8 +35,16 @@ public class ContentConvert {
     }
 
     public static String readStreamAsString(InputStream inputStream) throws IOException {
-        try (var reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-            return reader.lines().collect(Collectors.joining());
+        final int bufferSize = 1024;
+        InputStream bis = inputStream instanceof ByteArrayInputStream || inputStream instanceof BufferedInputStream ? inputStream : new BufferedInputStream(inputStream);
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+
+        byte[] buffer = new byte[bufferSize];
+        int bytesRead;
+        while ((bytesRead = bis.read(buffer, 0, bufferSize)) != -1) {
+            result.write(buffer, 0, bytesRead);
         }
+
+        return result.toString(StandardCharsets.UTF_8.name());
     }
 }

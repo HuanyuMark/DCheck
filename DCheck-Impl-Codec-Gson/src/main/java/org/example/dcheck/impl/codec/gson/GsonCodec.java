@@ -46,7 +46,6 @@ public class GsonCodec implements Codec {
 
     {
         setGson(defaultGsonBuilder
-                // todo add annotation merger
                 .registerTypeAdapter(ParagraphLocation.class, (JsonDeserializer<ParagraphLocation>) (json, typeOfT, context) -> {
                     //unwrap
                     if (json.isJsonPrimitive()) {

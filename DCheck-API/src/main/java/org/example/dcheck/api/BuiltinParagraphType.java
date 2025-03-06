@@ -3,7 +3,7 @@ package org.example.dcheck.api;
 import lombok.Getter;
 import org.example.dcheck.impl.TextParagraph;
 import org.example.dcheck.impl.TextParagraphMetadata;
-import org.jetbrains.annotations.Nullable;
+import org.springframework.lang.Nullable;
 
 import java.util.Map;
 

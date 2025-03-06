@@ -8,6 +8,10 @@ import java.io.InputStream;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 public interface Content {
     InputStream getInputStream();
+
+    default void resetRead() {
+    }
 }

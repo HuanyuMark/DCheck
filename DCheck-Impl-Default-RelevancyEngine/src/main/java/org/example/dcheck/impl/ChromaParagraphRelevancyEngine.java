@@ -8,7 +8,6 @@ import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
-import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
@@ -245,7 +244,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     }).collect(Collectors.toList());
                 }).collect(Collectors.toList());
 
-        var queryEmbeddingRes = builder.records(result).build();
+        ParagraphRelevancyQueryResult queryEmbeddingRes = builder.records(result).build();
 
         //2. rerank
         return reranker.rerank(queryEmbeddingRes, query);
@@ -274,18 +273,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                                         .collect(Collectors.toList()),
                                 chunk.stream()
                                         .map(ParagraphRelevancyCreation.Record::getParagraph)
-                                        .map(p -> {
-                                            if (p.getContent() instanceof InMemoryTextContent)
-                                                return ((InMemoryTextContent) p.getContent()).getText().toString();
-                                            if (p.getContent() instanceof TextContent) {
-                                                try {
-                                                    return new String(IOUtils.toByteArray(p.getContent().getInputStream()));
-                                                } catch (IOException e) {
-                                                    throw new IllegalStateException("read text paragraph fail:", e);
-                                                }
-                                            }
-                                            throw new UnsupportedOperationException();
-                                        }).collect(Collectors.toList()),
+                                        .map(p -> ContentConvert.castToText(p.getContent())).collect(Collectors.toList()),
                                 // 这里的id是否需要预先生成？
                                 chunk.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
                         )));

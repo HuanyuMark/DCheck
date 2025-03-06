@@ -39,7 +39,7 @@
         <!-- 打包生成source时使用的目录 -->
         <source.generate.dir>src/main/java</source.generate.dir>
         <!-- lombok生成源码的目录 -->
-        <delombok.dir>${project.build.directory}/delombok</delombok.dir>
+        <delombok.dir>${project.build.directory}/generated-sources/delombok</delombok.dir>
     </properties>
 
     <dependencyManagement>

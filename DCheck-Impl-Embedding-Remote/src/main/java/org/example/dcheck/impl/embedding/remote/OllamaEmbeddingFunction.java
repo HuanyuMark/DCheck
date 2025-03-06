@@ -43,6 +43,10 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
 
     private final String modelName;
 
+    @Getter
+    private final String name;
+
+
     @SuppressWarnings("unused")
     public OllamaEmbeddingFunction() {
         this(DEFAULT_BASE_API, DEFAULT_MODEL_NAME);
@@ -51,7 +55,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
     public OllamaEmbeddingFunction(String baseUrl, String modelName) {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
         this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
-
+        name = getClass().getSimpleName() + "." + getModelName();
     }
 
     private OllamaCreateEmbeddingResponse createEmbedding(OllamaCreateEmbeddingRequest req) throws Exception {
@@ -94,12 +98,13 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
         // ping ollama server...
     }
 
+
     @Override
     public Embedding embedQuery(String query) throws Exception {
         OllamaCreateEmbeddingResponse response = createEmbedding(
                 new OllamaCreateEmbeddingRequest(modelName, Collections.singletonList(query))
         );
-        return new Embedding(response.getEmbeddings().get(0));
+        return new Embedding(response.getEmbeddings().get(0), getName());
     }
 
     @Override
@@ -107,7 +112,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
         OllamaCreateEmbeddingResponse response = createEmbedding(
                 new OllamaCreateEmbeddingRequest(modelName, documents)
         );
-        return response.getEmbeddings().stream().map(Embedding::new).collect(Collectors.toList());
+        return response.getEmbeddings().stream().map(e -> Embedding.from(e, getName())).collect(Collectors.toList());
     }
 
     @Override

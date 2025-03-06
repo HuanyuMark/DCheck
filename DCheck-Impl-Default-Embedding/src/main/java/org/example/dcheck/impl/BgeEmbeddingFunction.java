@@ -296,7 +296,7 @@ public class BgeEmbeddingFunction implements EmbeddingFunction {
         @Override
         public Embedding embedQuery(String query) throws EFException {
             try {
-                return Embedding.fromList(forward(Collections.singletonList(query)).get(0));
+                return Embedding.from(forward(Collections.singletonList(query)).get(0), getName());
             } catch (OrtException e) {
                 throw new EFException(e);
             }
@@ -305,7 +305,7 @@ public class BgeEmbeddingFunction implements EmbeddingFunction {
         @Override
         public List<Embedding> embedDocuments(List<String> documents) throws EFException {
             try {
-                return forward(documents).stream().map(Embedding::new).collect(Collectors.toList());
+                return forward(documents).stream().map(l -> Embedding.from(l, getName())).collect(Collectors.toList());
             } catch (OrtException e) {
                 throw new EFException(e);
             }

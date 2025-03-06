@@ -3,7 +3,7 @@ package org.example.dcheck.spi;
 import lombok.Getter;
 import lombok.var;
 import org.example.dcheck.api.Reranker;
-import org.jetbrains.annotations.Nullable;
+import org.springframework.lang.Nullable;
 
 import java.util.List;
 

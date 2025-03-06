@@ -12,6 +12,7 @@ import lombok.*;
 @Builder
 @AllArgsConstructor
 public class DocumentDelete {
+    @NonNull
     private final String collectionId;
 
     @NonNull

@@ -71,6 +71,7 @@ public class Neo4jDbms {
 
     private final Path rootPath;
 
+
     public Neo4jDbms(Path rootPath) {
         this.rootPath = rootPath;
     }
@@ -114,6 +115,15 @@ public class Neo4jDbms {
         var s = System.currentTimeMillis();
         databasesServices.values().forEach(DatabaseManagementService::shutdown);
         log.info("Neo4j Database Closed. cost {}ms", System.currentTimeMillis() - s);
+    }
+
+    public void destroy() {
+        shutdown();
+        try {
+            FileUtils.deleteDirectory(rootPath);
+        } catch (IOException e) {
+            log.warn("delete neo4j root path fail: {}", e.getMessage(), e);
+        }
     }
 
     @RequiredArgsConstructor

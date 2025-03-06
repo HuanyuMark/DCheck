@@ -1,7 +1,7 @@
 package org.example.dcheck.api;
 
 import lombok.*;
-import org.jetbrains.annotations.Nullable;
+import org.springframework.lang.Nullable;
 
 import java.util.List;
 import java.util.Set;
@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 @Builder
 @AllArgsConstructor
 public class ParagraphRelevancyQuery {
+    @NonNull
     private final String collectionId;
     @NonNull
     private final String documentId;
@@ -26,6 +27,7 @@ public class ParagraphRelevancyQuery {
     /**
      * 仅当documentId指代的document存在于collectionId指代的collection中时，才允许为null
      * */
+    @Nullable
     private final List<Supplier<? extends Content>> paragraphs;
     @Builder.Default
     private final int topK = 5;

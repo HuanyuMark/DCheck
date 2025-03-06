@@ -9,7 +9,7 @@ import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
 import org.example.dcheck.api.ParagraphType;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.springframework.lang.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;

@@ -2,6 +2,7 @@ package org.example.dcheck.api;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.NonNull;
 
 import java.io.InputStream;
 import java.util.function.Supplier;
@@ -15,8 +16,11 @@ import java.util.function.Supplier;
 @Builder
 @SuppressWarnings("unused")
 public class DocumentCreation {
+    @NonNull
     private final String documentId;
+    @NonNull
     private final DocumentType documentType;
+    @NonNull
     private final Supplier<InputStream> content;
 
     public InputStream getContent() {

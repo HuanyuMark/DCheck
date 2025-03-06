@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
@@ -28,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,6 +54,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected static final String DOCUMENT_ID_INDEX = "document_id_index";
     protected static final String VECTOR_PROPERTY = "_$$_embedding_$$_";
     protected static final String CONTENT_PROPERTY = "_$$_content_$$_";
+    protected static final String EMBEDDING_FUC_PROPERTY = "_$$_embedding_func_$$_";
     public static final String DOCUMENT_ID_PROPERTY = "documentId";
     public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 5;
 
@@ -97,17 +98,17 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             }
 
             if (codec == null) {
-                codec = CodecProvider.getInstance()
+                setCodec(CodecProvider.getInstance()
                         .getCodecs()
                         .stream()
                         .findFirst()
-                        .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
+                        .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
             }
 
             ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
 
             try {
-                tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + System.currentTimeMillis()));
+                tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + (int) (System.currentTimeMillis() / Math.random())));
             } catch (IOException e) {
                 throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
             }
@@ -193,12 +194,13 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             """
                     MATCH (p: {PARAGRAPH_LABEL})
                     WHERE p.{DOCUMENT_ID_PROPERTY} == $queryDocument
-                    RETURN p.{VECTOR_PROPERTY} as {VECTOR_PROPERTY}
+                    RETURN p.{VECTOR_PROPERTY} as {VECTOR_PROPERTY},p.{EMBEDDING_FUC_PROPERTY} as {EMBEDDING_FUC_PROPERTY}
                     """,
             Map.of(
                     "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
                     "VECTOR_PROPERTY", VECTOR_PROPERTY,
-                    "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
+                    "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
+                    "EMBEDDING_FUC_PROPERTY", EMBEDDING_FUC_PROPERTY
             ));
 
     @Override
@@ -210,8 +212,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             if (query.getParagraphs() == null) {
                 queryEmbeddings = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
                         .stream()
-                        .map(properties -> properties.get(VECTOR_PROPERTY))
-                        .map(vector -> Embedding.fromArray(((float[]) vector)));
+                        .map(properties -> Embedding.from((float[]) properties.get(VECTOR_PROPERTY), (String) properties.get(EMBEDDING_FUC_PROPERTY)));
             } else {
                 // do partition for batch
                 var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
@@ -237,16 +238,22 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
                         ParagraphMetadata metadata;
                         try {
-                            metadata = codec.deserialize(flatProperties, ParagraphMetadata.class);
+                            var flatMetadata = new HashMap<>(flatProperties);
+                            flatMetadata.remove(CONTENT_PROPERTY);
+                            flatMetadata.remove(EMBEDDING_FUC_PROPERTY);
+                            flatMetadata.remove(VECTOR_PROPERTY);
+                            metadata = codec.convertTo(flatMetadata.entrySet().stream().map(e -> {
+                                try {
+                                    return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getKey(), Object.class));
+                                } catch (IOException ex) {
+                                    throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                }
+                            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)), ParagraphMetadata.class);
                         } catch (IOException e) {
                             throw new IllegalStateException("convert flatProperties to ParagraphMetadata fail: " + e.getMessage(), e);
                         }
-                        Content paragraphContent;
-                        try {
-                            paragraphContent = ContentConvert.castToContent(codec.deserialize(flatProperties.get(CONTENT_PROPERTY), String.class));
-                        } catch (IOException e) {
-                            throw new IllegalStateException("convert flatProperties.CONTENT_PROPERTY to ParagraphMetadata fail: " + e.getMessage(), e);
-                        }
+
+                        var paragraphContent = ContentConvert.castToContent(flatProperties.get(CONTENT_PROPERTY));
 
                         if (metadata.getParagraphType() != BuiltinParagraphType.TEXT) {
                             throw new UnsupportedOperationException("unsupported paragraph type: " + metadata.getParagraphType());
@@ -268,18 +275,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
     protected List<Embedding> embed(Stream<? extends Content> contents) {
         try {
-            return embeddingFunction.embedDocuments(contents.map(c -> {
-                if (c instanceof InMemoryTextContent) return ((InMemoryTextContent) c).getText().toString();
-                if (c instanceof TextContent) {
-                    try {
-                        return new String(IOUtils.toByteArray(c.getInputStream()));
-                    } catch (IOException e) {
-                        throw new IllegalStateException("read text content fail:", e);
-                    }
-                }
-                //TODO support other types
-                throw new UnsupportedOperationException();
-            }).collect(Collectors.toList()));
+            return embeddingFunction.embedDocuments(contents.map(ContentConvert::castToText).collect(Collectors.toList()));
         } catch (Exception e) {
             throw new IllegalStateException("embed content fail: " + e.getMessage(), e);
         }
@@ -299,9 +295,15 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 for (int i = 0; i < partition.size(); i++) {
                     var record = partition.get(i);
                     Node node = tx.createNode(PARAGRAPH_LABEL);
+                    node.setProperty(EMBEDDING_FUC_PROPERTY, embeddings.get(i).getEmbeddingFunction());
                     node.setProperty(VECTOR_PROPERTY, embeddings.get(i).asArray());
-                    node.setProperty(CONTENT_PROPERTY, codec.serialize(ContentConvert.castToText(record.getContent()), String.class));
+                    node.setProperty(CONTENT_PROPERTY, ContentConvert.castToText(record.getContent()));
+                    // flat metadata would be great for neo4j match performance
+                    // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
                     for (Map.Entry<String, Object> kv : record.getMetadata().entrySet()) {
+                        if (kv.getKey().equals(DOCUMENT_ID_PROPERTY) || kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(EMBEDDING_FUC_PROPERTY)) {
+                            throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
+                        }
                         node.setProperty(kv.getKey(), codec.serialize(kv.getValue(), String.class));
                     }
                 }
@@ -316,12 +318,19 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     public void removeDocument(DocumentDelete delete) {
         var collection = getCollection(delete.getCollectionId());
         try (Transaction tx = collection.beginTx()) {
+            BiFunction<String, Object, Object> valueReader = (propertyKey, value) -> {
+                try {
+                    return codec.serialize(value, String.class);
+                } catch (IOException e) {
+                    throw new IllegalArgumentException("serialize '" + propertyKey + "=" + value + "' fail: " + e.getMessage(), e);
+                }
+            };
             for (Map.Entry<String, String> kv : delete.getMetadataMatchCondition().getEqs().entrySet()) {
-                tx.findNodes(PARAGRAPH_LABEL, kv.getKey(), kv.getValue()).forEachRemaining(Node::delete);
+                tx.findNodes(PARAGRAPH_LABEL, kv.getKey(), valueReader.apply(kv.getKey(), kv.getValue())).forEachRemaining(Node::delete);
             }
             for (Map.Entry<String, Collection<String>> kvs : delete.getMetadataMatchCondition().getIns().entrySet()) {
                 for (String value : kvs.getValue()) {
-                    tx.findNodes(PARAGRAPH_LABEL, kvs.getKey(), value).forEachRemaining(Node::delete);
+                    tx.findNodes(PARAGRAPH_LABEL, kvs.getKey(), valueReader.apply(kvs.getKey(), value)).forEachRemaining(Node::delete);
                 }
             }
             tx.commit();
@@ -406,15 +415,19 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
     @Override
     public void close() {
-        ensureOpen();
-        for (TempDocumentCollection collection : tempDocumentCollections) {
-            try {
-                collection.close();
-            } catch (Exception e) {
-                log.warn("encounter some problem in closing '" + getClass().getSimpleName() + "': close temp collection fail: {}", e.getMessage(), e);
+        if (!init) return;
+        synchronized (this) {
+            if (!init) return;
+            for (var collection : tempDocumentCollections) {
+                try {
+                    collection.close();
+                } catch (Exception e) {
+                    log.warn("encounter some problem in closing '" + getClass().getSimpleName() + "': close temp collection fail: {}", e.getMessage(), e);
+                }
             }
+            dbms.shutdown();
+            tempDbms.destroy();
+            init = false;
         }
-        dbms.shutdown();
-        tempDbms.shutdown();
     }
 }

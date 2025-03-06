@@ -10,6 +10,10 @@ import java.util.function.Supplier;
  * @author 三石而立Sunsy
  */
 public interface EmbeddingFunction {
+    default String getName() {
+        return getClass().getName();
+    }
+
     void init() throws Exception;
 
     Embedding embedQuery(String query) throws Exception;
