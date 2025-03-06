@@ -20,10 +20,10 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
 
     private EmbeddingFunction target;
 
-    public static String REMOTE_TYPE = "relevancy-engine.model.embedding.remote.type";
+    public static final String REMOTE_TYPE = "relevancy-engine.model.embedding.remote.type";
 
-    public static String REMOTE_BASE_URL = "relevancy-engine.model.embedding.remote.base-url";
-    public static String REMOTE_MODEL_NAME = "relevancy-engine.model.embedding.remote.model-name";
+    public static final String REMOTE_BASE_URL = "relevancy-engine.model.embedding.remote.base-url";
+    public static final String REMOTE_MODEL_NAME = "relevancy-engine.model.embedding.remote.model-name";
 
 
     public void init() throws Exception {
