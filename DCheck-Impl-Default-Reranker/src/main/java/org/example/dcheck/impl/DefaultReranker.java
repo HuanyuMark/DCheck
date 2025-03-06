@@ -103,7 +103,7 @@ public class DefaultReranker implements Reranker {
             if (resp.body() == null) {
                 throw new IOException("response body is null");
             }
-            var initResponse = (BaseResponse) codec.convertTo(new String(resp.body().bytes()), BaseResponse.class);
+            var initResponse = (BaseResponse) codec.deserialize(new String(resp.body().bytes()), BaseResponse.class);
             if (initResponse.isSuccess()) {
                 return;
             }
@@ -148,11 +148,12 @@ public class DefaultReranker implements Reranker {
     }
 
     protected String getRerankResponseBody(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
+        assert query.getParagraphs() != null;
         try {
             return Failsafe.with(retryPolicy).get(() -> {
                 try (var r = getClient().newCall(
                         RequestTemplate.RERANK.getBuilder()
-                                .post(RequestBody.create((String) codec.convertTo(
+                                .post(RequestBody.create((String) codec.serialize(
                                         new RerankRequest(
                                                 query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),
                                                 relevancyResult.getRecords().stream()
@@ -179,7 +180,13 @@ public class DefaultReranker implements Reranker {
 
     @Override
     public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
-        var rerankResponse = (RerankResponse) codec.convertTo(getRerankResponseBody(relevancyResult, query), RerankResponse.class);
+        RerankResponse rerankResponse;
+        //TODO make sure query.getParagraphs() not null
+        try {
+            rerankResponse = codec.deserialize(getRerankResponseBody(relevancyResult, query), RerankResponse.class);
+        } catch (IOException e) {
+            throw new IllegalStateException("parse rerank response fail:" + e.getMessage(), e);
+        }
         if (!rerankResponse.isSuccess()) {
             throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
         }

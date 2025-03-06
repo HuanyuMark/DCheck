@@ -2,6 +2,7 @@ package org.example.dcheck.api;
 
 import org.springframework.core.ParameterizedTypeReference;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 
 /**
@@ -19,23 +20,26 @@ public interface Codec {
      */
     String getName();
 
+    <Target> Target deserialize(Object input, Type targetType) throws IOException;
+
+    <SerializeTo> SerializeTo serialize(Object input, Type serializeTo) throws IOException;
+
 
     /**
-     * 1. do serialization/deserialization<br>
-     * 2. do type conversion<br>
+     * do type conversion<br>
      */
-    <Target> Target convertTo(Object input, Type targetType);
+    <Target> Target convertTo(Object input, Type targetType) throws IOException;
 
 
-    default <Target> Target convertTo(Object input, ParameterizedTypeReference<?> targetType) {
+    default <Target> Target convertTo(Object input, ParameterizedTypeReference<?> targetType) throws IOException {
         return convertTo(input, targetType.getType());
     }
+
     /**
-     * 1. do serialization/deserialization<br>
-     * 2. do type conversion<br>
+     * do type conversion<br>
      * all impl should support hint: {@link Type}/{@link org.springframework.core.ParameterizedTypeReference}
      */
-    default <Target> Target convertTo(Object input, Object targetTypeHint) {
+    default <Target> Target convertTo(Object input, Object targetTypeHint) throws IOException {
         if (targetTypeHint instanceof ParameterizedTypeReference) {
             return convertTo(input, (ParameterizedTypeReference<?>) targetTypeHint);
         }

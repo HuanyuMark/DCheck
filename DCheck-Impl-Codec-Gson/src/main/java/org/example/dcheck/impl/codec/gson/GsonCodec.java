@@ -1,11 +1,14 @@
 package org.example.dcheck.impl.codec.gson;
 
 import com.google.gson.*;
+import com.google.gson.internal.bind.JsonTreeWriter;
+import com.google.gson.stream.JsonReader;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.springframework.core.ParameterizedTypeReference;
 
+import java.io.Reader;
 import java.lang.reflect.Type;
 import java.util.Map;
 
@@ -114,14 +117,43 @@ public class GsonCodec implements Codec {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <Target> Target convertTo(Object input, Type targetType) {
-        if (targetType instanceof Class) {
-            if (JsonElement.class.isAssignableFrom((Class<?>) targetType))
-                return (Target) gson.toJsonTree(input);
-            if (String.class.isAssignableFrom((Class<?>) targetType))
-                return (Target) gson.toJson(input);
+    public <Target> Target deserialize(Object input, Type targetType) {
+        if (input instanceof String) {
+            return gson.fromJson((String) input, targetType);
         }
+        if (input instanceof Reader) {
+            return gson.fromJson((Reader) input, targetType);
+        }
+        if (input instanceof JsonReader) {
+            return gson.fromJson((JsonReader) input, targetType);
+        }
+        if (input instanceof JsonElement) {
+            return gson.fromJson((JsonElement) input, targetType);
+        }
+        return convertTo(input, targetType);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <SerializeTo> SerializeTo serialize(Object input, Type serializeTo) {
+        if (serializeTo instanceof Class<?>) {
+            if (String.class.isAssignableFrom((Class<?>) serializeTo)) {
+                return (SerializeTo) gson.toJson(input);
+            }
+            if (Appendable.class.isAssignableFrom(((Class<?>) serializeTo))) {
+                JsonTreeWriter writer = new JsonTreeWriter();
+                gson.toJson(input, input.getClass(), writer);
+                return (SerializeTo) writer;
+            }
+            if (JsonElement.class.isAssignableFrom((Class<?>) serializeTo)) {
+                return (SerializeTo) gson.toJsonTree(input);
+            }
+        }
+        return convertTo(input, serializeTo);
+    }
+
+    @Override
+    public <Target> Target convertTo(Object input, Type targetType) {
         return gson.fromJson(gson.toJsonTree(input), targetType);
     }
 }

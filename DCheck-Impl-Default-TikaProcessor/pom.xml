@@ -1,4 +1,4 @@
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
@@ -6,28 +6,24 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
-
-    <!--    <version>5.4.0-0.0.1</version>-->
+    <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>
     <dependencies>
-
         <dependency>
             <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-API</artifactId>
+            <scope>compile</scope>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
         <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi</artifactId>
-            <version>5.4.0</version>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Base-Langchain</artifactId>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml -->
+        <!-- https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-document-parser-apache-tika -->
         <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.4.0</version>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-tika</artifactId>
+            <version>0.30.0</version>
         </dependency>
 
         <dependency>

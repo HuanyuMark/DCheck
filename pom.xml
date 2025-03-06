@@ -21,6 +21,10 @@
         <module>DCheck-Impl-Codec-Gson</module>
         <module>DCheck-Impl-Default-Embedding</module>
         <module>DCheck-Impl-Embedding-Remote</module>
+        <module>DCheck-Impl-Codec-Jackson</module>
+        <module>DCheck-Impl-Default-TikaProcessor</module>
+        <module>DCheck-Impl-Default-PdfProcessor</module>
+        <module>DCheck-Impl-Base-Langchain</module>
     </modules>
 
     <properties>
@@ -58,9 +62,26 @@
 
             <dependency>
                 <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-Base-Langchain</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
                 <version>0.0.1</version>
             </dependency>
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-Default-PdfProcessor</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+
             <dependency>
                 <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Common</artifactId>
@@ -91,6 +112,12 @@
                 <artifactId>DCheck-Impl-Codec-Gson</artifactId>
                 <version>0.0.1</version>
             </dependency>
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-Codec-Jackson</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>

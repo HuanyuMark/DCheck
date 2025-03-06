@@ -58,7 +58,7 @@ public class DocumentProcessorProvider implements DCheckProvider, DocumentProces
     public Stream<DocumentParagraph> split(@NonNull Document document) {
         DocumentProcessor processor = getProcessor(document.getDocumentType());
         if (processor == UNSUPPORTED) {
-            log.warn("[DocumentProcessor Proxy]: proxy process fail: no found processor for type '{}'", document.getDocumentType());
+            log.error("[DocumentProcessor Proxy]: proxy process fail: no found processor for type '{}'", document.getDocumentType());
         }
         return processor.split(document);
     }

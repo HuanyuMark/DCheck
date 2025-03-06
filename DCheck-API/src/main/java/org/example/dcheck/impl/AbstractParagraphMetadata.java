@@ -37,10 +37,12 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
         syncFieldMap();
     }
 
-    public AbstractParagraphMetadata(Map<? extends String, ?> m, String documentId, ParagraphLocation location) {
+    public AbstractParagraphMetadata(@Nullable Map<? extends String, ?> m, String documentId, ParagraphLocation location) {
         this.documentId = documentId;
         this.location = location;
-        raw.putAll(m);
+        if (m != null) {
+            raw.putAll(m);
+        }
         syncFieldMap();
     }
 

@@ -1,7 +1,7 @@
 import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.InMemoryTextContent;
 import org.example.dcheck.impl.PdfDocument;
-import org.example.dcheck.impl.fileprocessor.LangChainDocumentProcessor;
+import org.example.dcheck.impl.fileprocessor.TikaDocumentProcessor;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 public class TestApp {
     @Test
     public void testDoc() {
-        LangChainDocumentProcessor processor = new LangChainDocumentProcessor();
+        TikaDocumentProcessor processor = new TikaDocumentProcessor();
         processor.init();
         processor.split(new DocxDocument("ARM-labguide1.doc", () -> {
             try {
@@ -34,7 +34,7 @@ public class TestApp {
 
     @Test
     public void testPdf() {
-        LangChainDocumentProcessor processor = new LangChainDocumentProcessor();
+        TikaDocumentProcessor processor = new TikaDocumentProcessor();
         processor.init();
         processor.split(new PdfDocument("ARM-labguide1.pdf", () -> {
             try {

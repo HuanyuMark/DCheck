@@ -227,14 +227,21 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         @SuppressWarnings("unchecked")
                         var metadata = (Map<String, String>) ((Object) queryResultMetadata.get(j));
                         var score = queryResultScore.get(j);
+                        ParagraphMetadata metadataObj;
+                        try {
+                            metadataObj = codec.deserialize(metadata, ParagraphMetadata.class);
+                        } catch (IOException e) {
+                            throw new IllegalArgumentException("parse metadata fail: " + e.getMessage(), e);
+                        }
                         return ParagraphRelevancyQueryResult.Record.builder()
                                 .paragraph(TextParagraph.builder()
-                                        .metadata(codec.convertTo(metadata, ParagraphMetadata.class))
+                                        .metadata(metadataObj)
                                         .collection(documentCollection)
                                         .content(() -> new InMemoryTextContent(document))
                                         .build())
                                 .relevancy(score)
                                 .build();
+
                     }).collect(Collectors.toList());
                 }).collect(Collectors.toList());
 
@@ -257,7 +264,13 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                                 null,
                                 chunk.stream()
                                         .map(ParagraphRelevancyCreation.Record::getMetadata)
-                                        .map(m -> m.toFlatMap(form -> codec.convertTo(form, String.class)))
+                                        .map(m -> m.toFlatMap(form -> {
+                                            try {
+                                                return codec.serialize(form, String.class);
+                                            } catch (IOException e) {
+                                                throw new IllegalStateException("stringfy obj '" + form + "' to json fail: " + e.getMessage(), e);
+                                            }
+                                        }))
                                         .collect(Collectors.toList()),
                                 chunk.stream()
                                         .map(ParagraphRelevancyCreation.Record::getParagraph)

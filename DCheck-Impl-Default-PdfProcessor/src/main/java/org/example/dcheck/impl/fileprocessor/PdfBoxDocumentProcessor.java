@@ -3,27 +3,24 @@ package org.example.dcheck.impl.fileprocessor;
 import dev.langchain4j.data.document.DocumentLoader;
 import dev.langchain4j.data.document.DocumentParser;
 import dev.langchain4j.data.document.DocumentSplitter;
-import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser;
+import dev.langchain4j.data.document.parser.apache.pdfbox.ApachePdfBoxDocumentParser;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
-import lombok.Data;
 import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.InMemoryTextContent;
+import org.example.dcheck.impl.SharedDocumentProcessorConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Date 2025/02/27
- * 支持处理 {@link BuiltinDocumentType#fastValues()} 中的所有文件类型
+ * Date 2025/03/06
  *
  * @author 三石而立Sunsy
  */
-@Data
-public class LangChainDocumentProcessor implements DocumentProcessor {
-
+public class PdfBoxDocumentProcessor implements DocumentProcessor {
     private DocumentSplitter splitter;
 
 
@@ -36,7 +33,7 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
         if (init) return;
         synchronized (this) {
             if (init) return;
-            documentParser = new ApacheTikaDocumentParser();
+            documentParser = new ApachePdfBoxDocumentParser();
             int maxParagraphLength = SharedDocumentProcessorConfig.getInstance().getMaxParagraphLength();
 //        int maxOverlaySize = Math.min(maxParagraphLength / 4, 100);
             splitter = DocumentSplitters.recursive(maxParagraphLength, 20);
@@ -51,7 +48,7 @@ public class LangChainDocumentProcessor implements DocumentProcessor {
 
     @Override
     public boolean support(@NotNull DocumentType type) {
-        return BuiltinDocumentType.fastValues().contains(type);
+        return BuiltinDocumentType.PDF == type;
     }
 
 

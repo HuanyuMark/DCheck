@@ -235,8 +235,18 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                                 .map(kv -> new AbstractMap.SimpleEntry<>(kv.getKey(), (((String) kv.getValue()))))
                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-                        var metadata = (ParagraphMetadata) codec.convertTo(flatProperties, ParagraphMetadata.class);
-                        var paragraphContent = (Content) ContentConvert.castToContent(codec.convertTo(flatProperties.get(CONTENT_PROPERTY), String.class));
+                        ParagraphMetadata metadata;
+                        try {
+                            metadata = codec.deserialize(flatProperties, ParagraphMetadata.class);
+                        } catch (IOException e) {
+                            throw new IllegalStateException("convert flatProperties to ParagraphMetadata fail: " + e.getMessage(), e);
+                        }
+                        Content paragraphContent;
+                        try {
+                            paragraphContent = ContentConvert.castToContent(codec.deserialize(flatProperties.get(CONTENT_PROPERTY), String.class));
+                        } catch (IOException e) {
+                            throw new IllegalStateException("convert flatProperties.CONTENT_PROPERTY to ParagraphMetadata fail: " + e.getMessage(), e);
+                        }
 
                         if (metadata.getParagraphType() != BuiltinParagraphType.TEXT) {
                             throw new UnsupportedOperationException("unsupported paragraph type: " + metadata.getParagraphType());
@@ -290,9 +300,9 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     var record = partition.get(i);
                     Node node = tx.createNode(PARAGRAPH_LABEL);
                     node.setProperty(VECTOR_PROPERTY, embeddings.get(i).asArray());
-                    node.setProperty(CONTENT_PROPERTY, codec.convertTo(ContentConvert.castToText(record.getContent()), String.class));
+                    node.setProperty(CONTENT_PROPERTY, codec.serialize(ContentConvert.castToText(record.getContent()), String.class));
                     for (Map.Entry<String, Object> kv : record.getMetadata().entrySet()) {
-                        node.setProperty(kv.getKey(), codec.convertTo(kv.getValue(), String.class));
+                        node.setProperty(kv.getKey(), codec.serialize(kv.getValue(), String.class));
                     }
                 }
             }

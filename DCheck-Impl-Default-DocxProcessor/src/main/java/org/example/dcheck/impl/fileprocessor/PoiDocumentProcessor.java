@@ -6,6 +6,7 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.InMemoryTextContent;
+import org.example.dcheck.impl.SharedDocumentProcessorConfig;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.util.StringUtils;
 
@@ -52,7 +53,7 @@ public class PoiDocumentProcessor implements DocumentProcessor {
                         var content = contents.get(i);
                         return DocumentParagraph.builder()
                                 .paragraphType(BuiltinParagraphType.TEXT)
-                                .location(ContentMatchParagraphLocation.formLine(content.getText().toString(),i))
+                                .location(ContentMatchParagraphLocation.formLine(content.getText().toString(), i))
                                 .content(() -> content)
                                 .build();
                     });

@@ -78,7 +78,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                         queryResult.getRecords().stream()
                                 .flatMap(Collection::stream)
                                 // calculate total score of each document
-                                .map(r -> new CheckResult.RelevantDocument(r.getDocumentId(), r.getRelevancy()))
+                                .map(r -> new CheckResult.RelevantDocument(r.getMetadata().getDocumentId(), r.getRelevancy()))
                                 .collect(Collectors.groupingBy(CheckResult.RelevantDocument::getDocumentId))
                                 .entrySet()
                                 .stream()

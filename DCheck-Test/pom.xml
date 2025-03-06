@@ -24,10 +24,33 @@
             <artifactId>DCheck-Impl-Embedding-Remote</artifactId>
         </dependency>
 
+        <!-- 文档处理器: 启用处理docx文件 -->
         <dependency>
             <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
         </dependency>
+
+        <!-- 文档处理器: 启用处理pdf文件 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Default-PdfProcessor</artifactId>
+        </dependency>
+
+        <!-- 文档处理器: 启用tika自动处理 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Codec-Jackson</artifactId>
+        </dependency>
+        <!-- gson正在开发中，后续支持请持续跟踪该项目 -->
+        <!--        <dependency>-->
+        <!--            <groupId>org.example.dcheck</groupId>-->
+        <!--            <artifactId>DCheck-Impl-Codec-Gson</artifactId>-->
+        <!--        </dependency>-->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

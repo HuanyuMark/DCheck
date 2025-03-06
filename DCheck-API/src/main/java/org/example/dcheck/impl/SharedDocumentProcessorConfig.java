@@ -1,4 +1,4 @@
-package org.example.dcheck.impl.fileprocessor;
+package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.var;

@@ -43,6 +43,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
 
     private final String modelName;
 
+    @SuppressWarnings("unused")
     public OllamaEmbeddingFunction() {
         this(DEFAULT_BASE_API, DEFAULT_MODEL_NAME);
     }
@@ -56,7 +57,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
     private OllamaCreateEmbeddingResponse createEmbedding(OllamaCreateEmbeddingRequest req) throws Exception {
         Request request = new Request.Builder()
                 .url(baseUrl)
-                .post(RequestBody.create((String) codec.convertTo(req, String.class), Constant.JSON))
+                .post(RequestBody.create((String) codec.serialize(req, String.class), Constant.JSON))
                 .addHeader("Accept", "application/json")
                 .addHeader("Content-Type", "application/json")
                 .addHeader("User-Agent", Constant.HTTP_USER_AGENT)
@@ -72,7 +73,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
 
             String responseData = response.body().string();
 
-            return codec.convertTo(responseData, OllamaCreateEmbeddingResponse.class);
+            return codec.deserialize(responseData, OllamaCreateEmbeddingResponse.class);
         }
     }
 

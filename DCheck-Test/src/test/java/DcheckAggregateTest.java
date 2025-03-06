@@ -4,7 +4,6 @@ import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import tech.amikos.chromadb.Client;
-import tech.amikos.chromadb.EFException;
 import tech.amikos.chromadb.Embedding;
 import tech.amikos.chromadb.embeddings.EmbeddingFunction;
 import tech.amikos.chromadb.handler.ApiException;
@@ -105,9 +104,9 @@ public class DcheckAggregateTest {
                     }))
                     .map(e -> new DocxDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
                     .collect(Collectors.toList());
-            if(diffCollection.isEmpty()) {
+            if (diffCollection.isEmpty()) {
                 throw new IllegalStateException("请将查重文件放入到目标目录中，目标目录中没有文件！Please place the duplicate checking files into the target directory. The target directory is empty!\n" +
-                        "目标目录/target directory: "+ input.toAbsolutePath());
+                        "目标目录/target directory: " + input.toAbsolutePath());
             }
         }
         return diffCollection;
@@ -126,7 +125,7 @@ public class DcheckAggregateTest {
         checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
         for (int i = 0; i < checkResult.getRelevantParagraphs().size(); i++) {
             int finalI = i;
-            checkResult.getRelevantParagraphs().get(i).forEach(paragraph -> System.out.println("paragraph of doc '" + finalI + "': " + paragraph.getDocumentId() + " relevancy: " + paragraph.getRelevancy() + " location: " + paragraph.getLocation()));
+            checkResult.getRelevantParagraphs().get(i).forEach(paragraph -> System.out.println("paragraph of doc '" + finalI + "': " + paragraph.getMetadata().getDocumentId() + " relevancy: " + paragraph.getRelevancy() + " location: " + paragraph.getMetadata().getLocation()));
         }
     }
 
@@ -137,17 +136,17 @@ public class DcheckAggregateTest {
         String collectionName = "temp\0ffff";
         c.createCollection(collectionName, Collections.emptyMap(), true, new EmbeddingFunction() {
             @Override
-            public Embedding embedQuery(String query) throws EFException {
+            public Embedding embedQuery(String query) {
                 return null;
             }
 
             @Override
-            public List<Embedding> embedDocuments(List<String> documents) throws EFException {
+            public List<Embedding> embedDocuments(List<String> documents) {
                 return null;
             }
 
             @Override
-            public List<Embedding> embedDocuments(String[] documents) throws EFException {
+            public List<Embedding> embedDocuments(String[] documents) {
                 return null;
             }
         });
