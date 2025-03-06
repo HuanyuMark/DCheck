@@ -28,9 +28,6 @@ import tech.amikos.chromadb.model.GetEmbedding;
 import tech.amikos.chromadb.model.QueryEmbedding;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -48,16 +45,16 @@ import java.util.stream.IntStream;
 public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEngine implements ParagraphRelevancyEngine {
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
-    protected static final String TEMP_COLLECTION_PREFIX;
+    protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
 
-    static {
-        try {
-            // use the name with unescaped char to avoid name conflict
-            TEMP_COLLECTION_PREFIX = URLEncoder.encode("tmp\0\\", StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    static {
+//        try {
+//            // use the name with unescaped char to avoid name conflict
+//            TEMP_COLLECTION_PREFIX = URLEncoder.encode("tm$p9843975uy6hn3w$x2zc$p8o435a$s5poq", StandardCharsets.UTF_8.name());
+//        } catch (UnsupportedEncodingException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     private final Map<String, ChromaCollection> chromaCollections = new ConcurrentSkipListMap<>();
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
@@ -296,7 +293,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     /**
      * low performance. Facade Batch
      * chroma doc: batch op 'get' is nonexistent
-     * */
+     */
     @Override
     public List<Boolean> hasDocument(DocumentIdQuery query) {
         var collection = getCollection(query.getCollectionId());
@@ -356,10 +353,11 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
     @Override
     protected String generateTempDocumentCollectionId() {
-        return TEMP_COLLECTION_PREFIX + UUID.randomUUID();
+        return TEMP_COLLECTION_PREFIX + "_" + (long) (System.currentTimeMillis() / Math.random());
     }
 
     protected boolean isTempDocumentCollection(String collectionId) {
+        log.info("collectionId: {}", collectionId);
         return collectionId.startsWith(TEMP_COLLECTION_PREFIX);
     }
 

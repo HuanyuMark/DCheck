@@ -1,1 +1,1 @@
-org.example.dcheck.impl.fileprocessor.LangChainDocumentProcessor
+org.example.dcheck.impl.fileprocessor.PoiDocumentProcessor

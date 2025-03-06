@@ -5,7 +5,6 @@ import lombok.var;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.ConfigProvider;
-import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
 import java.util.List;
@@ -21,10 +20,10 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
 
     private EmbeddingFunction target;
 
-    public static String REMOTE_TYPE = "embedding.type";
+    public static String REMOTE_TYPE = "relevancy-engine.model.embedding.remote.type";
 
-    public static String REMOTE_BASE_URL = "embedding.remote.base-url";
-    public static String REMOTE_MODEL_NAME = "embedding.remote.model-name";
+    public static String REMOTE_BASE_URL = "relevancy-engine.model.embedding.remote.base-url";
+    public static String REMOTE_MODEL_NAME = "relevancy-engine.model.embedding.remote.model-name";
 
 
     public void init() throws Exception {
@@ -34,13 +33,7 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
         String modelName = apiConfig.getProperty(REMOTE_MODEL_NAME);
         switch (type) {
             case "OLLAMA":
-                if (StringUtils.hasText(baseUrl) && StringUtils.hasText(modelName)) {
-                    target = new OllamaEmbeddingFunction(baseUrl, modelName);
-                } else if (!StringUtils.hasText(modelName)) {
-                    target = new OllamaEmbeddingFunction();
-                } else {
-                    throw new IllegalArgumentException("invalid config '" + REMOTE_TYPE + "=" + type + "': required baseUrl and modelName");
-                }
+                target = new OllamaEmbeddingFunction(baseUrl, modelName);
                 break;
             default:
                 throw new IllegalArgumentException("invalid config '" + REMOTE_TYPE + "=" + type + "': unknown remote type");

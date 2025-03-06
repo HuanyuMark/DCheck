@@ -18,6 +18,12 @@
             <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Embedding-Remote</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>

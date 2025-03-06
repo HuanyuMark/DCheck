@@ -18,6 +18,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.LongBuffer;
 import java.nio.file.Files;
@@ -63,8 +64,17 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         private static final Path modelPath = MODEL_CACHE_DIR.resolve("onnx");
         private static final Path modelFile = modelPath.resolve("model.onnx");
         private static final String ARCHIVE_FILENAME = "onnx.tar.gz";
-        //        private static final URL MODEL_DOWNLOAD_URL = "https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz";
-        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(DefaultEmbeddingFunction.class.getClassLoader().getResource("org/example/dcheck/models/onnx.tar.gz"));
+        private static final URL MODEL_DOWNLOAD_URL;
+
+        static {
+            try {
+                MODEL_DOWNLOAD_URL = new URL("https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz");
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        //        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(DefaultEmbeddingFunction.class.getClassLoader().getResource("org/example/dcheck/models/onnx.tar.gz"));
         private static final String MODEL_SHA256_CHECKSUM = "913d7300ceae3b2dbc2c50d1de4baacab4be7b9380491c27fab7418616a16ec3";
         OrtSession session;
         private HuggingFaceTokenizer tokenizer;

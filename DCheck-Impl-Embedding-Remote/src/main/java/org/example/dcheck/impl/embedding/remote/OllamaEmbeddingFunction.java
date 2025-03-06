@@ -2,6 +2,7 @@ package org.example.dcheck.impl.embedding.remote;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import lombok.var;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -12,8 +13,11 @@ import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.impl.embedding.remote.entity.OllamaCreateEmbeddingRequest;
 import org.example.dcheck.impl.embedding.remote.entity.OllamaCreateEmbeddingResponse;
 import org.example.dcheck.spi.CodecProvider;
+import org.example.dcheck.spi.ConfigProvider;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -24,8 +28,10 @@ import java.util.stream.Collectors;
 public class OllamaEmbeddingFunction implements EmbeddingFunction {
     public final static String DEFAULT_BASE_API = "http://localhost:11434/api/embed";
     public final static String DEFAULT_MODEL_NAME = "nomic-embed-text";
-    private final OkHttpClient client = new OkHttpClient();
+    private OkHttpClient client;
     private final Codec codec;
+
+    public static final String CALL_TIME_OUT = "relevancy-engine.model.embedding.remote.timeout";
 
 
     {
@@ -42,8 +48,9 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
     }
 
     public OllamaEmbeddingFunction(String baseUrl, String modelName) {
-        this.baseUrl = baseUrl;
-        this.modelName = modelName;
+        this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
+        this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
+
     }
 
     private OllamaCreateEmbeddingResponse createEmbedding(OllamaCreateEmbeddingRequest req) throws Exception {
@@ -70,8 +77,19 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Override
-    public void init() throws Exception {
+    public void init() {
         log.info("apply base url '{}' model '{}'", baseUrl, modelName);
+        var apiConfig = ConfigProvider.getInstance().getApiConfig();
+        String timeout = apiConfig.getProperty(CALL_TIME_OUT);
+        Duration timeoutDuration;
+        try {
+            timeoutDuration = Duration.parse(timeout);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("invalid config '" + CALL_TIME_OUT + "=" + timeout + "': " + e.getMessage(), e);
+        }
+        client = new OkHttpClient.Builder()
+                .readTimeout(timeoutDuration)
+                .build();
         // ping ollama server...
     }
 

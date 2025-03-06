@@ -1,8 +1,13 @@
 import org.example.dcheck.api.*;
-import org.example.dcheck.impl.UnknownDocument;
+import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
+import tech.amikos.chromadb.Client;
+import tech.amikos.chromadb.EFException;
+import tech.amikos.chromadb.Embedding;
+import tech.amikos.chromadb.embeddings.EmbeddingFunction;
+import tech.amikos.chromadb.handler.ApiException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -89,6 +95,7 @@ public class DcheckAggregateTest {
         try (Stream<Path> stream = Files.list(input)) {
             diffCollection = stream
                     .filter(Files::isRegularFile)
+                    .filter(p -> !p.getFileName().toString().equals("doc5.pdf"))
                     .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
                         try {
                             return Files.newInputStream(p);
@@ -96,7 +103,7 @@ public class DcheckAggregateTest {
                             throw new RuntimeException(e);
                         }
                     }))
-                    .map(e -> new UnknownDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
+                    .map(e -> new DocxDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
                     .collect(Collectors.toList());
             if(diffCollection.isEmpty()) {
                 throw new IllegalStateException("请将查重文件放入到目标目录中，目标目录中没有文件！Please place the duplicate checking files into the target directory. The target directory is empty!\n" +
@@ -121,5 +128,29 @@ public class DcheckAggregateTest {
             int finalI = i;
             checkResult.getRelevantParagraphs().get(i).forEach(paragraph -> System.out.println("paragraph of doc '" + finalI + "': " + paragraph.getDocumentId() + " relevancy: " + paragraph.getRelevancy() + " location: " + paragraph.getLocation()));
         }
+    }
+
+    @Test
+    public void testChroma() throws ApiException {
+        Client c = new Client("http://localhost:8000");
+        c.heartbeat();
+        String collectionName = "temp\0ffff";
+        c.createCollection(collectionName, Collections.emptyMap(), true, new EmbeddingFunction() {
+            @Override
+            public Embedding embedQuery(String query) throws EFException {
+                return null;
+            }
+
+            @Override
+            public List<Embedding> embedDocuments(List<String> documents) throws EFException {
+                return null;
+            }
+
+            @Override
+            public List<Embedding> embedDocuments(String[] documents) throws EFException {
+                return null;
+            }
+        });
+        c.deleteCollection(collectionName);
     }
 }

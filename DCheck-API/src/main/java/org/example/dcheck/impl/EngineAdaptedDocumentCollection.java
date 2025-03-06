@@ -49,9 +49,6 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
             var batch = documents.stream().flatMap(document -> DocumentProcessorProvider.getInstance().split(document)
                     .map(documentParagraph -> {
                         if (documentParagraph.getParagraphType() == BuiltinParagraphType.TEXT) {
-                            if (!(documentParagraph.getLocation() instanceof TextParagraphLocation)) {
-                                throw new IllegalStateException("location must be TextParagraphLocation");
-                            }
                             return ParagraphRelevancyCreation.Record.builder()
                                     .paragraph(documentParagraph)
                                     .metadata(TextParagraphMetadata.builder()
