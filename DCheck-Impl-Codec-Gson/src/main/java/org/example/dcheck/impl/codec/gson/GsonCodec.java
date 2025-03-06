@@ -4,8 +4,10 @@ import com.google.gson.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.lang.reflect.Type;
+import java.util.Map;
 
 /**
  * Date: 2025/3/1
@@ -36,9 +38,17 @@ public class GsonCodec implements Codec {
     public GsonCodec() {
     }
 
+    private static final Type MapType = new ParameterizedTypeReference<Map<String, Object>>() {
+    }.getType();
+
     {
         setGson(defaultGsonBuilder
+                // todo add annotation merger
                 .registerTypeAdapter(ParagraphLocation.class, (JsonDeserializer<ParagraphLocation>) (json, typeOfT, context) -> {
+                    //unwrap
+                    if (json.isJsonPrimitive()) {
+                        return context.deserialize(getGson().toJsonTree(json.getAsString()), typeOfT);
+                    }
                     var obj = json.getAsJsonObject();
                     var str = obj.get("type");
                     if (str == null) {
@@ -50,7 +60,12 @@ public class GsonCodec implements Codec {
                     }
                     return context.deserialize(json, type.type());
                 })
+                .registerTypeAdapter(ParagraphMetadata.class, (JsonSerializer<ParagraphMetadata>) (ParagraphMetadata src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src, MapType))
                 .registerTypeAdapter(ParagraphMetadata.class, (JsonDeserializer<ParagraphMetadata>) (json, typeOfT, context) -> {
+                    //unwrap
+                    if (json.isJsonPrimitive()) {
+                        return context.deserialize(getGson().toJsonTree(json.getAsString()), typeOfT);
+                    }
                     var obj = json.getAsJsonObject();
                     JsonElement ptValue = obj.get("paragraphType");
                     if (ptValue == null) {
@@ -58,7 +73,12 @@ public class GsonCodec implements Codec {
                     }
                     var paragraphType = (ParagraphType) context.deserialize(ptValue, ParagraphType.class);
                     var paragraphLocationType = paragraphType.getMetadataClass();
-                    return context.deserialize(json, paragraphLocationType);
+                    @SuppressWarnings("unchecked")
+                    var all = (Map<String, Object>) context.deserialize(json, MapType);
+                    var ins = (ParagraphMetadata) context.deserialize(json, paragraphLocationType);
+                    var extensions = paragraphType.createExtension(all, ins.getDocumentId(), ins.getLocation());
+                    if (extensions != null) return extensions;
+                    return ins;
                 })
                 .registerTypeAdapter(ParagraphType.class, (JsonSerializer<ParagraphType>) (ParagraphType src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src.name()))
                 .registerTypeAdapter(ParagraphType.class, (JsonDeserializer<ParagraphType>) (json, typeOfT, context) -> {
@@ -70,7 +90,7 @@ public class GsonCodec implements Codec {
                     }
                     var paragraphType = ParagraphType.ALL_TYPES.get(str);
                     if (paragraphType == null) {
-                        log.warn("Check if forget to register that type instance to: {}.ALL_TYPES throw Unknown ParagraphType: {}", ParagraphType.class, str);
+                        log.warn("Check if forget to register that type instance to: {}.ALL_TYPES: throw Unknown ParagraphType: {}", ParagraphType.class, str);
                         throw new IllegalArgumentException("unknown ParagraphType: " + str);
                     }
                     return paragraphType;
@@ -85,7 +105,7 @@ public class GsonCodec implements Codec {
                     }
                     var paragraphLocationType = ParagraphLocationType.ALL_TYPES.get(type);
                     if (paragraphLocationType == null) {
-                        log.warn("Check if forget to register that type instance to: {}.ALL_TYPES throw Unknown ParagraphLocationType: {}", ParagraphLocationType.class, type);
+                        log.warn("Check if forget to register that type instance to: {}.ALL_TYPES: throw Unknown ParagraphLocationType: {}", ParagraphLocationType.class, type);
                         throw new IllegalArgumentException("unknown ParagraphLocationType: " + type);
                     }
                     return paragraphLocationType;
@@ -95,16 +115,13 @@ public class GsonCodec implements Codec {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <Target> Target convertTo(Object input, Object targetTypeHint) {
-        if (!(targetTypeHint instanceof Type)) {
-            throw new IllegalArgumentException("unsupported target type: " + targetTypeHint);
-        }
-        if (targetTypeHint instanceof Class) {
-            if (JsonElement.class.isAssignableFrom((Class<?>) targetTypeHint))
+    public <Target> Target convertTo(Object input, Type targetType) {
+        if (targetType instanceof Class) {
+            if (JsonElement.class.isAssignableFrom((Class<?>) targetType))
                 return (Target) gson.toJsonTree(input);
-            if (String.class.isAssignableFrom((Class<?>) targetTypeHint))
+            if (String.class.isAssignableFrom((Class<?>) targetType))
                 return (Target) gson.toJson(input);
         }
-        return gson.fromJson(gson.toJsonTree(input), (Type) targetTypeHint);
+        return gson.fromJson(gson.toJsonTree(input), targetType);
     }
 }

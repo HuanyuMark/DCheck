@@ -244,9 +244,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
                         var paragraph = new TextParagraph(
                                 documentCollection,
-                                metadata.getDocumentId(),
                                 () -> (TextContent) paragraphContent,
-                                metadata.getLocation()
+                                metadata
                         );
 
                         return new ParagraphRelevancyQueryResult.Record(paragraph, (double) result.get("score"));
