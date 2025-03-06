@@ -43,6 +43,7 @@ public class GsonCodec implements Codec {
 
     {
         setGson(defaultGsonBuilder
+                // todo add annotation merger
                 .registerTypeAdapter(ParagraphLocation.class, (JsonDeserializer<ParagraphLocation>) (json, typeOfT, context) -> {
                     //unwrap
                     if (json.isJsonPrimitive()) {
@@ -59,6 +60,7 @@ public class GsonCodec implements Codec {
                     }
                     return context.deserialize(json, type.type());
                 })
+                .registerTypeAdapter(ParagraphMetadata.class, (JsonSerializer<ParagraphMetadata>) (ParagraphMetadata src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src, MapType))
                 .registerTypeAdapter(ParagraphMetadata.class, (JsonDeserializer<ParagraphMetadata>) (json, typeOfT, context) -> {
                     //unwrap
                     if (json.isJsonPrimitive()) {
@@ -78,7 +80,6 @@ public class GsonCodec implements Codec {
                     if (extensions != null) return extensions;
                     return ins;
                 })
-                .registerTypeAdapter(ParagraphMetadata.class, (JsonSerializer<ParagraphMetadata>) (ParagraphMetadata src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src, MapType))
                 .registerTypeAdapter(ParagraphType.class, (JsonSerializer<ParagraphType>) (ParagraphType src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src.name()))
                 .registerTypeAdapter(ParagraphType.class, (JsonDeserializer<ParagraphType>) (json, typeOfT, context) -> {
                     String str;
