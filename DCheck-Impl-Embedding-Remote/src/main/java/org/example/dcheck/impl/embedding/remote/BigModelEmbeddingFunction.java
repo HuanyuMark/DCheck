@@ -21,6 +21,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.API_KEY_CONFIG;
+import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.DIMENSION_CONFIG;
+
 /**
  * Date: 2025/3/8
  *
@@ -32,10 +35,6 @@ import java.util.stream.Collectors;
 public class BigModelEmbeddingFunction implements EmbeddingFunction {
     private static final String DEFAULT_MODEL_NAME = "embedding-3";
     private static final String DEFAULT_BASE_API = "https://open.bigmodel.cn/api/paas/v4/embeddings";
-
-
-    private static final String DIMENSION_CONFIG = "relevancy-engine.model.embedding.remote.dimension";
-
 
     private final String modelName;
     private final String baseUrl;
@@ -50,9 +49,9 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     }
 
 
-    public BigModelEmbeddingFunction(String modelName, String baseUrl) {
-        this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
+    public BigModelEmbeddingFunction(String baseUrl, String modelName) {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
+        this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
     }
 
     public void setClient(@NonNull OkHttpClient client) {
@@ -64,17 +63,24 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         if (getClient() == null) {
             setClient(OkHttpClientFactory.getInstance().create());
         }
-        HttpUrl url = HttpUrl.parse(baseUrl);
+
+        HttpUrl url = HttpUrl.parse(this.baseUrl);
         if (url == null) {
             throw new IllegalArgumentException("invalid base url '" + baseUrl + "'");
+        }
+        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+        String apiKey = apiConfig.getProperty(API_KEY_CONFIG);
+        if (apiKey == null) {
+            throw new IllegalArgumentException("missing required config '" + API_KEY_CONFIG + "'");
         }
         embeddingRequestTemplate = new Request.Builder()
                 .url(url)
                 .addHeader("Accept", "application/json")
                 .addHeader("Content-Type", "application/json")
                 .addHeader("User-Agent", Constant.HTTP_USER_AGENT)
+                .addHeader("Authorization", "Bearer " + apiKey)
                 .build();
-        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+
         String dimensionValueStr = apiConfig.getProperty(DIMENSION_CONFIG);
         if (dimensionValueStr != null) {
             try {
@@ -95,10 +101,13 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         try (var response = client.newCall(embeddingRequestTemplate.newBuilder()
                 .method(
                         "POST",
-                        RequestBody.create((String) codec.serialize(
+                        RequestBody.create(
+                                (String) codec.serialize(
                                         new CreateEmbeddingRequest(modelName, input, dimension),
                                         String.class),
-                                Constant.JSON))
+                                Constant.JSON
+                        )
+                )
                 .build()).execute()) {
             if (response.body() == null) {
                 throw new IOException("response body is null");
@@ -152,5 +161,14 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         private int completion_tokens;
         private int prompt_tokens;
         private int total_tokens;
+    }
+
+    @Override
+    public String toString() {
+        return "BigModelEmbeddingFunction(" +
+                "modelName='" + modelName + '\'' +
+                ", baseUrl='" + baseUrl + '\'' +
+                ", dimension=" + dimension +
+                ')';
     }
 }

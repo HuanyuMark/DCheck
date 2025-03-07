@@ -8,13 +8,14 @@ import org.example.dcheck.spi.ConfigProvider;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 
+import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.READ_TIME_OUT;
+
 /**
  * Date: 2025/3/8
  *
  * @author 三石而立Sunsy
  */
 public class OkHttpClientFactory {
-    public static final String READ_TIME_OUT = "relevancy-engine.model.embedding.remote.timeout";
     @Getter
     private static final OkHttpClientFactory instance = new OkHttpClientFactory();
 
