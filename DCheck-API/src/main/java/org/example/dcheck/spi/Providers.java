@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
+import org.example.dcheck.api.ParagraphRelevancyEngine;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
@@ -32,6 +33,9 @@ class Providers {
 
     /**
      * load all impl at startup. maybe lead to performance problem.
+     * define an init() method in these impls, and call init() method in your code is
+     * recommended.
+     * @see ParagraphRelevancyEngine#init()  ParagraphRelevancyEngine.init()
      */
     static <Service> List<Service> findAllImplementations(Class<Service> serviceClass) {
         var loader = ServiceLoader.load(serviceClass);

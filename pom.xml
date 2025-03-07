@@ -13,18 +13,18 @@
         <module>DCheck-API</module>
         <module>DCheck-Embedding</module>
         <module>DCheck-Common</module>
-        <module>DCheck-Impl-Default-RelevancyEngine</module>
-        <module>DCheck-Impl-Default-DocxProcessor</module>
-        <module>DCheck-Impl-Default-Reranker</module>
-        <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
-        <module>DCheck-Test</module>
-        <module>DCheck-Impl-Codec-Gson</module>
-        <module>DCheck-Impl-Default-Embedding</module>
         <module>DCheck-Impl-Embedding-Remote</module>
+        <module>DCheck-Impl-Default-Embedding</module>
+        <module>DCheck-Impl-Default-RelevancyEngine</module>
+        <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
+        <module>DCheck-Impl-Codec-Gson</module>
         <module>DCheck-Impl-Codec-Jackson</module>
-        <module>DCheck-Impl-Default-TikaProcessor</module>
-        <module>DCheck-Impl-Default-PdfProcessor</module>
+        <module>DCheck-Impl-Default-Reranker</module>
         <module>DCheck-Impl-Base-Langchain</module>
+        <module>DCheck-Impl-Default-DocxProcessor</module>
+        <module>DCheck-Impl-Default-PdfProcessor</module>
+        <module>DCheck-Impl-Default-TikaProcessor</module>
+        <module>DCheck-Test</module>
     </modules>
 
     <properties>
@@ -39,7 +39,7 @@
         <!-- 打包生成source时使用的目录 -->
         <source.generate.dir>src/main/java</source.generate.dir>
         <!-- lombok生成源码的目录 -->
-        <delombok.dir>${project.build.directory}/generated-sources/delombok</delombok.dir>
+        <delombok.dir>${project.build.directory}/delombok</delombok.dir>
     </properties>
 
     <dependencyManagement>
