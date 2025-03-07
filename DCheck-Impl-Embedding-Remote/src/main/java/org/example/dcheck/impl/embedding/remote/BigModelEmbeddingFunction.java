@@ -1,6 +1,7 @@
 package org.example.dcheck.impl.embedding.remote;
 
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
  *
  * @author 三石而立Sunsy
  */
+@Slf4j
 @Getter
 @SuppressWarnings("unused")
 public class BigModelEmbeddingFunction implements EmbeddingFunction {
@@ -105,6 +107,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
             if (res.getData().size() != input.size()) {
                 throw new IOException("response data size is not " + input.size());
             }
+            log.debug("document batch count {}. usage: {}", input.size(), res.getUsage());
             return res.getData().stream().sorted(Comparator.comparingInt(IndexEmbeddingRecord::getIndex))
                     .map(e -> Embedding.from(e.getEmbedding(), getName())).collect(Collectors.toList());
         }
