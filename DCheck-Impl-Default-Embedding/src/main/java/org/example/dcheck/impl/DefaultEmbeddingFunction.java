@@ -37,9 +37,18 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
 
     private final TextEmbeddingFunction textEmbeddingFunction = new TextEmbeddingFunction();
 
+    private volatile boolean init;
+
     @Override
     public void init() throws EFException {
-        textEmbeddingFunction.init();
+        if (init) return;
+        synchronized (this) {
+            if (init) return;
+
+            textEmbeddingFunction.init();
+
+            init = true;
+        }
     }
 
     @Override
@@ -79,7 +88,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         OrtSession session;
         private HuggingFaceTokenizer tokenizer;
         private OrtEnvironment env;
-        private boolean init;
 
         public TextEmbeddingFunction() {
         }
@@ -158,7 +166,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
 
         @Override
         public void init() throws EFException {
-            if (init) return;
             if (!validateModel()) {
                 downloadAndSetupModel();
             }
@@ -177,7 +184,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
             } catch (OrtException | IOException e) {
                 throw new EFException(e);
             }
-            init = true;
         }
 
         public List<List<Float>> forward(List<String> documents) throws OrtException, EFException {

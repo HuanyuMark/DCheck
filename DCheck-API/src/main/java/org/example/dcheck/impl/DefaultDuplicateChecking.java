@@ -9,9 +9,12 @@ import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 
+import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -26,6 +29,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     private ParagraphRelevancyEngine relevancyEngine;
 
     private volatile boolean init;
+
+    private final List<Object> closingCbs = new CopyOnWriteArrayList<>();
 
     public ParagraphRelevancyEngine getRelevancyEngine() {
         init();
@@ -93,10 +98,37 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                 .build();
     }
 
+    @Override
+    public void onClosing(Runnable cb) {
+        closingCbs.add(new WeakReference<>(cb));
+    }
+
+    @Override
+    public void onStrongClosing(Runnable cb) {
+        closingCbs.add(cb);
+    }
+
 
     @Override
     public void close() throws Exception {
         if (!init) return;
-        relevancyEngine.close();
+        synchronized (this) {
+            if (!init) return;
+
+            relevancyEngine.close();
+            for (Object refOrCb : closingCbs) {
+                @SuppressWarnings("unchecked")
+                var cb = refOrCb instanceof WeakReference<?> ? ((WeakReference<Runnable>) refOrCb).get() : (Runnable) refOrCb;
+                if (cb != null) {
+                    try {
+                        cb.run();
+                    } catch (Exception e) {
+                        log.error("error run closing cb: {}", cb.getClass(), e);
+                    }
+                }
+            }
+
+            init = false;
+        }
     }
 }

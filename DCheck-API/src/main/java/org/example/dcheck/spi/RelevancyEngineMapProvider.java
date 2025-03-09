@@ -1,7 +1,12 @@
 package org.example.dcheck.spi;
 
 import lombok.Getter;
+import lombok.var;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
+import org.springframework.lang.Nullable;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
  * Date 2025/02/26
@@ -13,7 +18,29 @@ public class RelevancyEngineMapProvider implements DCheckProvider {
     @Getter
     private static final RelevancyEngineMapProvider instance = new RelevancyEngineMapProvider();
 
+    private final InheritableThreadLocal<Map<String, ParagraphRelevancyEngine>> ins = new InheritableThreadLocal<>();
+
+    {
+        ins.set(new ConcurrentSkipListMap<>());
+        DuplicateCheckingProvider.getInstance().getChecking().onClosing(() -> {
+            var map = ins.get();
+            if (map != null) {
+                map.clear();
+            }
+        });
+    }
+
     public ParagraphRelevancyEngine getRelevancyEngine(String relevancyEngineKey) {
-        return Providers.createService(RelevancyEngineMapConfigProvider.getInstance().getRelevancyEngineMap(), "relevancy engine", relevancyEngineKey);
+        return ins.get().computeIfAbsent(relevancyEngineKey, k -> Providers.createService(RelevancyEngineMapConfigProvider.getInstance().getRelevancyEngineMap(), "relevancy engine", k));
+    }
+
+    @Nullable
+    public ParagraphRelevancyEngine getCurrentDefaultEngine() {
+        var engines = ins.get().values();
+        if (engines.size() == 1) {
+            return engines.iterator().next();
+        }
+        if (engines.isEmpty()) return null;
+        throw new IllegalStateException("multiple relevancy engine found: " + engines);
     }
 }

@@ -7,6 +7,7 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -16,20 +17,26 @@ import java.util.stream.Collectors;
  */
 public class ChromaDSLFactory {
 
-    public static Map<String, Object> where(MetadataMatchCondition condition) {
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> where(MetadataMatchCondition condition, Function<Map.Entry<String, Object>, Object> valueMapper) {
         condition.validate();
         var eqs = condition.getEqs().entrySet().stream()
-                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$eq", e.getValue())))
+                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$eq", valueMapper.apply((Map.Entry<String, Object>) ((Object) e)))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         var ins = condition.getIns().entrySet().stream()
-                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$in", e.getValue())))
+                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$in", valueMapper.apply((Map.Entry<String, Object>) ((Object) e)))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         var nes = condition.getNes().entrySet().stream()
-                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$ne", e.getValue())))
+                .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$ne", valueMapper.apply((Map.Entry<String, Object>) ((Object) e)))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         var where = new HashMap<>(eqs);
         where.putAll(ins);
         where.putAll(nes);
         return where;
+    }
+
+    public static Map<String, Object> where(MetadataMatchCondition condition) {
+        return where(condition, Map.Entry::getValue);
     }
 }

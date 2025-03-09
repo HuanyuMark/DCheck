@@ -45,6 +45,7 @@ import java.util.stream.IntStream;
 public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEngine implements ParagraphRelevancyEngine {
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
+    public static final List<AnyOfGetEmbeddingIncludeItems> GET_PARAGRAPH_INCLUDE = Arrays.asList(GetEmbeddingInclude.METADATAS, GetEmbeddingInclude.DOCUMENTS);
     protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
     private static final int CHUNK_SIZE = 20;
 
@@ -87,90 +88,80 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     }
 
     @Override
-    public void doInit() {
-        if (init) {
-            return;
+    protected void doInit() {
+        if (codec == null) {
+            codec = CodecProvider.getInstance()
+                    .getCodecs()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
-        synchronized (this) {
-            if (init) {
-                return;
-            }
 
-            if (codec == null) {
-                codec = CodecProvider.getInstance()
-                        .getCodecs()
-                        .stream()
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
-            }
+        var embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
 
-            var embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
-            embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
+        var url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
+        if (!StringUtils.hasText(url)) {
+            throw new IllegalStateException("invalid config '" + ApiConfig.DB_VECTOR_URL + "=" + url + "'");
+        }
 
-            var url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
-            if (!StringUtils.hasText(url)) {
-                throw new IllegalStateException("invalid config '" + ApiConfig.DB_VECTOR_URL + "=" + url + "'");
-            }
+        CompletableFuture.allOf(
+                // init embedding function
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        log.info("Starting init Embedding Function '{}'", embeddingFunction.getClass().getCanonicalName());
+                        embeddingFunction.init();
+                        log.info("Finished init Embedding Function");
+                    } catch (Exception e) {
+                        throw new IllegalStateException("init embedding function fail:", e);
+                    }
+                }),
 
-            CompletableFuture.allOf(
-                    // init embedding function
-                    CompletableFuture.runAsync(() -> {
-                        try {
-                            log.info("Starting init Embedding Function '{}'", embeddingFunction.getClass().getCanonicalName());
-                            embeddingFunction.init();
-                            log.info("Finished init Embedding Function");
-                        } catch (Exception e) {
-                            throw new IllegalStateException("init embedding function fail:", e);
-                        }
-                    }),
+                // init chroma client
+                CompletableFuture.runAsync(() -> {
+                    client = new Client(url);
+                    var policy = RetryPolicy.builder()
+                            .handle(ApiException.class)
+                            .withMaxRetries(3)
+                            // 初始等待1s，最多30s,每次重试时间以2倍增长
+                            .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 2)
+                            .build();
 
-                    // init chroma client
-                    CompletableFuture.runAsync(() -> {
-                        client = new Client(url);
-                        var policy = RetryPolicy.builder()
-                                .handle(ApiException.class)
-                                .withMaxRetries(3)
-                                // 初始等待1s，最多30s,每次重试时间以2倍增长
-                                .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 2)
-                                .build();
+                    // make sure the connection is ok
+                    log.info("Starting chroma connection testing");
+                    try {
+                        Failsafe.with(policy).run(() -> client.heartbeat());
+                        log.info("Finished chroma connection testing");
+                    } catch (FailsafeException e) {
+                        throw new IllegalStateException("connect to chroma server fail: " + e.getMessage(), e.getCause());
+                    }
 
-                        // make sure the connection is ok
-                        log.info("Starting chroma connection testing");
-                        try {
-                            Failsafe.with(policy).run(() -> client.heartbeat());
-                            log.info("Finished chroma connection testing");
-                        } catch (FailsafeException e) {
-                            throw new IllegalStateException("connect to chroma server fail: " + e.getMessage(), e.getCause());
-                        }
-
-                        // Server End: clean temp document collection
-                        try {
-                            for (Collection collection : Failsafe.with(policy).get(() -> client.listCollections())) {
-                                if (isTempDocumentCollection(collection.getName())) {
-                                    Failsafe.with(policy).run(() -> client.deleteCollection(collection.getName()));
-                                }
+                    // Server End: clean temp document collection
+                    try {
+                        for (Collection collection : Failsafe.with(policy).get(() -> client.listCollections())) {
+                            if (isTempDocumentCollection(collection.getName())) {
+                                Failsafe.with(policy).run(() -> client.deleteCollection(collection.getName()));
                             }
-                        } catch (FailsafeException e) {
-                            throw new IllegalStateException("clean temp document collection fail: " + e.getMessage(), e.getCause());
                         }
-                    }),
+                    } catch (FailsafeException e) {
+                        throw new IllegalStateException("clean temp document collection fail: " + e.getMessage(), e.getCause());
+                    }
+                }),
 
-                    // init reranker
-                    CompletableFuture.runAsync(() -> {
-                        String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
-                        if (rerankModel == null) return;
-                        reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
-                        log.info("Starting init Reranker '{}'", rerankModel.getClass().getCanonicalName());
-                        try {
-                            reranker.init();
-                            log.info("Finished init Reranker");
-                        } catch (Exception e) {
-                            throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
-                        }
-                    })
-            ).join();
-            init = true;
-        }
+                // init reranker
+                CompletableFuture.runAsync(() -> {
+                    String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
+                    if (rerankModel == null) return;
+                    reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
+                    log.info("Starting init Reranker '{}'", rerankModel.getClass().getCanonicalName());
+                    try {
+                        reranker.init();
+                        log.info("Finished init Reranker");
+                    } catch (Exception e) {
+                        throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
+                    }
+                })
+        ).join();
     }
 
     private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Collections.singletonList(GetEmbeddingInclude.EMBEDDINGS);
@@ -220,27 +211,28 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     var queryResultMetadata = response.getMetadatas().get(i);
                     var queryResultScore = response.getDistances().get(i);
                     return IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
-                        // TODO refer to metadata.type, we can reconstruct multiple paragraph type
-                        // now only support text type
                         var document = queryResultDocument.get(j);
                         @SuppressWarnings("unchecked")
-                        var metadata = (Map<String, String>) ((Object) queryResultMetadata.get(j));
+                        var metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
+                                .entrySet().stream().map(e -> {
+                                    try {
+                                        return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
+                                    } catch (IOException ex) {
+                                        throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                    }
+                                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
                         var score = queryResultScore.get(j);
                         ParagraphMetadata metadataObj;
                         try {
-                            metadataObj = codec.deserialize(metadata, ParagraphMetadata.class);
+                            metadataObj = codec.convertTo(metadata, ParagraphMetadata.class);
                         } catch (IOException e) {
                             throw new IllegalArgumentException("parse metadata fail: " + e.getMessage(), e);
                         }
+
                         return ParagraphRelevancyQueryResult.Record.builder()
-                                .paragraph(TextParagraph.builder()
-                                        .metadata(metadataObj)
-                                        .collection(documentCollection)
-                                        .content(() -> new InMemoryTextContent(document))
-                                        .build())
+                                .paragraph(metadataObj.getParagraphType().createParagraph(document, metadataObj))
                                 .relevancy(score)
                                 .build();
-
                     }).collect(Collectors.toList());
                 }).collect(Collectors.toList());
 
@@ -310,9 +302,13 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             return query.getDocumentIds().stream().map(id -> {
                 var req = new GetEmbedding();
                 req.limit(1);
-                req.where(ChromaDSLFactory.where(MetadataMatchCondition.builder()
-                        .eq("documentId", id)
-                        .build()));
+                try {
+                    req.where(ChromaDSLFactory.where(MetadataMatchCondition.builder()
+                            .eq("documentId", codec.serialize(id, String.class))
+                            .build()));
+                } catch (IOException e) {
+                    throw new IllegalStateException("deserialize 'documentId=" + id + "' fail: " + e.getMessage(), e);
+                }
                 req.include(Collections.emptyList());
                 return Failsafe.with(collectionAccessPolicy)
                         .get(() -> collection.get(req))
@@ -320,6 +316,56 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             }).collect(Collectors.toList());
         } catch (FailsafeException e) {
             throw new IllegalStateException("query has document fail: " + e.getMessage(), e.getCause());
+        }
+    }
+
+    @Override
+    public List<Paragraph> getParagraphs(ParagraphGet query) {
+        var collection = getCollection(query.getCollectionId());
+        var req = new GetEmbedding();
+        if (query.getMaxCount() != null) {
+            req.limit(query.getMaxCount());
+        }
+
+        if (query.getCondition() != null) {
+            req.where(ChromaDSLFactory.where(query.getCondition(), e -> {
+                try {
+                    return codec.serialize(e.getValue(), String.class);
+                } catch (IOException ex) {
+                    throw new IllegalStateException("serialize '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                }
+            })).include(GET_PARAGRAPH_INCLUDE);
+        }
+
+        try {
+            var getResult = Failsafe.with(collectionAccessPolicy)
+                    .get(() -> collection.get(req));
+            return IntStream.range(0, getResult.getIds().size())
+                    .mapToObj(i -> {
+                        Map<String, Object> flatMetadata = getResult.getMetadatas().get(i);
+                        Map<String, Object> objMetadata = flatMetadata.entrySet().stream()
+                                .map(e -> {
+                                    try {
+                                        return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
+                                    } catch (IOException ex) {
+                                        throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                    }
+                                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                        ParagraphMetadata metadata;
+                        try {
+                            metadata = codec.convertTo(objMetadata, ParagraphMetadata.class);
+                        } catch (IOException e) {
+                            throw new IllegalStateException("convert metadata to ParagraphMetadata fail: " + e.getMessage(), e);
+                        }
+
+                        var paragraphClass = metadata.getParagraphType().getParagraphClass();
+
+                        String document = getResult.getDocuments().get(i);
+
+                        return metadata.getParagraphType().createParagraph(document, metadata);
+                    }).collect(Collectors.toList());
+        } catch (FailsafeException e) {
+            throw new IllegalStateException("getParagraphs fail: " + e.getMessage(), e.getCause());
         }
     }
 

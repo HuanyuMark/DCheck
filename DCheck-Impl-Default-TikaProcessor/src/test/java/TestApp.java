@@ -1,5 +1,5 @@
+import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.DocxDocument;
-import org.example.dcheck.impl.InMemoryTextContent;
 import org.example.dcheck.impl.PdfDocument;
 import org.example.dcheck.impl.fileprocessor.TikaDocumentProcessor;
 import org.junit.jupiter.api.Test;
@@ -25,8 +25,8 @@ public class TestApp {
                 throw new RuntimeException(e);
             }
         })).forEach(doc -> {
-            if (doc.getContent() instanceof InMemoryTextContent) {
-                System.out.println(((InMemoryTextContent) doc.getContent()).getText());
+            if (doc.getContent() instanceof CharSeqTextContent) {
+                System.out.println(((CharSeqTextContent) doc.getContent()).getText());
                 System.out.println("-------");
             }
         });
@@ -43,8 +43,8 @@ public class TestApp {
                 throw new RuntimeException(e);
             }
         })).forEach(doc -> {
-            if (doc.getContent() instanceof InMemoryTextContent) {
-                System.out.println(((InMemoryTextContent) doc.getContent()).getText());
+            if (doc.getContent() instanceof CharSeqTextContent) {
+                System.out.println(((CharSeqTextContent) doc.getContent()).getText());
                 System.out.println("-------");
             }
         });

@@ -15,10 +15,7 @@ import org.example.dcheck.spi.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.API_KEY_CONFIG;
@@ -30,18 +27,24 @@ import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.DIMENSI
  * @author 三石而立Sunsy
  */
 @Slf4j
-@Getter
 @SuppressWarnings("unused")
 public class BigModelEmbeddingFunction implements EmbeddingFunction {
     private static final String DEFAULT_MODEL_NAME = "embedding-3";
     private static final String DEFAULT_BASE_API = "https://open.bigmodel.cn/api/paas/v4/embeddings";
 
+    @Getter
     private final String modelName;
+    @Getter
     private final String baseUrl;
     private final Codec codec;
+    @Getter
+    private final Map<String, Object> details;
+    @Getter
     private Integer dimension;
-    private OkHttpClient client;
     private Request embeddingRequestTemplate;
+    @Getter
+    private OkHttpClient client;
+    private volatile boolean initialized;
 
     {
         codec = CodecProvider.getInstance().getCodecs().stream().findFirst()
@@ -52,6 +55,11 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     public BigModelEmbeddingFunction(String baseUrl, String modelName) {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
         this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
+        var details = new HashMap<String, Object>();
+        details.put("baseUrl", baseUrl);
+        details.put("modelName", modelName);
+        details.put("dimension", getDimension());
+        this.details = Collections.unmodifiableMap(details);
     }
 
     public void setClient(@NonNull OkHttpClient client) {
@@ -60,35 +68,46 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
     @Override
     public void init() {
-        if (getClient() == null) {
-            setClient(OkHttpClientFactory.getInstance().create());
+        if (initialized) {
+            return;
         }
-
-        HttpUrl url = HttpUrl.parse(this.baseUrl);
-        if (url == null) {
-            throw new IllegalArgumentException("invalid base url '" + baseUrl + "'");
-        }
-        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-        String apiKey = apiConfig.getProperty(API_KEY_CONFIG);
-        if (apiKey == null) {
-            throw new IllegalArgumentException("missing required config '" + API_KEY_CONFIG + "'");
-        }
-        embeddingRequestTemplate = new Request.Builder()
-                .url(url)
-                .addHeader("Accept", "application/json")
-                .addHeader("Content-Type", "application/json")
-                .addHeader("User-Agent", Constant.HTTP_USER_AGENT)
-                .addHeader("Authorization", "Bearer " + apiKey)
-                .build();
-
-        String dimensionValueStr = apiConfig.getProperty(DIMENSION_CONFIG);
-        if (dimensionValueStr != null) {
-            try {
-                dimension = Integer.parseInt(dimensionValueStr);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + DIMENSION_CONFIG + "=" + dimensionValueStr + "': " + e.getMessage(), e);
+        synchronized (this) {
+            if (initialized) {
+                return;
             }
+            if (getClient() == null) {
+                setClient(OkHttpClientFactory.getInstance().create());
+            }
+
+            HttpUrl url = HttpUrl.parse(this.baseUrl);
+            if (url == null) {
+                throw new IllegalArgumentException("invalid base url '" + baseUrl + "'");
+            }
+            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+            String apiKey = apiConfig.getProperty(API_KEY_CONFIG);
+            if (apiKey == null) {
+                throw new IllegalArgumentException("missing required config '" + API_KEY_CONFIG + "'");
+            }
+            embeddingRequestTemplate = new Request.Builder()
+                    .url(url)
+                    .addHeader("Accept", "application/json")
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("User-Agent", Constant.HTTP_USER_AGENT)
+                    .addHeader("Authorization", "Bearer " + apiKey)
+                    .build();
+
+            String dimensionValueStr = apiConfig.getProperty(DIMENSION_CONFIG);
+            if (dimensionValueStr != null) {
+                try {
+                    dimension = Integer.parseInt(dimensionValueStr);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("invalid config '" + DIMENSION_CONFIG + "=" + dimensionValueStr + "': " + e.getMessage(), e);
+                }
+            }
+
+            initialized = true;
         }
+
     }
 
     @Override

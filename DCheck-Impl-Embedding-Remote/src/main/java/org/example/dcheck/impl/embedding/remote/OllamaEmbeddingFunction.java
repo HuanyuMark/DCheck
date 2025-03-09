@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import lombok.var;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -14,9 +15,7 @@ import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.CodecProvider;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,18 +36,17 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
     private final String modelName;
 
     @Getter
-    private final String name;
+    private final Map<String, Object> details;
 
-
-    @SuppressWarnings("unused")
-    public OllamaEmbeddingFunction() {
-        this(DEFAULT_BASE_API, DEFAULT_MODEL_NAME);
-    }
+    private volatile boolean initialized = false;
 
     public OllamaEmbeddingFunction(String baseUrl, String modelName) {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
         this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
-        name = getClass().getSimpleName() + "." + getModelName();
+        var details = new HashMap<String, Object>();
+        details.put("baseUrl", baseUrl);
+        details.put("modelName", modelName);
+        this.details = Collections.unmodifiableMap(details);
     }
 
     private CreateEmbeddingResponse createEmbedding(CreateEmbeddingRequest req) throws Exception {
@@ -67,18 +65,24 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
             if (response.body() == null) {
                 throw new IOException("response body is null");
             }
-
-            String responseData = response.body().string();
-
-            return codec.deserialize(responseData, CreateEmbeddingResponse.class);
+            try (var in = response.body().byteStream()) {
+                return codec.deserialize(in, CreateEmbeddingResponse.class);
+            }
         }
     }
 
     @Override
     public void init() {
-        log.info("apply base url '{}' model '{}'", baseUrl, modelName);
-        client = OkHttpClientFactory.getInstance().create();
-        // ping ollama server...
+        if (initialized) return;
+        synchronized (this) {
+            if (initialized) return;
+
+            log.info("apply base url '{}' model '{}'", baseUrl, modelName);
+            client = OkHttpClientFactory.getInstance().create();
+            // ping ollama server...
+
+            initialized = true;
+        }
     }
 
 

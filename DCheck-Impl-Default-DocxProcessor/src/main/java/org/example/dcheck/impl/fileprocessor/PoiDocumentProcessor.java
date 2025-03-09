@@ -4,8 +4,8 @@ import lombok.var;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.example.dcheck.api.*;
+import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
-import org.example.dcheck.impl.InMemoryTextContent;
 import org.example.dcheck.impl.SharedDocumentProcessorConfig;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.util.StringUtils;
@@ -26,7 +26,7 @@ public class PoiDocumentProcessor implements DocumentProcessor {
     private int maxParagraphLength;
 
     @Override
-    public void init() throws Exception {
+    public void init() {
         maxParagraphLength = SharedDocumentProcessorConfig.getInstance().getMaxParagraphLength();
     }
 
@@ -45,7 +45,7 @@ public class PoiDocumentProcessor implements DocumentProcessor {
                     .stream()
                     .map(XWPFParagraph::getText)
                     .filter(StringUtils::hasText)
-                    .map(InMemoryTextContent::new)
+                    .map(CharSeqTextContent::new)
                     .collect(Collectors.toList());
 
             return IntStream.range(0, contents.size())

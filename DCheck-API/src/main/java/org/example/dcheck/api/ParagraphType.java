@@ -28,4 +28,6 @@ public interface ParagraphType {
 
     @Nullable
     ParagraphMetadata createExtension(Map<String, Object> all, String documentId, ParagraphLocation location);
+
+    Paragraph createParagraph(Object content, ParagraphMetadata metadata);
 }

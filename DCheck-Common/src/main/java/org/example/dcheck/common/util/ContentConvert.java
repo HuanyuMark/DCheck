@@ -2,7 +2,7 @@ package org.example.dcheck.common.util;
 
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.TextContent;
-import org.example.dcheck.impl.InMemoryTextContent;
+import org.example.dcheck.impl.CharSeqTextContent;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -18,7 +18,7 @@ public class ContentConvert {
     public static String castToText(Content content) {
         //TODO support other content type
         try {
-            if (content instanceof InMemoryTextContent) return ((InMemoryTextContent) content).getText().toString();
+            if (content instanceof CharSeqTextContent) return ((CharSeqTextContent) content).getText().toString();
             if (content instanceof TextContent) return readStreamAsString(content.getInputStream());
             throw new UnsupportedOperationException();
         } catch (IOException e) {
@@ -28,7 +28,7 @@ public class ContentConvert {
 
     public static Content castToContent(Object input) {
         if (input instanceof CharSequence) {
-            return new InMemoryTextContent((CharSequence) input);
+            return new CharSeqTextContent((CharSequence) input);
         }
         //TODO support other types
         throw new UnsupportedOperationException();

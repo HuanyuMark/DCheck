@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
  */
 @Getter
 @RequiredArgsConstructor
-public class InMemoryTextContent implements TextContent {
+public class CharSeqTextContent implements TextContent {
     private final CharSequence text;
 
     @Override

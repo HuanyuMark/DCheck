@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.springframework.core.ParameterizedTypeReference;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -122,6 +124,9 @@ public class GsonCodec implements Codec {
         }
         if (input instanceof Reader) {
             return gson.fromJson((Reader) input, targetType);
+        }
+        if (input instanceof InputStream) {
+            return gson.fromJson(new InputStreamReader((InputStream) input), targetType);
         }
         if (input instanceof JsonReader) {
             return gson.fromJson((JsonReader) input, targetType);

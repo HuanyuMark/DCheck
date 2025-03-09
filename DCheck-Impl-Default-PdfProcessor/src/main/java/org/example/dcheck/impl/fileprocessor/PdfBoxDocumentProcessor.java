@@ -7,8 +7,8 @@ import dev.langchain4j.data.document.parser.apache.pdfbox.ApachePdfBoxDocumentPa
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import lombok.var;
 import org.example.dcheck.api.*;
+import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
-import org.example.dcheck.impl.InMemoryTextContent;
 import org.example.dcheck.impl.SharedDocumentProcessorConfig;
 import org.jetbrains.annotations.NotNull;
 
@@ -60,7 +60,7 @@ public class PdfBoxDocumentProcessor implements DocumentProcessor {
         return IntStream.range(0, segments.size()).mapToObj(i -> {
             var seg = segments.get(i);
             // clean ref to seg
-            var content = new InMemoryTextContent(seg.text());
+            var content = new CharSeqTextContent(seg.text());
             return DocumentParagraph.builder()
                     // now nowhere to introspect the location, maybe we should define a new splitter to do this
                     .location(ContentMatchParagraphLocation.formLine(seg.text(), i))
