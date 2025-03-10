@@ -9,6 +9,7 @@ import org.example.dcheck.spi.DocumentProcessorProvider;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Date 2025/02/26
@@ -46,20 +47,27 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
     public void addDocument(List<Document> documents) {
         doWithNormalOperationLock(() -> {
             // ...
-            var batch = documents.stream().flatMap(document -> DocumentProcessorProvider.getInstance().split(document)
-                    .map(documentParagraph -> {
-                        if (documentParagraph.getParagraphType() == BuiltinParagraphType.TEXT) {
-                            return ParagraphRelevancyCreation.Record.builder()
-                                    .paragraph(documentParagraph)
-                                    .metadata(TextParagraphMetadata.builder()
-                                            .documentId(document.getId())
-                                            .location(documentParagraph.getLocation())
-                                            .build())
-                                    .build();
-                        }
-                        //TODO support add other type of paragraph
-                        throw new UnsupportedOperationException();
-                    })).collect(Collectors.toList());
+            var added = hasDocument(documents.stream().map(Document::getId).collect(Collectors.toList()));
+
+            var batch = IntStream.range(0, documents.size())
+                    .filter(i -> !added.get(i))
+                    .mapToObj(documents::get)
+                    .flatMap(document -> DocumentProcessorProvider
+                            .getInstance()
+                            .split(document)
+                            .map(documentParagraph -> {
+                                if (documentParagraph.getParagraphType() == BuiltinParagraphType.TEXT) {
+                                    return ParagraphRelevancyCreation.Record.builder()
+                                            .paragraph(documentParagraph)
+                                            .metadata(TextParagraphMetadata.builder()
+                                                    .documentId(document.getId())
+                                                    .location(documentParagraph.getLocation())
+                                                    .build())
+                                            .build();
+                                }
+                                //TODO support add other type of paragraph
+                                throw new UnsupportedOperationException();
+                            })).collect(Collectors.toList());
             engine.addParagraph(new ParagraphRelevancyCreation(id, batch));
         });
     }
@@ -72,6 +80,11 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
                         .in("documentId", documentIds)
                         .build())
                 .build()));
+    }
+
+    @Override
+    public List<Boolean> hasDocument(List<String> documentIds) {
+        return engine.hasDocument(new DocumentIdQuery(id, documentIds));
     }
 
     protected void ensureOps() {

@@ -58,7 +58,7 @@ public class PoiDocumentProcessor implements DocumentProcessor {
                                 .build();
                     });
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("process file '" + document.getId() + "' fail: " + e.getMessage(), e);
         }
     }
 }

@@ -47,28 +47,33 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
     }
 
     protected void syncFieldMap() {
-        put("documentId", getDocumentId());
-        put("location", getLocation());
-        put("paragraphType", getParagraphType());
+        if (!raw.isEmpty()) return;
+        raw.put("paragraphType", paragraphType);
+        raw.put("documentId", documentId);
+        raw.put("location", location);
     }
 
     @Override
     public int size() {
+        syncFieldMap();
         return raw.size();
     }
 
     @Override
     public boolean isEmpty() {
+        syncFieldMap();
         return raw.isEmpty();
     }
 
     @Override
     public Object get(Object key) {
+        syncFieldMap();
         return raw.get(key);
     }
 
     @Override
     public boolean containsKey(Object key) {
+        syncFieldMap();
         return raw.containsKey(key);
     }
 
@@ -95,34 +100,40 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
 
     @Override
     public boolean containsValue(Object value) {
+        syncFieldMap();
         return raw.containsValue(value);
     }
 
     @NotNull
     @Override
     public Set<String> keySet() {
+        syncFieldMap();
         return Collections.unmodifiableSet(raw.keySet());
     }
 
     @NotNull
     @Override
     public Collection<Object> values() {
+        syncFieldMap();
         return Collections.unmodifiableCollection(raw.values());
     }
 
     @NotNull
     @Override
     public Set<Entry<String, Object>> entrySet() {
+        syncFieldMap();
         return Collections.unmodifiableSet(raw.entrySet());
     }
 
     @Override
     public Object getOrDefault(Object key, Object defaultValue) {
+        syncFieldMap();
         return raw.getOrDefault(key, defaultValue);
     }
 
     @Override
     public void forEach(BiConsumer<? super String, ? super Object> action) {
+        syncFieldMap();
         raw.forEach(action);
     }
 

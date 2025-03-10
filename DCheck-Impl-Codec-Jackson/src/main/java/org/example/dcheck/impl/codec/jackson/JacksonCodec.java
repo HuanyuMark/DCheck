@@ -90,8 +90,8 @@ public class JacksonCodec implements Codec {
                 .addDeserializer(ParagraphMetadata.class, new JsonDeserializer<ParagraphMetadata>() {
                     @Override
                     public ParagraphMetadata deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                        var codec = (ObjectMapper) p.getCodec();
                         if (p.getCurrentToken() == JsonToken.VALUE_STRING) {
-                            var codec = (ObjectMapper) p.getCodec();
                             return codec.readValue(p.readValueAs(String.class), ParagraphMetadata.class);
                         }
                         TreeNode treeNode = p.readValueAsTree();
@@ -102,8 +102,8 @@ public class JacksonCodec implements Codec {
                         var paragraphType = p.getCodec().treeToValue(paragraphTypeNode, ParagraphType.class);
                         var paragraphLocationType = paragraphType.getMetadataClass();
                         @SuppressWarnings("unchecked")
-                        var all = p.getCodec().treeToValue(treeNode, (Class<Map<String, Object>>) MapType.getType());
-                        var ins = p.getCodec().treeToValue(treeNode, paragraphLocationType);
+                        var all = (Map<String, Object>) codec.treeToValue(treeNode, codec.constructType(MapType));
+                        var ins = codec.treeToValue(treeNode, paragraphLocationType);
                         var extensions = paragraphType.createExtension(all, ins.getDocumentId(), ins.getLocation());
                         if (extensions != null) return extensions;
                         return ins;

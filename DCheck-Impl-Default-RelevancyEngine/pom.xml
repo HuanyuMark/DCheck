@@ -30,13 +30,7 @@
         <!--            <artifactId>DCheck-Impl-Default-Embedding</artifactId>-->
         <!--            <version>0.0.1</version>-->
         <!--        </dependency>-->
-
-        <dependency>
-            <groupId>org.example.dcheck</groupId>
-            <artifactId>DCheck-Impl-Codec-Gson</artifactId>
-            <version>0.0.1</version>
-        </dependency>
-
+        
         <dependency>
             <groupId>io.milvus</groupId>
             <artifactId>milvus-sdk-java</artifactId>

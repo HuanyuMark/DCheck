@@ -341,7 +341,13 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     public List<Boolean> hasDocument(DocumentIdQuery query) {
         var collection = getCollection(query.getCollectionId());
         try (Transaction tx = collection.beginTx()) {
-            var res = query.getDocumentIds().stream().map(id -> tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, id).stream().findFirst().map(n -> Boolean.TRUE).orElse(Boolean.FALSE)).toList();
+            var res = query.getDocumentIds().stream().map(id -> {
+                try {
+                    return tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, codec.serialize(id, String.class)).stream().findFirst().map(n -> Boolean.TRUE).orElse(Boolean.FALSE);
+                } catch (IOException e) {
+                    throw new IllegalStateException("serialize '" + DOCUMENT_ID_PROPERTY + "=" + id + "' fail: " + e.getMessage(), e);
+                }
+            }).toList();
             tx.commit();
             return res;
         }

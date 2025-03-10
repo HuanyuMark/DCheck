@@ -55,7 +55,12 @@ public class PdfBoxDocumentProcessor implements DocumentProcessor {
     @Override
     public Stream<DocumentParagraph> split(@NotNull Document document) {
         init();
-        var lcDoc = DocumentLoader.load(new DCheckDocumentSource(document), documentParser);
+        dev.langchain4j.data.document.Document lcDoc;
+        try {
+            lcDoc = DocumentLoader.load(new DCheckDocumentSource(document), documentParser);
+        } catch (Exception e) {
+            throw new IllegalStateException("process document '" + document.getId() + "' fail: " + e.getMessage(), e);
+        }
         var segments = splitter.split(lcDoc);
         return IntStream.range(0, segments.size()).mapToObj(i -> {
             var seg = segments.get(i);

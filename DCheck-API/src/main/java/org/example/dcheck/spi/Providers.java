@@ -35,12 +35,17 @@ class Providers {
      * load all impl at startup. maybe lead to performance problem.
      * define an init() method in these impls, and call init() method in your code is
      * recommended.
+     *
      * @see ParagraphRelevancyEngine#init()  ParagraphRelevancyEngine.init()
      */
     static <Service> List<Service> findAllImplementations(Class<Service> serviceClass) {
         var loader = ServiceLoader.load(serviceClass);
         var results = new ArrayList<Service>();
-        loader.iterator().forEachRemaining(results::add);
+        try {
+            loader.iterator().forEachRemaining(results::add);
+        } catch (Throwable e) {
+            throw new IllegalStateException("Service Instantiate Fail: " + e.getCause().getMessage(), e.getCause());
+        }
 
         return results.stream().map(AdaptedOrdered::new).sorted(Comparator.comparing(Ordered::getOrder)).map(AdaptedOrdered::getIns).collect(Collectors.toList());
     }

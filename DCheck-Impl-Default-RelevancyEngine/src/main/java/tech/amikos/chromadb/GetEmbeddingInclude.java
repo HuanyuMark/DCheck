@@ -8,7 +8,7 @@ import tech.amikos.chromadb.model.AnyOfGetEmbeddingIncludeItems;
  * @author 三石而立Sunsy
  */
 public enum GetEmbeddingInclude implements AnyOfGetEmbeddingIncludeItems {
-    EMBEDDINGS,
-    METADATAS,
-    DOCUMENTS
+    embeddings,
+    metadatas,
+    documents,
 }

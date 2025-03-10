@@ -97,6 +97,10 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     @Override
     public void close() throws Exception {
         if (!init) return;
-        relevancyEngine.close();
+        synchronized (this) {
+            if (!init) return;
+            relevancyEngine.close();
+            init = false;
+        }
     }
 }

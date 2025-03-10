@@ -17,6 +17,7 @@ import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.util.StringUtils;
 import tech.amikos.chromadb.ChromaCollection;
 import tech.amikos.chromadb.Client;
@@ -46,7 +47,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
     protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
-    private static final int CHUNK_SIZE = 20;
+    private static final int CHUNK_SIZE = 10;
 
 //    static {
 //        try {
@@ -173,7 +174,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
-    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Collections.singletonList(GetEmbeddingInclude.EMBEDDINGS);
+    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Collections.singletonList(GetEmbeddingInclude.embeddings);
 
     @Override
     @SuppressWarnings("unchecked")
@@ -224,11 +225,20 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         // now only support text type
                         var document = queryResultDocument.get(j);
                         @SuppressWarnings("unchecked")
-                        var metadata = (Map<String, String>) ((Object) queryResultMetadata.get(j));
+                        var metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
+                                .entrySet().stream().map(e -> {
+                                    Object value;
+                                    try {
+                                        value = codec.deserialize(e.getValue(), Object.class);
+                                    } catch (IOException ex) {
+                                        throw new IllegalStateException("deserialize '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                    }
+                                    return new AbstractMap.SimpleEntry<>(e.getKey(), value);
+                                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
                         var score = queryResultScore.get(j);
                         ParagraphMetadata metadataObj;
                         try {
-                            metadataObj = codec.deserialize(metadata, ParagraphMetadata.class);
+                            metadataObj = codec.convertTo(metadata, ParagraphMetadata.class);
                         } catch (IOException e) {
                             throw new IllegalArgumentException("parse metadata fail: " + e.getMessage(), e);
                         }
@@ -258,26 +268,30 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         var textParagraphs = batch.get(BuiltinParagraphType.TEXT);
         if (textParagraphs != null) {
             try {
-                CollectionUtils.partition(textParagraphs, CHUNK_SIZE).forEach(chunk -> Failsafe.with(collectionAccessPolicy)
-                        .run(() -> collection.add(
-                                null,
-                                chunk.stream()
-                                        .map(ParagraphRelevancyCreation.Record::getMetadata)
-                                        .map(m -> m.toFlatMap(form -> {
-                                            try {
-                                                return codec.serialize(form, String.class);
-                                            } catch (IOException e) {
-                                                throw new IllegalStateException("stringfy obj '" + form + "' to json fail: " + e.getMessage(), e);
-                                            }
-                                        }))
-                                        .collect(Collectors.toList()),
-                                chunk.stream()
-                                        .map(ParagraphRelevancyCreation.Record::getParagraph)
-                                        .map(p -> ContentConvert.castToText(p.getContent())).collect(Collectors.toList()),
-                                // 这里的id是否需要预先生成？
-                                chunk.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
-                        )));
-
+                var partition = CollectionUtils.partition(textParagraphs, CHUNK_SIZE);
+                for (int i = 0; i < partition.size(); i++) {
+                    var chunk = partition.get(i);
+                    Failsafe.with(collectionAccessPolicy)
+                            .run(() -> collection.add(
+                                    null,
+                                    chunk.stream()
+                                            .map(ParagraphRelevancyCreation.Record::getMetadata)
+                                            .map(m -> m.toFlatMap(form -> {
+                                                try {
+                                                    return codec.serialize(form, String.class);
+                                                } catch (IOException e) {
+                                                    throw new IllegalStateException("stringfy obj '" + form + "' to json fail: " + e.getMessage(), e);
+                                                }
+                                            }))
+                                            .collect(Collectors.toList()),
+                                    chunk.stream()
+                                            .map(ParagraphRelevancyCreation.Record::getParagraph)
+                                            .map(p -> ContentConvert.castToText(p.getContent())).collect(Collectors.toList()),
+                                    // 这里的id是否需要预先生成？
+                                    chunk.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
+                            ));
+                    log.debug("add paragraph progress:  {}/{}", i + 1, partition.size());
+                }
             } catch (FailsafeException e) {
                 throw new IllegalStateException("add paragraph fail:", e.getCause());
             }
@@ -310,9 +324,13 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             return query.getDocumentIds().stream().map(id -> {
                 var req = new GetEmbedding();
                 req.limit(1);
-                req.where(ChromaDSLFactory.where(MetadataMatchCondition.builder()
-                        .eq("documentId", id)
-                        .build()));
+                try {
+                    req.where(ChromaDSLFactory.where(MetadataMatchCondition.builder()
+                            .eq("documentId", codec.serialize(id, String.class))
+                            .build()));
+                } catch (IOException e) {
+                    throw new IllegalStateException("serialize 'documentId=" + id + "' fail: " + e.getMessage(), e);
+                }
                 req.include(Collections.emptyList());
                 return Failsafe.with(collectionAccessPolicy)
                         .get(() -> collection.get(req))
@@ -324,7 +342,20 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     }
 
     @Override
+    protected DocumentCollection doNewTempDocumentCollection() {
+        return getEngineAdaptedDocumentCollection(generateTempDocumentCollectionId());
+    }
+
+    @Override
     public EngineAdaptedDocumentCollection getOrCreateDocumentCollection(String collectionId) {
+        if (collectionId.startsWith(TEMP_COLLECTION_PREFIX)) {
+            throw new IllegalArgumentException("invalid collectionId '" + collectionId + "'");
+        }
+        return getEngineAdaptedDocumentCollection(collectionId);
+    }
+
+    @NotNull
+    private EngineAdaptedDocumentCollection getEngineAdaptedDocumentCollection(String collectionId) {
         init();
         return documentCollections.computeIfAbsent(collectionId, key -> new EngineAdaptedDocumentCollection(getCollection(key).getName(), this));
     }

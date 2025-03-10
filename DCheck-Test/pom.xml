@@ -37,10 +37,10 @@
         </dependency>
 
         <!-- 文档处理器: 启用tika自动处理 -->
-        <dependency>
-            <groupId>org.example.dcheck</groupId>
-            <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>org.example.dcheck</groupId>-->
+        <!--            <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>-->
+        <!--        </dependency>-->
 
         <dependency>
             <groupId>org.example.dcheck</groupId>

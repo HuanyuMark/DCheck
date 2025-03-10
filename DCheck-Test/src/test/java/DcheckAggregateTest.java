@@ -1,5 +1,6 @@
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.DocxDocument;
+import org.example.dcheck.impl.PdfDocument;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -72,13 +74,19 @@ public class DcheckAggregateTest {
 
         // 你可以在
 
-        CheckResult checkResult = checking.check(
-                Check.builder()
-                        .document(diffTarget)
-                        .topKOfDocument(2)
-                        .topKOfEachParagraph(5)
-                        .build(),
-                collection);
+        CheckResult checkResult;
+        try {
+            checkResult = checking.check(
+                    Check.builder()
+                            .document(diffTarget)
+                            .topKOfDocument(2)
+                            .topKOfEachParagraph(5)
+                            .build(),
+                    collection);
+        } catch (Exception e) {
+//            collection.drop();
+            throw e;
+        }
 
         print(checkResult);
 
@@ -94,7 +102,7 @@ public class DcheckAggregateTest {
         try (Stream<Path> stream = Files.list(input)) {
             diffCollection = stream
                     .filter(Files::isRegularFile)
-                    .filter(p -> !p.getFileName().toString().equals("doc5.pdf"))
+                    .filter(p -> !p.getFileName().toString().equals("doc5.docx"))
                     .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
                         try {
                             return Files.newInputStream(p);
@@ -102,7 +110,11 @@ public class DcheckAggregateTest {
                             throw new RuntimeException(e);
                         }
                     }))
-                    .map(e -> new DocxDocument(e.getKey().toString(), (TextContent) () -> e.getValue().get()))
+                    .map(e -> {
+                        boolean isDocx = e.getKey().toString().endsWith(".docx");
+                        BiFunction<String, Content, Document> factory = isDocx ? DocxDocument::new : PdfDocument::new;
+                        return factory.apply(e.getKey().toString(), () -> e.getValue().get());
+                    })
                     .collect(Collectors.toList());
             if (diffCollection.isEmpty()) {
                 throw new IllegalStateException("请将查重文件放入到目标目录中，目标目录中没有文件！Please place the duplicate checking files into the target directory. The target directory is empty!\n" +
