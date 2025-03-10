@@ -46,7 +46,7 @@ import java.util.stream.IntStream;
 public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEngine implements ParagraphRelevancyEngine {
 
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
-    public static final List<AnyOfGetEmbeddingIncludeItems> GET_PARAGRAPH_INCLUDE = Arrays.asList(GetEmbeddingInclude.METADATAS, GetEmbeddingInclude.DOCUMENTS);
+    public static final List<AnyOfGetEmbeddingIncludeItems> GET_PARAGRAPH_INCLUDE = Arrays.asList(GetEmbeddingInclude.metadatas, GetEmbeddingInclude.documents);
     protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
     private static final int CHUNK_SIZE = 10;
 
@@ -61,8 +61,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
     private final Map<String, ChromaCollection> chromaCollections = new ConcurrentSkipListMap<>();
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
-
-    private Client client;
+    protected static final String EMBEDDING_FUNC_KEY = "embedding_function";
     @Getter
     @Setter
     @NonNull
@@ -406,22 +405,39 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         documentCollections.remove(collectionId);
     }
 
+    protected static final String EMBEDDING_FUNC_DETAILS_KEY = "__$$_embedding_func_details_$$__";
+    @Getter
+    private Client client;
+
     protected ChromaCollection getCollection(String collectionId) {
-        return chromaCollections.computeIfAbsent(collectionId, (key) -> {
+        var res = chromaCollections.computeIfAbsent(collectionId, (key) -> {
             try {
                 return Failsafe.with(collectionAccessPolicy)
-                        .get(() -> new ChromaCollection(client.createCollection(
-                                collectionId,
-                                new HashMap<String, String>() {{
-                                    put("hnsw:space", "cosine");
-                                    put("createTime", String.valueOf(System.currentTimeMillis()));
-                                }},
-                                Boolean.TRUE,
-                                ChromaEmbeddingFunctionWrapper.wrap(embeddingFunction))));
+                        .get(() -> {
+                            Map<String, String> metadata = new HashMap<>();
+                            metadata.put("hnsw:space", "cosine");
+                            metadata.put("createTime", String.valueOf(System.currentTimeMillis()));
+                            metadata.put(EMBEDDING_FUNC_KEY, embeddingFunction.getName());
+                            metadata.put(EMBEDDING_FUNC_DETAILS_KEY, codec.serialize(embeddingFunction.getDetails(), String.class));
+                            return new ChromaCollection(client.createCollection(
+                                    collectionId,
+                                    metadata,
+                                    Boolean.TRUE,
+                                    ChromaEmbeddingFunctionWrapper.wrap(embeddingFunction)));
+                        });
             } catch (FailsafeException e) {
                 throw new IllegalStateException("access chroma collection fail:", e.getCause());
             }
         });
+        try {
+            if (!Objects.equals(res.getMetadata().get(EMBEDDING_FUNC_KEY), embeddingFunction.getName()) ||
+                    !Objects.equals(res.getMetadata().get(EMBEDDING_FUNC_DETAILS_KEY), codec.serialize(embeddingFunction.getDetails(), String.class))) {
+                throw new IllegalStateException("chroma collection embedding function or embedding function state not match");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return res;
     }
 
     @Override

@@ -56,8 +56,8 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
         this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
         var details = new HashMap<String, Object>();
-        details.put("baseUrl", baseUrl);
-        details.put("modelName", modelName);
+        details.put("baseUrl", getBaseUrl());
+        details.put("modelName", getModelName());
         details.put("dimension", getDimension());
         this.details = Collections.unmodifiableMap(details);
     }

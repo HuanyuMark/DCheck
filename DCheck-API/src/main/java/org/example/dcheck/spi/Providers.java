@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -108,9 +110,14 @@ class Providers {
 
     static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
 
+
+    static final Properties ENVIRONMENT_VARIABLES = AccessController.doPrivileged((PrivilegedAction<Map<String, String>>) System::getenv).entrySet().stream().collect(Properties::new, (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
+
     static Properties loadConfig(String configName) {
         try {
-            Properties config = new Properties();
+            var base = new Properties(ENVIRONMENT_VARIABLES);
+            base.putAll(AccessController.doPrivileged((PrivilegedAction<Properties>) System::getProperties));
+            Properties config = new Properties(base);
 
             // 读取类路径中最匹配的配置
             Resource[] resources = resolver.getResources("classpath*:org/example/dcheck/config/" + configName + ".properties");

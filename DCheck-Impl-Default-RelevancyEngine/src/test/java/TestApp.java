@@ -14,6 +14,7 @@ import java.util.List;
  */
 @SuppressWarnings("all")
 public class TestApp {
+
     @Test
     public void testChromaWrapper() throws EFException {
         var obj = ChromaEmbeddingFunctionWrapper.wrap(new MyFunc());
