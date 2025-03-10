@@ -86,4 +86,9 @@ public class ChromaEmbeddingFunctionWrapper implements EmbeddingFunction {
             throw wrapException(e);
         }
     }
+
+    @Override
+    public String toString() {
+        return target.toString();
+    }
 }

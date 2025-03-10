@@ -430,7 +430,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     throw new IllegalStateException("deserialize embedding function state fail: " + e.getMessage(), e);
                 }
                 if (!Objects.equals(embeddingFunction.getDetails(), details)) {
-                    throw new IllegalStateException("collection '" + collectionId + "' embedding function state is not match(old != current): " + embeddingFunction.getDetails() + " != " + details);
+                    throw new IllegalStateException("collection '" + collectionId + "' embedding function state is not match(old != current): " + details + " != " + embeddingFunction.getDetails());
                 }
             }, () -> {
                 Node metadataNode = tx.createNode(COLLECTION_METADATA_LABEL);
