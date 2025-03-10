@@ -66,7 +66,8 @@ public abstract class AbstractParagraphRelevancyEngine implements ParagraphRelev
     @Override
     public TempDocumentCollection newTempDocumentCollection() {
         init();
-        var co = new TempDocumentCollectionAdaptor(doNewTempDocumentCollection()) {
+        DocumentCollection realCo = doNewTempDocumentCollection();
+        var co = new TempDocumentCollectionAdaptor(realCo) {
             @Override
             public void drop() {
                 super.drop();

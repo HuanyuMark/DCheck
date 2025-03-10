@@ -20,6 +20,8 @@ public interface ParagraphRelevancyEngine extends AutoCloseable {
 
     List<Boolean> hasDocument(DocumentIdQuery query);
 
+    List<Paragraph> getParagraphs(ParagraphGet query);
+
     DocumentCollection getOrCreateDocumentCollection(String collectionId);
 
     void removeDocumentCollection(String collectionId);

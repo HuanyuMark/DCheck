@@ -18,12 +18,15 @@ import java.util.List;
 public interface DuplicateChecking extends AutoCloseable {
 
     /**
+     * init sync func. it will prepare all resources, such as downloading/unzip resources from web
+     * init some component before calling other api
      * 初始化. 同步方法，会准备所有需要的资源，包括完成从网络下载资源，解压等工作。可以在正式
      * 调用其他api前调用该方法已提前初始化以加快第一次调用其他api的速度
      */
     void init();
 
     /**
+     * get core component {@link DocumentCollection} to access underlying reduction logic or get other component
      * 获取相似度引擎，以获取 {@link DocumentCollection}
      */
     ParagraphRelevancyEngine getRelevancyEngine();
@@ -45,4 +48,14 @@ public interface DuplicateChecking extends AutoCloseable {
             return check(check, collection);
         }
     }
+
+    /**
+     * register weak-ref cb on closing (reduce memory leak)
+     */
+    void onClosing(Runnable cb);
+
+    /**
+     * register strong-ref cb on closing (ensure obj life-cycle == DuplicateChecking)
+     */
+    void onStrongClosing(Runnable cb);
 }

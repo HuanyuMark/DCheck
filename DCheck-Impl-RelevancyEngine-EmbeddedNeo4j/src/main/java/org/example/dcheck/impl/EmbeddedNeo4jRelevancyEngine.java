@@ -2,7 +2,6 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
@@ -19,9 +18,12 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexSetting;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,25 +51,34 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     public static final String HNSW_EF_CONSTRUCTION = "relevancy-engine.embedded-neo4j.config.hnsw.ef_construction";
     /////
 
+
+    public static final Type MapType = new ParameterizedTypeReference<Map<String, Object>>() {
+    }.getType();
     protected static final Label PARAGRAPH_LABEL = Label.label("Paragraph");
     protected static final String VECTOR_INDEX = "vector_index";
     protected static final String DOCUMENT_ID_INDEX = "document_id_index";
     protected static final String VECTOR_PROPERTY = "_$$_embedding_$$_";
     protected static final String CONTENT_PROPERTY = "_$$_content_$$_";
     protected static final String EMBEDDING_FUC_PROPERTY = "_$$_embedding_func_$$_";
+    protected static final Label COLLECTION_METADATA_LABEL = Label.label("CollectionMetadata");
     public static final String DOCUMENT_ID_PROPERTY = "documentId";
+
     public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 5;
-
-
-    protected Map<IndexSetting, Object> vectorIndexSettings = new HashMap<>();
-
-    protected final Set<String> indexedCollections = Collections.newSetFromMap(new ConcurrentSkipListMap<>());
-
-    protected ManageableGraphDatabaseService getCollection(String collectionId) {
-        var collection = dbms.getOrCreateDatabase(collectionId);
-        buildIndexes(collectionId, collection);
-        return collection;
-    }
+    protected static final String EMBEDDING_FUC_DETAILS_PROPERTY = "_$$_embedding_func_details_$$_";
+    protected static final String QueryEmbeddingCypher = MessageFormat.format(
+            """
+                    MATCH (p: {PARAGRAPH_LABEL})
+                    WHERE p.{DOCUMENT_ID_PROPERTY} == $queryDocument
+                    RETURN p.{VECTOR_PROPERTY} as {VECTOR_PROPERTY}
+                    """,
+            Map.of(
+                    "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
+                    "VECTOR_PROPERTY", VECTOR_PROPERTY,
+                    "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
+            ));
+    protected final Set<String> initedCollections = Collections.newSetFromMap(new ConcurrentSkipListMap<>());
+    @Nullable
+    protected Map<IndexSetting, Object> vectorIndexSettings;
 
     protected Neo4jDbms dbms;
 
@@ -76,8 +87,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected final Map<String, DocumentCollection> collections = new ConcurrentSkipListMap<>();
 
     @Getter
-    @Setter
-    @NonNull
     protected EmbeddingFunction embeddingFunction;
 
     @Getter
@@ -87,82 +96,24 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         this.codec = codec;
     }
 
-    @Override
-    public void doInit() {
-        if (init) {
-            return;
+    protected ManageableGraphDatabaseService getCollection(String collectionId) {
+        var collection = dbms.getOrCreateDatabase(collectionId);
+        initCollectionIfNeeded(collectionId, collection);
+        return collection;
+    }
+
+    public void setEmbeddingFunction(@NonNull EmbeddingFunction embeddingFunction) {
+        if (this.embeddingFunction != null) {
+            if (!embeddingFunction.equals(this.embeddingFunction) && !Objects.equals(embeddingFunction.getDetails(), this.embeddingFunction.getDetails())) {
+                initedCollections.clear();
+            }
         }
-        synchronized (this) {
-            if (init) {
-                return;
-            }
+        this.embeddingFunction = embeddingFunction;
+    }
 
-            if (codec == null) {
-                setCodec(CodecProvider.getInstance()
-                        .getCodecs()
-                        .stream()
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
-            }
-
-            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-
-            try {
-                tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + (int) (System.currentTimeMillis() / Math.random())));
-            } catch (IOException e) {
-                throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
-            }
-            var dbRoot = apiConfig.getProperty(DB_ROOT);
-            if (!StringUtils.hasText(dbRoot)) {
-                throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "'");
-            }
-            Path dbRootPath;
-            try {
-                dbRootPath = Paths.get(dbRoot);
-            } catch (Exception e) {
-                throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
-            }
-            dbms = new Neo4jDbms(dbRootPath);
-
-            String similarityFunc = apiConfig.getProperty(SIMILARITY_FUNCTION);
-            String quantizationEnable = apiConfig.getProperty(QUANTIZATION_ENABLE);
-            String hnswM = apiConfig.getProperty(HNSW_M);
-            String hnswEfConstruction = apiConfig.getProperty(HNSW_EF_CONSTRUCTION);
-            if (similarityFunc != null) {
-                vectorIndexSettings.put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
-            }
-            if (quantizationEnable != null) {
-                if (!"true".equalsIgnoreCase(quantizationEnable) && !"false".equalsIgnoreCase(quantizationEnable)) {
-                    throw new IllegalArgumentException("invalid config '" + QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
-                }
-                vectorIndexSettings.put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, Boolean.parseBoolean(quantizationEnable));
-            }
-            if (hnswM != null) {
-                try {
-                    vectorIndexSettings.put(IndexSettingImpl.VECTOR_HNSW_M, Integer.parseInt(hnswM));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("invalid config '" + HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
-                }
-            }
-            if (hnswEfConstruction != null) {
-                try {
-                    vectorIndexSettings.put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, Integer.parseInt(hnswEfConstruction));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("invalid config '" + HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
-                }
-            }
-
-            var embeddingModel = apiConfig.getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
-            embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
-
-            try {
-                embeddingFunction.init();
-            } catch (Exception e) {
-                throw new IllegalStateException("init embedding function fail: " + e.getMessage(), e);
-            }
-
-            init = true;
-        }
+    @NonNull
+    protected Map<IndexSetting, Object> getVectorIndexSettings() {
+        return vectorIndexSettings == null ? (vectorIndexSettings = new HashMap<>()) : vectorIndexSettings;
     }
 
     protected String getQueryParagraphCypher(Collection<String> includeMetadata) {
@@ -190,29 +141,87 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         return cypher;
     }
 
-    protected static final String QueryEmbeddingCypher = MessageFormat.format(
-            """
-                    MATCH (p: {PARAGRAPH_LABEL})
-                    WHERE p.{DOCUMENT_ID_PROPERTY} == $queryDocument
-                    RETURN p.{VECTOR_PROPERTY} as {VECTOR_PROPERTY},p.{EMBEDDING_FUC_PROPERTY} as {EMBEDDING_FUC_PROPERTY}
-                    """,
-            Map.of(
-                    "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
-                    "VECTOR_PROPERTY", VECTOR_PROPERTY,
-                    "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
-                    "EMBEDDING_FUC_PROPERTY", EMBEDDING_FUC_PROPERTY
-            ));
+    @Override
+    public void doInit() {
+        if (codec == null) {
+            setCodec(CodecProvider.getInstance()
+                    .getCodecs()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
+        }
+
+        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+
+        try {
+            tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + (int) (System.currentTimeMillis() / Math.random())));
+        } catch (IOException e) {
+            throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
+        }
+        var dbRoot = apiConfig.getProperty(DB_ROOT);
+        if (!StringUtils.hasText(dbRoot)) {
+            throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "'");
+        }
+        Path dbRootPath;
+        try {
+            dbRootPath = Paths.get(dbRoot);
+        } catch (Exception e) {
+            throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
+        }
+        dbms = new Neo4jDbms(dbRootPath);
+
+        String similarityFunc = apiConfig.getProperty(SIMILARITY_FUNCTION);
+        String quantizationEnable = apiConfig.getProperty(QUANTIZATION_ENABLE);
+        String hnswM = apiConfig.getProperty(HNSW_M);
+        String hnswEfConstruction = apiConfig.getProperty(HNSW_EF_CONSTRUCTION);
+        if (similarityFunc != null) {
+            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
+        }
+        if (quantizationEnable != null) {
+            if (!"true".equalsIgnoreCase(quantizationEnable) && !"false".equalsIgnoreCase(quantizationEnable)) {
+                throw new IllegalArgumentException("invalid config '" + QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
+            }
+            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, Boolean.parseBoolean(quantizationEnable));
+        }
+        if (hnswM != null) {
+            try {
+                getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, Integer.parseInt(hnswM));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("invalid config '" + HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
+            }
+        }
+        if (hnswEfConstruction != null) {
+            try {
+                getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, Integer.parseInt(hnswEfConstruction));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("invalid config '" + HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
+            }
+        }
+
+        var embeddingModel = apiConfig.getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
+
+        try {
+            embeddingFunction.init();
+        } catch (Exception e) {
+            throw new IllegalStateException("init embedding function fail: " + e.getMessage(), e);
+        }
+    }
 
     @Override
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
         var collection = getCollection(query.getCollectionId());
         DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         try (var tx = collection.beginTx()) {
+            var embeddingFunctionName = ((String) tx.findNodes(COLLECTION_METADATA_LABEL).stream().findFirst().orElseThrow()
+                    .getProperty(EMBEDDING_FUC_PROPERTY));
+
+
             Stream<Embedding> queryEmbeddings;
             if (query.getParagraphs() == null) {
                 queryEmbeddings = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
                         .stream()
-                        .map(properties -> Embedding.from((float[]) properties.get(VECTOR_PROPERTY), (String) properties.get(EMBEDDING_FUC_PROPERTY)));
+                        .map(properties -> Embedding.from((float[]) properties.get(VECTOR_PROPERTY), embeddingFunctionName));
             } else {
                 // do partition for batch
                 var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
@@ -240,7 +249,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         try {
                             var flatMetadata = new HashMap<>(flatProperties);
                             flatMetadata.remove(CONTENT_PROPERTY);
-                            flatMetadata.remove(EMBEDDING_FUC_PROPERTY);
                             flatMetadata.remove(VECTOR_PROPERTY);
                             metadata = codec.convertTo(flatMetadata.entrySet().stream().map(e -> {
                                 try {
@@ -260,7 +268,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         }
 
                         var paragraph = new TextParagraph(
-                                documentCollection,
                                 () -> (TextContent) paragraphContent,
                                 metadata
                         );
@@ -295,13 +302,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 for (int i = 0; i < partition.size(); i++) {
                     var record = partition.get(i);
                     Node node = tx.createNode(PARAGRAPH_LABEL);
-                    node.setProperty(EMBEDDING_FUC_PROPERTY, embeddings.get(i).getEmbeddingFunction());
                     node.setProperty(VECTOR_PROPERTY, embeddings.get(i).asArray());
                     node.setProperty(CONTENT_PROPERTY, ContentConvert.castToText(record.getContent()));
                     // flat metadata would be great for neo4j match performance
                     // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
                     for (Map.Entry<String, Object> kv : record.getMetadata().entrySet()) {
-                        if (kv.getKey().equals(DOCUMENT_ID_PROPERTY) || kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(EMBEDDING_FUC_PROPERTY)) {
+                        if (kv.getKey().equals(DOCUMENT_ID_PROPERTY) || kv.getKey().equals(VECTOR_PROPERTY)) {
                             throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
                         }
                         node.setProperty(kv.getKey(), codec.serialize(kv.getValue(), String.class));
@@ -354,6 +360,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     }
 
     @Override
+    public List<Paragraph> getParagraphs(ParagraphGet query) {
+        // TODO: implement this
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public DocumentCollection getOrCreateDocumentCollection(String collectionId) {
         return collections.computeIfAbsent(collectionId, id -> new EngineAdaptedDocumentCollection(getCollection(id).databaseName(), this));
     }
@@ -367,12 +379,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         } catch (IOException e) {
             throw new IllegalStateException("remove document collection fail: " + e.getMessage(), e);
         }
-        indexedCollections.remove(collectionId);
+        initedCollections.remove(collectionId);
     }
 
 
-    protected void buildIndexes(String collectionId, ManageableGraphDatabaseService collection) {
-        if (!indexedCollections.add(collectionId)) {
+    protected void initCollectionIfNeeded(String collectionId, ManageableGraphDatabaseService collection) {
+        if (!initedCollections.add(collectionId)) {
             return;
         }
         try (var tx = collection.beginTx()) {
@@ -381,12 +393,17 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 tx.schema().getIndexByName(VECTOR_INDEX);
             } catch (IllegalArgumentException e) {
                 // fail => none => create
-                tx.schema()
+                var creator = tx.schema()
                         .indexFor(PARAGRAPH_LABEL)
                         .withName(VECTOR_INDEX)
-                        .withIndexType(IndexType.VECTOR)
-                        .withIndexConfiguration(vectorIndexSettings)
-                        .on(VECTOR_PROPERTY)
+                        .withIndexType(IndexType.VECTOR);
+
+                if (vectorIndexSettings != null) {
+                    creator = creator
+                            .withIndexConfiguration(vectorIndexSettings);
+                }
+
+                creator.on(VECTOR_PROPERTY)
                         .create();
             }
             try {
@@ -400,9 +417,34 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         .on(DOCUMENT_ID_PROPERTY)
                         .create();
             }
+
+            tx.findNodes(COLLECTION_METADATA_LABEL).stream().findFirst().ifPresentOrElse(node -> {
+                var properties = node.getAllProperties();
+                if (!properties.get(EMBEDDING_FUC_PROPERTY).equals(embeddingFunction.getName())) {
+                    throw new IllegalStateException("collection '" + collectionId + "' embedding function is not match(old != current): " + properties.get(EMBEDDING_FUC_PROPERTY) + " != " + embeddingFunction.getName());
+                }
+                Map<String, Object> details;
+                try {
+                    details = codec.deserialize(properties.get(EMBEDDING_FUC_DETAILS_PROPERTY), MapType);
+                } catch (IOException e) {
+                    throw new IllegalStateException("deserialize embedding function state fail: " + e.getMessage(), e);
+                }
+                if (!Objects.equals(embeddingFunction.getDetails(), details)) {
+                    throw new IllegalStateException("collection '" + collectionId + "' embedding function state is not match(old != current): " + embeddingFunction.getDetails() + " != " + details);
+                }
+            }, () -> {
+                Node metadataNode = tx.createNode(COLLECTION_METADATA_LABEL);
+                metadataNode.setProperty(EMBEDDING_FUC_PROPERTY, embeddingFunction.getName());
+                try {
+                    metadataNode.setProperty(EMBEDDING_FUC_DETAILS_PROPERTY, codec.serialize(embeddingFunction.getDetails(), String.class));
+                } catch (IOException e) {
+                    throw new IllegalStateException("serialize metadata '" + EMBEDDING_FUC_DETAILS_PROPERTY + "=" + embeddingFunction.getDetails() + "' fail: " + e.getMessage(), e);
+                }
+            });
+
             tx.commit();
         } catch (Throwable e) {
-            indexedCollections.remove(collectionId);
+            initedCollections.remove(collectionId);
             throw e;
         }
     }
@@ -411,7 +453,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected DocumentCollection doNewTempDocumentCollection() {
         String collectionId = generateTempDocumentCollectionId();
         var collection = tempDbms.getOrCreateDatabase(collectionId);
-        buildIndexes(collectionId, collection);
+        initCollectionIfNeeded(collectionId, collection);
         return new EngineAdaptedDocumentCollection(collectionId, this);
     }
 

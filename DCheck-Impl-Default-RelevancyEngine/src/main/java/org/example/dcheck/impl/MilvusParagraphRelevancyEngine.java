@@ -34,6 +34,11 @@ public class MilvusParagraphRelevancyEngine implements ParagraphRelevancyEngine 
     }
 
     @Override
+    public List<Paragraph> getParagraphs(ParagraphGet query) {
+        return null;
+    }
+
+    @Override
     public DocumentCollection getOrCreateDocumentCollection(String collectionId) {
         return null;
     }

@@ -8,8 +8,6 @@ package org.example.dcheck.api;
  */
 @SuppressWarnings("unused")
 public interface Paragraph {
-    DocumentCollection getCollection();
-
     Content getContent();
 
     ParagraphMetadata getMetadata();

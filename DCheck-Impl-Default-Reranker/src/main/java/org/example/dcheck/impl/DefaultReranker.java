@@ -9,6 +9,7 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.lang.NonNull;
 
@@ -16,8 +17,10 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -31,6 +34,9 @@ import java.util.stream.IntStream;
 public class DefaultReranker implements Reranker {
 
     public static final MediaType JSON_TYPE = MediaType.get("application/json");
+
+    private ParagraphRelevancyEngine engine;
+
     @Getter
     private Codec codec;
 
@@ -98,7 +104,12 @@ public class DefaultReranker implements Reranker {
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
         }
 
+        engine = Objects.requireNonNull(RelevancyEngineMapProvider.getInstance().getCurrentDefaultEngine(),
+                "illegal state: require relevancy engine supported");
+
         RequestTemplate.init();
+
+
         try (var resp = getClient().newCall(RequestTemplate.INIT.getRequest()).execute()) {
             if (resp.body() == null) {
                 throw new IOException("response body is null");
@@ -181,9 +192,24 @@ public class DefaultReranker implements Reranker {
     @Override
     public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
         RerankResponse rerankResponse;
-        //TODO make sure query.getParagraphs() not null
+        ParagraphRelevancyQuery applyQuery;
+
+        if (query.getParagraphs() == null) {
+            if (!engine.hasDocument(new DocumentIdQuery(query.getCollectionId(), Collections.singletonList(query.getDocumentId()))).get(0)) {
+                throw new IllegalStateException("document not found");
+            }
+            @SuppressWarnings("unchecked")
+            var paragraphs = (List<Supplier<? extends Content>>) ((Object) engine.getParagraphs(ParagraphGet.builder()
+                    .collectionId(query.getDocumentId())
+                    .condition(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build())
+                    .build()).stream().map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()));
+            applyQuery = query.withParagraphs(paragraphs);
+        } else {
+            applyQuery = query;
+        }
+
         try {
-            rerankResponse = codec.deserialize(getRerankResponseBody(relevancyResult, query), RerankResponse.class);
+            rerankResponse = codec.deserialize(getRerankResponseBody(relevancyResult, applyQuery), RerankResponse.class);
         } catch (IOException e) {
             throw new IllegalStateException("parse rerank response fail:" + e.getMessage(), e);
         }

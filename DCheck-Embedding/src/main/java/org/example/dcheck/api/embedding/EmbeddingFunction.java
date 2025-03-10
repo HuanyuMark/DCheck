@@ -1,7 +1,10 @@
 package org.example.dcheck.api.embedding;
 
+import org.springframework.lang.Nullable;
+
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -9,10 +12,30 @@ import java.util.function.Supplier;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 public interface EmbeddingFunction {
+
+    /**
+     * 请在init()后在调用。实现类
+     * 返回一个合规的类名以标识该实现类，该类名可以不存在
+     */
     default String getName() {
+        try {
+            init();
+        } catch (Exception e) {
+            throw new IllegalStateException("init EmbeddingFunction '" + getClass().getName() + "' fail: " + e.getMessage(), e);
+        }
         return getClass().getName();
     }
+
+    /**
+     * 返回描述这个embedding function的详细信息
+     */
+    @Nullable
+    default Map<String, Object> getDetails() {
+        return null;
+    }
+
 
     void init() throws Exception;
 
@@ -24,6 +47,6 @@ public interface EmbeddingFunction {
 
     //TODO 支持多模态嵌入
     default List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws Exception {
-        throw new UnsupportedOperationException();
+        throw new Exception();
     }
 }

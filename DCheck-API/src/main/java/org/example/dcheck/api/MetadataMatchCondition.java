@@ -15,7 +15,7 @@ import java.util.Map;
  * @author 三石而立Sunsy
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class MetadataMatchCondition {
     @Singular
     private final Map<String, String> eqs;

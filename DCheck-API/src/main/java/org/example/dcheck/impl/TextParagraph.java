@@ -1,7 +1,6 @@
 package org.example.dcheck.impl;
 
 import lombok.*;
-import org.example.dcheck.api.DocumentCollection;
 import org.example.dcheck.api.Paragraph;
 import org.example.dcheck.api.ParagraphMetadata;
 import org.example.dcheck.api.TextContent;
@@ -15,8 +14,8 @@ import java.util.function.Supplier;
  */
 @Data
 @Builder
+@AllArgsConstructor
 public class TextParagraph implements Paragraph {
-    private final DocumentCollection collection;
     private final Supplier<TextContent> content;
 
     @With
