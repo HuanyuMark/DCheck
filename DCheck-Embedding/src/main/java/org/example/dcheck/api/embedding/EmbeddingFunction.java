@@ -29,6 +29,7 @@ public interface EmbeddingFunction {
     }
 
     /**
+     * 请在init()后在调用。
      * 返回描述这个embedding function的详细信息
      */
     @Nullable

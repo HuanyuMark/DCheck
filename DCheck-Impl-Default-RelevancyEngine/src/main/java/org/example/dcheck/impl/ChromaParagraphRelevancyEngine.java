@@ -63,9 +63,19 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
     protected static final String EMBEDDING_FUNC_KEY = "embedding_function";
     @Getter
-    @Setter
-    @NonNull
     private EmbeddingFunction embeddingFunction;
+
+    private String embeddingFuncDetailsKey;
+
+    public void setEmbeddingFunction(@NonNull EmbeddingFunction embeddingFunction) {
+        this.embeddingFunction = embeddingFunction;
+        try {
+            embeddingFuncDetailsKey = codec.serialize(embeddingFunction.getDetails(), String.class);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("serialize embedding function details '" + embeddingFunction.getDetails() + "' fail: " + e.getMessage(), e);
+        }
+    }
+
     private final RetryPolicy<Object> collectionAccessPolicy = RetryPolicy.builder()
             .handle(ApiException.class)
             .withMaxRetries(3)
@@ -98,7 +108,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
 
         var embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
-        embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
+        setEmbeddingFunction(EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel));
 
         var url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
         if (!StringUtils.hasText(url)) {
@@ -418,7 +428,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                             metadata.put("hnsw:space", "cosine");
                             metadata.put("createTime", String.valueOf(System.currentTimeMillis()));
                             metadata.put(EMBEDDING_FUNC_KEY, embeddingFunction.getName());
-                            metadata.put(EMBEDDING_FUNC_DETAILS_KEY, codec.serialize(embeddingFunction.getDetails(), String.class));
+                            metadata.put(EMBEDDING_FUNC_DETAILS_KEY, embeddingFuncDetailsKey);
                             return new ChromaCollection(client.createCollection(
                                     collectionId,
                                     metadata,
@@ -429,13 +439,9 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                 throw new IllegalStateException("access chroma collection fail:", e.getCause());
             }
         });
-        try {
-            if (!Objects.equals(res.getMetadata().get(EMBEDDING_FUNC_KEY), embeddingFunction.getName()) ||
-                    !Objects.equals(res.getMetadata().get(EMBEDDING_FUNC_DETAILS_KEY), codec.serialize(embeddingFunction.getDetails(), String.class))) {
-                throw new IllegalStateException("chroma collection embedding function or embedding function state not match");
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (!Objects.equals(res.getMetadata().get(EMBEDDING_FUNC_KEY), embeddingFunction.getName()) ||
+                !Objects.equals(res.getMetadata().get(EMBEDDING_FUNC_DETAILS_KEY), embeddingFuncDetailsKey)) {
+            throw new IllegalStateException("chroma collection embedding function or embedding function state not match");
         }
         return res;
     }

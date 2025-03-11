@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -108,6 +109,15 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
         closingCbs.add(cb);
     }
 
+    @Override
+    public <E> void emitEvent(Class<? super E> eventClass, E event) {
+
+    }
+
+    @Override
+    public <E> void onEvent(Class<E> eventClass, Consumer<? extends E> event) {
+
+    }
 
     @Override
     public void close() throws Exception {
@@ -127,7 +137,6 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                     }
                 }
             }
-
             init = false;
         }
     }

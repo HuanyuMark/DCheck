@@ -4,6 +4,7 @@ import lombok.var;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Date 2025/02/25
@@ -58,4 +59,8 @@ public interface DuplicateChecking extends AutoCloseable {
      * register strong-ref cb on closing (ensure obj life-cycle == DuplicateChecking)
      */
     void onStrongClosing(Runnable cb);
+
+    <E> void emitEvent(Class<? super E> eventClass, E event);
+
+    <E> void onEvent(Class<E> eventClass, Consumer<? extends E> event);
 }

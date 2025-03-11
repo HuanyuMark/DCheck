@@ -1,7 +1,4 @@
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.example.dcheck.api.*;
-import org.example.dcheck.impl.ChromaParagraphRelevancyEngine;
 import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.PdfDocument;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
@@ -10,16 +7,16 @@ import org.junit.jupiter.api.Test;
 import tech.amikos.chromadb.Client;
 import tech.amikos.chromadb.Embedding;
 import tech.amikos.chromadb.embeddings.EmbeddingFunction;
-import tech.amikos.chromadb.handler.ApiClient;
 import tech.amikos.chromadb.handler.ApiException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -59,34 +56,6 @@ public class DcheckAggregateTest {
         print(checkResult);
 
         checking.close();
-    }
-
-    @Test
-    public void testChromaJson() throws Exception {
-        ChromaParagraphRelevancyEngine engine = new ChromaParagraphRelevancyEngine();
-        engine.init();
-        Field apiClient = engine.getClient().getClass().getDeclaredField("apiClient");
-        apiClient.setAccessible(true);
-        ApiClient client = ((ApiClient) apiClient.get(engine.getClient()));
-        Gson gson = client.getJSON().getGson();
-        System.out.println(gson.toJson(new Obj()));
-        Gson defaultGson = new GsonBuilder()
-                .enableComplexMapKeySerialization()
-                .serializeNulls()
-                .create();
-        System.out.println(defaultGson.toJson(new Obj()));
-    }
-
-    public static class Obj {
-        private String name = "nnnn";
-
-        private Object metadata = new HashMap<String, Object>();
-
-        private Boolean getOrCreate = false;
-
-        {
-            ((Map) metadata).put("ffff", "oooo");
-        }
     }
 
     @Test
