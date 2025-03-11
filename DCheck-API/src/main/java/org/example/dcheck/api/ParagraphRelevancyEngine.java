@@ -11,7 +11,7 @@ import java.util.List;
  * @see DuplicateChecking
  */
 @SuppressWarnings("unused")
-public interface ParagraphRelevancyEngine extends AutoCloseable {
+public interface ParagraphRelevancyEngine extends AutoCloseable, DCheckComponent {
     ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query);
 
     void addParagraph(ParagraphRelevancyCreation creation);
@@ -29,5 +29,9 @@ public interface ParagraphRelevancyEngine extends AutoCloseable {
     TempDocumentCollection newTempDocumentCollection();
 
     default void init() {
+    }
+
+    @SuppressWarnings("all")
+    default void inited() throws Exception {
     }
 }

@@ -4,7 +4,6 @@ import lombok.var;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Date 2025/02/25
@@ -16,7 +15,7 @@ import java.util.function.Consumer;
  * @see DuplicateCheckingProvider DuplicateCheckingProvider
  */
 @SuppressWarnings("unused")
-public interface DuplicateChecking extends AutoCloseable {
+public interface DuplicateChecking extends AutoCloseable, IEventEmitter {
 
     /**
      * init sync func. it will prepare all resources, such as downloading/unzip resources from web
@@ -51,16 +50,7 @@ public interface DuplicateChecking extends AutoCloseable {
     }
 
     /**
-     * register weak-ref cb on closing (reduce memory leak)
+     * register on closing
      */
     void onClosing(Runnable cb);
-
-    /**
-     * register strong-ref cb on closing (ensure obj life-cycle == DuplicateChecking)
-     */
-    void onStrongClosing(Runnable cb);
-
-    <E> void emitEvent(Class<? super E> eventClass, E event);
-
-    <E> void onEvent(Class<E> eventClass, Consumer<? extends E> event);
 }

@@ -1,5 +1,6 @@
 package org.example.dcheck.api.embedding;
 
+import org.example.dcheck.api.DCheckComponent;
 import org.springframework.lang.Nullable;
 
 import java.io.InputStream;
@@ -13,7 +14,7 @@ import java.util.function.Supplier;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-public interface EmbeddingFunction {
+public interface EmbeddingFunction extends DCheckComponent {
 
     /**
      * 请在init()后在调用。实现类
@@ -37,9 +38,6 @@ public interface EmbeddingFunction {
         return null;
     }
 
-
-    void init() throws Exception;
-
     Embedding embedQuery(String query) throws Exception;
 
     List<Embedding> embedDocuments(List<String> documents) throws Exception;
@@ -50,4 +48,5 @@ public interface EmbeddingFunction {
     default List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws Exception {
         throw new Exception();
     }
+
 }

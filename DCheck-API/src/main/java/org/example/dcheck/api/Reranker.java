@@ -7,10 +7,7 @@ package org.example.dcheck.api;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-public interface Reranker {
-
-    default void init() throws Exception {
-    }
+public interface Reranker extends DCheckComponent {
 
     ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query);
 

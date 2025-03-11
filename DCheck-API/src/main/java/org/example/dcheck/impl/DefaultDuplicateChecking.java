@@ -2,6 +2,7 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.example.dcheck.api.*;
@@ -9,13 +10,10 @@ import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 
-import java.lang.ref.WeakReference;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -31,7 +29,18 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
     private volatile boolean init;
 
-    private final List<Object> closingCbs = new CopyOnWriteArrayList<>();
+    @Delegate
+    private final IEventEmitter eventEmitter = new ClassHierarchyEventEmitter() {
+        @Override
+        protected Map<Class<?>, Set<Function<?, CompletableFuture<?>>>> initBus() {
+            return new ConcurrentHashMap<>();
+        }
+
+        @Override
+        protected Set<Function<?, CompletableFuture<?>>> initCallbackSet() {
+            return ConcurrentHashMap.newKeySet();
+        }
+    };
 
     public ParagraphRelevancyEngine getRelevancyEngine() {
         init();
@@ -51,8 +60,35 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                 relevancyEngine.init();
                 log.info("Finished init Relevancy Engine");
             } catch (Exception e) {
-                throw new IllegalStateException("init relevancy engine fail:", e);
+                throw new IllegalStateException("init relevancy engine fail: " + e.getMessage(), e);
             }
+
+
+            try {
+                log.info("Starting init Document Processors");
+                DocumentProcessorProvider.getInstance().init();
+                log.info("Finished init Document Processors");
+            } catch (Exception e) {
+                throw new IllegalStateException("init Document Processors fail: " + e.getMessage(), e);
+            }
+
+
+            try {
+                log.info("Call Document Processors hock 'inited()' '{}'", relevancyEngine.getClass().getCanonicalName());
+                DocumentProcessorProvider.getInstance().inited();
+                log.info("Document Processors 'inited()' hock done");
+            } catch (Exception e) {
+                throw new IllegalStateException("Document Processors 'inited()' hock throw: " + e.getMessage(), e);
+            }
+
+            try {
+                log.info("Call Relevancy Engine hock 'inited()' '{}'", relevancyEngine.getClass().getCanonicalName());
+                relevancyEngine.inited();
+                log.info("Relevancy Engine 'inited()' hock done");
+            } catch (Exception e) {
+                throw new IllegalStateException("Relevancy Engine 'inited()' hock throw: " + e.getMessage(), e);
+            }
+
             init = true;
         }
     }
@@ -101,22 +137,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
     @Override
     public void onClosing(Runnable cb) {
-        closingCbs.add(new WeakReference<>(cb));
-    }
-
-    @Override
-    public void onStrongClosing(Runnable cb) {
-        closingCbs.add(cb);
-    }
-
-    @Override
-    public <E> void emitEvent(Class<? super E> eventClass, E event) {
-
-    }
-
-    @Override
-    public <E> void onEvent(Class<E> eventClass, Consumer<? extends E> event) {
-
+        eventEmitter.addSyncListener(CloseEvent.class, e -> cb.run());
     }
 
     @Override
@@ -126,18 +147,13 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             if (!init) return;
 
             relevancyEngine.close();
-            for (Object refOrCb : closingCbs) {
-                @SuppressWarnings("unchecked")
-                var cb = refOrCb instanceof WeakReference<?> ? ((WeakReference<Runnable>) refOrCb).get() : (Runnable) refOrCb;
-                if (cb != null) {
-                    try {
-                        cb.run();
-                    } catch (Exception e) {
-                        log.error("error run closing cb: {}", cb.getClass(), e);
-                    }
-                }
-            }
+            eventEmitter.emitEvent(new CloseEvent()).join();
+            eventEmitter.close();
+
             init = false;
         }
+    }
+
+    protected static class CloseEvent {
     }
 }

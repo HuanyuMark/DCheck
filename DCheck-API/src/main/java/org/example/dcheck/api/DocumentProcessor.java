@@ -13,7 +13,7 @@ import java.util.stream.Stream;
  * @see org.example.dcheck.spi.Providers#findAllImplementations(Class)
  */
 @SuppressWarnings("unused")
-public interface DocumentProcessor {
+public interface DocumentProcessor extends DCheckComponent {
 
     DocumentProcessor UNSUPPORTED = new DocumentProcessor() {
         @Override
@@ -26,9 +26,6 @@ public interface DocumentProcessor {
             return Stream.empty();
         }
     };
-
-    default void init() throws Exception {
-    }
 
 
     boolean support(@NotNull DocumentType type);

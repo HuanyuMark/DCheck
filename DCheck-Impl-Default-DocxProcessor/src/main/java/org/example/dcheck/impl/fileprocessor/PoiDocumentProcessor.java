@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 @SuppressWarnings("unused")
 public class PoiDocumentProcessor implements DocumentProcessor {
 
-    private DocumentSplitter splitter;
+    private DCheckDocumentSplitter splitter;
 
 
     private DocumentParser documentParser;
@@ -38,7 +38,23 @@ public class PoiDocumentProcessor implements DocumentProcessor {
             documentParser = new ApachePoiDocumentParser();
             int maxParagraphLength = SharedDocumentProcessorConfig.getInstance().getMaxParagraphLength();
 //        int maxOverlaySize = Math.min(maxParagraphLength / 4, 100);
-            splitter = DocumentSplitters.recursive(maxParagraphLength, 20);
+            splitter = new TokenizerMutableSplitter() {
+                @Override
+                protected DocumentSplitter createLoadedSplitter(DCheckTokenizer tokenizer) {
+                    return DocumentSplitters.recursive(maxParagraphLength, 20, tokenizer);
+                }
+
+                @Override
+                protected DocumentSplitter createInitSplitter() {
+                    return DocumentSplitters.recursive(maxParagraphLength, 20);
+                }
+            };
+
+            try {
+                splitter.init();
+            } catch (Exception e) {
+                throw new IllegalStateException("Call DCheckDocumentSplitter hock 'inited()' fail: " + e.getMessage(), e);
+            }
 //        splitter = new DocumentByParagraphSplitter(
 //                maxParagraphLength,
 //                maxOverlaySize,
@@ -46,6 +62,11 @@ public class PoiDocumentProcessor implements DocumentProcessor {
 //                new DocumentBySentenceSplitter(maxParagraphLength, maxOverlaySize));
             init = true;
         }
+    }
+
+    @Override
+    public void inited() throws Exception {
+        splitter.inited();
     }
 
     @Override

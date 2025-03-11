@@ -44,6 +44,8 @@ public class BigModelTokenizer implements DCheckTokenizer {
     @Getter
     private Codec codec;
 
+    private volatile boolean inited;
+
     @Getter
     @Setter
     @NonNull
@@ -67,6 +69,17 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     @Override
     public void init() {
+        if (inited) return;
+        synchronized (this) {
+            if (inited) return;
+
+            doInit();
+
+            inited = true;
+        }
+    }
+
+    private void doInit() {
         ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
         String uncheckedBaseUrl = apiConfig.getProperty(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL);
         HttpUrl baseUrl;
@@ -128,6 +141,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     @Override
     public int estimateTokenCountInText(String text) {
+        init();
         return estimateCache.get(text);
     }
 

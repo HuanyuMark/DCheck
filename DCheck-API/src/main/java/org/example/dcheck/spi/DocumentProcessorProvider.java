@@ -7,6 +7,7 @@ import org.example.dcheck.api.Document;
 import org.example.dcheck.api.DocumentParagraph;
 import org.example.dcheck.api.DocumentProcessor;
 import org.example.dcheck.api.DocumentType;
+import org.example.dcheck.exception.UnsupportedDocumentTypeException;
 
 import java.util.List;
 import java.util.Map;
@@ -32,14 +33,23 @@ public class DocumentProcessorProvider implements DCheckProvider, DocumentProces
     protected DocumentProcessorProvider() {
     }
 
+    @Override
+    public void init() throws Exception {
+        for (DocumentProcessor processor : getImplementations()) {
+            processor.init();
+        }
+    }
+
+    @Override
+    public void inited() throws Exception {
+        for (DocumentProcessor processor : getImplementations()) {
+            processor.inited();
+        }
+    }
+
     public DocumentProcessor getProcessor(DocumentType type) {
         return matchedCache.computeIfAbsent(type, (documentType) -> {
             for (DocumentProcessor impl : getImplementations()) {
-                try {
-                    impl.init();
-                } catch (Exception e) {
-                    throw new IllegalStateException("init document processor '" + impl.getClass() + "' fail: ", e);
-                }
                 if (impl.support(type)) {
                     log.info("[DocumentProcessor Spi Match]: assign processor '{}' to process document type '{}'", impl.getClass().getName(), documentType);
                     return impl;
@@ -58,7 +68,7 @@ public class DocumentProcessorProvider implements DCheckProvider, DocumentProces
     public Stream<DocumentParagraph> split(@NonNull Document document) {
         DocumentProcessor processor = getProcessor(document.getDocumentType());
         if (processor == UNSUPPORTED) {
-            log.error("[DocumentProcessor Proxy]: proxy process fail: no found processor for type '{}'", document.getDocumentType());
+            throw new UnsupportedDocumentTypeException(document.getDocumentType());
         }
         return processor.split(document);
     }

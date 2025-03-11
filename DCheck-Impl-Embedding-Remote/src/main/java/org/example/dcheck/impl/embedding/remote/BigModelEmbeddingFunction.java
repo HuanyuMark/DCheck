@@ -5,11 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.api.Codec;
+import org.example.dcheck.api.DCheckComponent;
+import org.example.dcheck.api.IEventEmitter;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -78,6 +81,9 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         this.client = client;
     }
 
+    @Nullable
+    private Object tokenizerToInject;
+
     @Override
     public void init() {
         if (initialized) {
@@ -140,12 +146,37 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
             tokenizer = tokenizerInitResult.getTokenizerFuc();
 
-            //TODO emit event by DuplicateChecking to inject tokenizer
-//            DuplicateCheckingProvider.getInstance().getChecking()
+            //emit event to inject tokenizer
+            tokenizerToInject = tokenizerInitResult.getTokenizer();
+
 
             initialized = true;
         }
+    }
 
+
+    @Override
+    public void inited() {
+        if (tokenizerToInject instanceof DCheckComponent) {
+            try {
+                ((DCheckComponent) tokenizerToInject).inited();
+            } catch (Exception e) {
+                throw new IllegalStateException("tokenizer inited fail: " + e.getMessage(), e);
+            }
+        }
+
+        if (tokenizerToInject != null) {
+            publishInjectTokenizerEvent(tokenizerToInject);
+            tokenizerToInject = null;
+        }
+    }
+
+    @SneakyThrows
+    protected void publishInjectTokenizerEvent(Object tokenizer) {
+        if (tokenizer == null) return;
+        Class<?> eventClass = Class.forName("org.example.dcheck.api.FileProcessorTokenizerInjectionEvent");
+        Method publisher = eventClass.getDeclaredMethod("publish", IEventEmitter.class, Object.class);
+        publisher.invoke(null, DuplicateCheckingProvider.getInstance().getChecking(), tokenizer);
     }
 
     protected TokenizerInitResult createAndInitTokenizer(Headers requestHeaders) {

@@ -10,4 +10,11 @@ import lombok.Data;
 @Data
 public class FileProcessorTokenizerInjectionEvent {
     private final DCheckTokenizer tokenizer;
+
+    public static void publish(IEventEmitter emitter, Object tokenizer) {
+        if (!(tokenizer instanceof DCheckTokenizer)) {
+            throw new IllegalArgumentException("tokenizer must be DCheckTokenizer");
+        }
+        emitter.emitEvent(new FileProcessorTokenizerInjectionEvent((DCheckTokenizer) tokenizer)).join();
+    }
 }

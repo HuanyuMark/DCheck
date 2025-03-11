@@ -60,6 +60,7 @@ public abstract class AbstractParagraphRelevancyEngine implements ParagraphRelev
         }
     }
 
+
     protected void doInit() {
     }
 
