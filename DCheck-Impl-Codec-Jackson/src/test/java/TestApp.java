@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.example.dcheck.Obj;
+import org.example.dcheck.impl.codec.jackson.JacksonCodec;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -59,5 +61,15 @@ public class TestApp {
         System.out.println(json);
         Point point = objectMapper.readValue(json, Point.class);
         System.out.println(point);
+    }
+
+    @Test
+    public void testCodec() throws Exception {
+        JacksonCodec codec = new JacksonCodec();
+        for (int i = 0; i < 5; i++) {
+            String json = codec.serialize(new Obj("a", "b", "c"), String.class);
+            System.out.println(json);
+            System.out.println((Object) codec.deserialize(json, Obj.class));
+        }
     }
 }
