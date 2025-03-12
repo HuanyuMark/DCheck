@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.Getter;
@@ -37,6 +36,8 @@ public class JacksonCodec implements Codec {
             "DCheck-Impl-Codec-Jackson"
     );
 
+    public static final String CONFIGURABLE_BUILDER_AUTO_DETECTION_MODULE = "ConfigurableBuilderAutoDetectionModule";
+
     private final String name = "DCheck-Impl-Codec-Jackson";
 
     @Getter
@@ -50,14 +51,7 @@ public class JacksonCodec implements Codec {
     };
 
     static {
-        dcheckModule = new SimpleModule(VERSION.getArtifactId(), VERSION) {
-            @Override
-            public void setupModule(SetupContext context) {
-                context.insertAnnotationIntrospector(new BuilderAutoDetectIntrospector(
-                        new JsonPOJOBuilder.Value("build", "")
-                ));
-            }
-        }
+        dcheckModule = new SimpleModule(VERSION.getArtifactId(), VERSION)
                 .setMixInAnnotation(ContentMatchParagraphLocation.class, ContentMatchParagraphLocationMixin.class)
                 .addDeserializer(ParagraphLocation.class, new JsonDeserializer<ParagraphLocation>() {
                     @Override
@@ -146,6 +140,9 @@ public class JacksonCodec implements Codec {
                 });
     }
 
+    @Getter
+    protected ConfigurableBuilderAutoDetectionModule configurableBuilderAutoDetectionModule = new ConfigurableBuilderAutoDetectionModule();
+
     @SuppressWarnings("unused")
     public interface NameIdentityMixin {
         @JsonValue
@@ -156,8 +153,8 @@ public class JacksonCodec implements Codec {
         this.objectMapper = objectMapper;
         objectMapper.registerModule(parameterNamesModule);
         objectMapper.registerModule(dcheckModule);
+        objectMapper.registerModule(configurableBuilderAutoDetectionModule);
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-
     }
 
     {
