@@ -71,7 +71,7 @@ public class PoiDocumentProcessor implements DocumentProcessor {
 
     @Override
     public boolean support(@NotNull DocumentType type) {
-        return BuiltinDocumentType.PDF == type;
+        return BuiltinDocumentType.DOCX == type;
     }
 
 

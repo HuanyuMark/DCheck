@@ -34,8 +34,8 @@ import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.DIMENSI
 @Slf4j
 @SuppressWarnings("unused")
 public class BigModelEmbeddingFunction implements EmbeddingFunction {
-    private static final String DEFAULT_MODEL_NAME = "embedding-3";
-    private static final String DEFAULT_BASE_API = "https://open.bigmodel.cn/api/paas/v4/embeddings";
+    protected static final String DEFAULT_MODEL_NAME = "embedding-3";
+    protected static final String DEFAULT_BASE_API = "https://open.bigmodel.cn/api/paas/v4/embeddings";
     protected static final int maxInputLength = 5;
     @Getter
     private final String modelName;

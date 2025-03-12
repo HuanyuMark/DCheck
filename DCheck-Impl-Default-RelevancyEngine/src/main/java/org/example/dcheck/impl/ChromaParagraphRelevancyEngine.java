@@ -175,36 +175,26 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     }
 
     @Override
-    public void inited() throws Exception {
+    public void inited() {
+        // init embedding function
         try {
-            CompletableFuture.allOf(
-                    // init embedding function
-                    CompletableFuture.runAsync(() -> {
-                        try {
-                            log.info("Call Embedding Function hock 'inited()' '{}'", embeddingFunction.getClass().getCanonicalName());
-                            embeddingFunction.inited();
-                            log.info("Finished init Embedding Function");
-                        } catch (Exception e) {
-                            throw new IllegalStateException("init embedding function fail:", e);
-                        }
-                    }),
-
-                    // init reranker
-                    CompletableFuture.runAsync(() -> {
-                        String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
-                        if (rerankModel == null) return;
-                        reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
-                        log.info("Call init Reranker hock 'inited()' '{}'", rerankModel.getClass().getCanonicalName());
-                        try {
-                            reranker.inited();
-                            log.info("Finished init Reranker");
-                        } catch (Exception e) {
-                            throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
-                        }
-                    })
-            ).join();
+            log.info("Call Embedding Function hock 'inited()' '{}'", embeddingFunction.getClass().getCanonicalName());
+            embeddingFunction.inited();
+            log.info("Finished init Embedding Function");
         } catch (Exception e) {
-            throw e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
+            throw new IllegalStateException("init embedding function fail:", e);
+        }
+
+        String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
+        if (rerankModel != null) {
+            reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
+            log.info("Call init Reranker hock 'inited()' '{}'", rerankModel.getClass().getCanonicalName());
+            try {
+                reranker.inited();
+                log.info("Finished init Reranker");
+            } catch (Exception e) {
+                throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
+            }
         }
     }
 

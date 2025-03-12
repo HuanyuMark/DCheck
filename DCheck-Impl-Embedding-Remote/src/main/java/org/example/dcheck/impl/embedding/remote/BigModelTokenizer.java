@@ -31,6 +31,8 @@ import java.util.List;
 public class BigModelTokenizer implements DCheckTokenizer {
     protected static final String BASE_URL = "https://open.bigmodel.cn/api/paas/v4/tokenizer";
 
+    protected static final String DEFAULT_MODEL_NAME = BigModelEmbeddingFunction.DEFAULT_MODEL_NAME;
+
     @Getter
     @Setter
     @NonNull
@@ -44,7 +46,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
     @Getter
     private Codec codec;
 
-    private volatile boolean inited;
+    private volatile boolean init;
 
     @Getter
     @Setter
@@ -63,19 +65,20 @@ public class BigModelTokenizer implements DCheckTokenizer {
         this.client = client;
         // provide api-key and other required header in headers
         requestTemplate = new Request.Builder()
+                .url(BASE_URL)
                 .headers(requestHeaders)
                 .build();
     }
 
     @Override
     public void init() {
-        if (inited) return;
+        if (init) return;
         synchronized (this) {
-            if (inited) return;
+            if (init) return;
 
             doInit();
 
-            inited = true;
+            init = true;
         }
     }
 
@@ -95,10 +98,10 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
         requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
 
-        modelName = apiConfig.getProperty(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME);
-        if (modelName == null) {
-            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
-        }
+        modelName = apiConfig.getProperty(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
+//        if (modelName == null) {
+//            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
+//        }
 
         if (codec == null) {
             codec = CodecProvider.getInstance()

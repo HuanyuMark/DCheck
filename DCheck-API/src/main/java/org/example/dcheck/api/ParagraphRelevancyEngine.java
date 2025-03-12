@@ -27,11 +27,4 @@ public interface ParagraphRelevancyEngine extends AutoCloseable, DCheckComponent
     void removeDocumentCollection(String collectionId);
 
     TempDocumentCollection newTempDocumentCollection();
-
-    default void init() {
-    }
-
-    @SuppressWarnings("all")
-    default void inited() throws Exception {
-    }
 }
