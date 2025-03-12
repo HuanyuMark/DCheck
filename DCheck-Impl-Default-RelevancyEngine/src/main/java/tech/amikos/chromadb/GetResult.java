@@ -13,7 +13,7 @@ import java.util.Map;
 @Data
 public class GetResult {
     private List<String> documents;
-    private List<List<Float>> embeddings;
+    private List<float[]> embeddings;
     private List<String> ids;
     private List<Map<String, Object>> metadatas;
 }

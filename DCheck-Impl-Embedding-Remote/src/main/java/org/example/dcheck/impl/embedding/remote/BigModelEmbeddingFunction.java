@@ -36,7 +36,7 @@ import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.DIMENSI
 public class BigModelEmbeddingFunction implements EmbeddingFunction {
     protected static final String DEFAULT_MODEL_NAME = "embedding-3";
     protected static final String DEFAULT_BASE_API = "https://open.bigmodel.cn/api/paas/v4/embeddings";
-    protected static final int maxInputLength = 5;
+    protected static final int maxInputLength = 50;
     @Getter
     private final String modelName;
     @Getter
@@ -157,23 +157,21 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
     @Override
     public void inited() {
-        if (tokenizerToInject instanceof DCheckComponent) {
-            try {
-                ((DCheckComponent) tokenizerToInject).inited();
-            } catch (Exception e) {
-                throw new IllegalStateException("tokenizer inited fail: " + e.getMessage(), e);
-            }
+        if (!(tokenizerToInject instanceof DCheckComponent)) {
+            return;
+        }
+        try {
+            ((DCheckComponent) tokenizerToInject).inited();
+        } catch (Exception e) {
+            throw new IllegalStateException("tokenizer inited fail: " + e.getMessage(), e);
         }
 
-        if (tokenizerToInject != null) {
-            publishInjectTokenizerEvent(tokenizerToInject);
-            tokenizerToInject = null;
-        }
+        publishInjectTokenizerEvent(tokenizerToInject);
+        tokenizerToInject = null;
     }
 
     @SneakyThrows
     protected void publishInjectTokenizerEvent(Object tokenizer) {
-        if (tokenizer == null) return;
         Class<?> eventClass = Class.forName("org.example.dcheck.api.FileProcessorTokenizerInjectionEvent");
         Method publisher = eventClass.getDeclaredMethod("publish", IEventEmitter.class, Object.class);
         publisher.invoke(null, DuplicateCheckingProvider.getInstance().getChecking(), tokenizer);
@@ -238,11 +236,16 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                             if (response.body() == null) {
                                 throw new RuntimeException(new IOException("response body is null"));
                             }
-                            var res = (CreateEmbeddingResponse) codec.deserialize(response.body().bytes(), CreateEmbeddingResponse.class);
-                            if (res.getData().size() != input.size()) {
-                                throw new RuntimeException(new IOException("response data size is not " + input.size()));
+
+                            if (!response.isSuccessful()) {
+                                throw new IOException("fail response: " + response);
                             }
-                            log.debug("document batch count {}. usage: {}", input.size(), res.getUsage());
+
+                            var res = (CreateEmbeddingResponse) codec.deserialize(response.body().bytes(), CreateEmbeddingResponse.class);
+                            if (res.getData().size() != part.size()) {
+                                throw new RuntimeException(new IOException("response data size is not " + part.size()));
+                            }
+                            log.debug("document batch count {}. usage: {}", part.size(), res.getUsage());
                             return res.getData().stream().sorted(Comparator.comparingInt(IndexEmbeddingRecord::getIndex))
                                     .map(e -> Embedding.from(e.getEmbedding(), getName()));
                         } catch (IOException e) {
@@ -269,6 +272,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         for (var seg : input) {
             if ((totalToken += tokenizer.applyAsInt(seg)) > requestMaxToken) {
                 fixedTokenSizeList.add(new ArrayList<>());
+                totalToken = 0;
             }
             fixedTokenSizeList.get(fixedTokenSizeList.size() - 1).add(seg);
         }

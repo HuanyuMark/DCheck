@@ -1,6 +1,10 @@
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 import org.example.dcheck.api.*;
+import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.PdfDocument;
+import org.example.dcheck.impl.codec.jackson.JacksonCodec;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
@@ -56,6 +60,18 @@ public class DcheckAggregateTest {
         print(checkResult);
 
         checking.close();
+    }
+
+    @Test
+    public void testJackson() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(JacksonCodec.dcheckModule);
+        System.out.println(objectMapper.readValue("{\"startText\":\"# 城市公园景观提升项目招标文\",\"endText\":\"\\n在功能优化上，我们将合理规划不同区域功能。增加休闲座椅、健身设施、儿童游乐区等，满足不同年龄段人群需求。例如，在阳光充足、视野开阔区域设置健身广场，配备多样化健身器材；在相对安静、绿树环绕处打造儿童游乐区，设置安全有趣的游乐设施，让孩子在自然环境中快乐玩耍。\",\"splitIdx\":0,\"type\":\"CONTENT_MATCH\"}", ContentMatchParagraphLocation.class));
+    }
+
+    @Data
+    static class TestRecord {
+        private final String name;
     }
 
     @Test

@@ -1,8 +1,8 @@
 package org.example.dcheck.impl;
 
 import lombok.ToString;
-import lombok.experimental.Delegate;
 import lombok.experimental.SuperBuilder;
+import lombok.var;
 import org.example.dcheck.api.BuiltinParagraphType;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphType;
@@ -25,8 +25,14 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
         super(documentId, location);
     }
 
-    public TextParagraphMetadata(Map<? extends String, ?> m, String documentId, ParagraphLocation location) {
-        super(m, documentId, location);
+    @Override
+    public AbstractParagraphMetadata withOthers(Map<String, ?> rawMetadata) {
+        var cur = new TextParagraphMetadata(getDocumentId(), getLocation());
+        if (rawMetadata != null) {
+            cur.raw.putAll(rawMetadata);
+        }
+        cur.syncFieldMap();
+        return cur;
     }
 
     @Override
@@ -40,7 +46,6 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
 
 
     public static class MapBuilder {
-        @Delegate
         private final TextParagraphMetadataBuilder<?, ?> builder = TextParagraphMetadata.builder();
 
         public MapBuilder fromFlat(Map<String, String> flatMap, BiFunction<String, Type, Object> deserializer) {
@@ -65,6 +70,18 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
 
         public TextParagraphMetadata build() {
             return builder.build();
+        }
+
+        public TextParagraphMetadataBuilder<?, ?> documentId(String documentId) {
+            return builder.documentId(documentId);
+        }
+
+        public TextParagraphMetadataBuilder<?, ?> location(ParagraphLocation location) {
+            return builder.location(location);
+        }
+
+        public Object self() {
+            return builder.self();
         }
     }
 }

@@ -2,17 +2,18 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -29,7 +30,6 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
     private volatile boolean init;
 
-    @Delegate
     private final IEventEmitter eventEmitter = new ClassHierarchyEventEmitter() {
         @Override
         protected Map<Class<?>, Set<Function<?, CompletableFuture<?>>>> initBus() {
@@ -51,6 +51,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     public void init() {
         if (init) return;
         synchronized (this) {
+            new PreloadClassLoader().perform();
+
             if (init) return;
             var apiConfig = ConfigProvider.getInstance().getApiConfig();
             relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(apiConfig.getProperty(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
@@ -155,5 +157,40 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     protected static class CloseEvent {
+    }
+
+    @Override
+    public <E> void addListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
+        eventEmitter.addListener(event, listener);
+    }
+
+    @Override
+    public <E> void addOnceListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
+        eventEmitter.addOnceListener(event, listener);
+    }
+
+    @Override
+    public <E> void addSyncListener(Class<E> event, Consumer<E> cb) {
+        eventEmitter.addSyncListener(event, cb);
+    }
+
+    @Override
+    public <E> void removeListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
+        eventEmitter.removeListener(event, listener);
+    }
+
+    @Override
+    public <E> void removeSyncListener(Class<E> event, Consumer<E> cb) {
+        eventEmitter.removeSyncListener(event, cb);
+    }
+
+    @Override
+    public CompletableFuture<?> emitEvent(Object event) {
+        return eventEmitter.emitEvent(event);
+    }
+
+    @Override
+    public <T> CompletableFuture<?> emitEvent(Class<T> evnetClass, T event) {
+        return eventEmitter.emitEvent(evnetClass, event);
     }
 }

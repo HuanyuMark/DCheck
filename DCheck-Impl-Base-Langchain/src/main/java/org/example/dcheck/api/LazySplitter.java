@@ -35,6 +35,7 @@ public abstract class LazySplitter implements DCheckDocumentSplitter {
         if (delegate instanceof DCheckComponent) {
             ((DCheckComponent) delegate).inited();
         }
+        load();
     }
 
     private void load() {

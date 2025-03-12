@@ -48,7 +48,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
     public static final List<AnyOfGetEmbeddingIncludeItems> GET_PARAGRAPH_INCLUDE = Arrays.asList(GetEmbeddingInclude.metadatas, GetEmbeddingInclude.documents);
     protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
-    private static final int CHUNK_SIZE = 10;
+    private static final int CHUNK_SIZE = 50;
 
 //    static {
 //        try {
@@ -209,13 +209,22 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         Collection.QueryResponse response;
         var req = new QueryEmbedding();
         if (query.getParagraphs() == null) {
-            List<List<Float>> embeddings;
+            List<float[]> embeddings;
             try {
                 embeddings = Failsafe.with(collectionAccessPolicy)
                         .get(() -> collection.get(new GetEmbedding()
-                                .where(ChromaDSLFactory.where(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build()))
+                                .where(ChromaDSLFactory.where(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build(), e -> {
+                                    try {
+                                        return codec.serialize(e.getValue(), String.class);
+                                    } catch (IOException ex) {
+                                        throw new IllegalArgumentException("serialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                    }
+                                }))
                                 .include(GET_EMBEDDING_INCLUDES)
                         ).getEmbeddings());
+                if (embeddings.isEmpty()) {
+                    throw new IllegalArgumentException("query document embeddings fail: not found documentId=" + query.getDocumentId());
+                }
                 req.setQueryEmbeddings((List<Object>) ((Object) embeddings));
             } catch (FailsafeException e) {
                 throw new IllegalStateException("query document embeddings fail: " + e.getMessage(), e);
@@ -228,7 +237,13 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             }
         }
         req.setNResults(query.getTopK());
-        req.setWhere(ChromaDSLFactory.where(MetadataMatchCondition.builder().ne("documentId", query.getDocumentId()).build()));
+        req.setWhere(ChromaDSLFactory.where(MetadataMatchCondition.builder().ne("documentId", query.getDocumentId()).build(), e -> {
+            try {
+                return codec.serialize(e.getValue(), String.class);
+            } catch (IOException ex) {
+                throw new IllegalArgumentException("serialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+            }
+        }));
         req.setInclude(QUERY_PARAGRAPH_INCLUDE);
         try {
             // 1. query KNN by embedding
@@ -321,7 +336,13 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         init();
         var collection = getCollection(delete.getCollectionId());
         try {
-            var where = ChromaDSLFactory.where(delete.getMetadataMatchCondition());
+            var where = ChromaDSLFactory.where(delete.getMetadataMatchCondition(), e -> {
+                try {
+                    return codec.serialize(e.getValue(), String.class);
+                } catch (IOException ex) {
+                    throw new IllegalArgumentException("serialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                }
+            });
             Failsafe.with(collectionAccessPolicy)
                     .run(() -> collection.deleteWhere(where));
         } catch (FailsafeException e) {

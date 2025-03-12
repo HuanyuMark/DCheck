@@ -7,6 +7,7 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.api.Codec;
@@ -14,6 +15,7 @@ import org.example.dcheck.api.DCheckTokenizer;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.springframework.util.ConcurrentLruCache;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,12 +28,13 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
+@Slf4j
 @AllArgsConstructor
 @SuppressWarnings("unused")
 public class BigModelTokenizer implements DCheckTokenizer {
     protected static final String BASE_URL = "https://open.bigmodel.cn/api/paas/v4/tokenizer";
 
-    protected static final String DEFAULT_MODEL_NAME = BigModelEmbeddingFunction.DEFAULT_MODEL_NAME;
+    protected static final String DEFAULT_MODEL_NAME = "glm-4-flash";
 
     @Getter
     @Setter
@@ -114,7 +117,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     protected Integer doRequest(String text) {
         String body;
-        DoTokenizeRequest req = new DoTokenizeRequest(modelName, Collections.singletonList(text));
+        DoTokenizeRequest req = new DoTokenizeRequest(modelName, Collections.singletonList(new ChatMessageData("user", text)));
         try {
             body = codec.serialize(req, String.class);
         } catch (IOException e) {
@@ -130,14 +133,21 @@ public class BigModelTokenizer implements DCheckTokenizer {
                                 throw new IOException("response body is null");
                             }
                             DoTokenizeResponse doTokenizeResponse;
-                            try (InputStream in = response.body().byteStream()) {
-                                doTokenizeResponse = codec.deserialize(in, DoTokenizeResponse.class);
+                            if (response.isSuccessful()) {
+                                try (InputStream in = response.body().byteStream()) {
+                                    doTokenizeResponse = codec.deserialize(in, DoTokenizeResponse.class);
+                                } catch (IOException e) {
+                                    throw new IOException("deserialize DoTokenizeResponse fail, body: " + response.body().string() + ":" + e.getMessage(), e);
+                                }
+                                return doTokenizeResponse.getUsage().getPrompt_tokens();
                             }
-                            return doTokenizeResponse.getUsage().getPrompt_tokens();
+                            log.warn("do tokenize request fail, response: " + response);
+                            throw new IOException("do tokenize request fail, response: " + response);
                         }
                     });
         } catch (FailsafeException e) {
-            throw new IllegalStateException("do tokenize request fail: " + e.getCause().getMessage(), e.getCause());
+            log.error("do tokenize request fail: " + e.getCause().getMessage(), e.getCause());
+            return 0;
         }
     }
 
@@ -145,7 +155,10 @@ public class BigModelTokenizer implements DCheckTokenizer {
     @Override
     public int estimateTokenCountInText(String text) {
         init();
-        return estimateCache.get(text);
+        if (StringUtils.hasText(text)) {
+            return estimateCache.get(text);
+        }
+        return 0;
     }
 
     @Override
@@ -177,7 +190,13 @@ public class BigModelTokenizer implements DCheckTokenizer {
         @NonNull
         private final String model;
         @NonNull
-        private final List<String> messages;
+        private final List<ChatMessageData> messages;
+    }
+
+    @Data
+    protected static class ChatMessageData {
+        private final String role;
+        private final String content;
     }
 
     @Data

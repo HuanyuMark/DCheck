@@ -1,5 +1,6 @@
 package org.example.dcheck.impl;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
 import org.example.dcheck.api.BuiltinParagraphLocationType;
@@ -13,6 +14,7 @@ import org.example.dcheck.api.ParagraphLocationType;
  * @author 三石而立Sunsy
  */
 @Data
+@Builder
 public class ContentMatchParagraphLocation implements ParagraphLocation {
     @NonNull
     private final String startText;

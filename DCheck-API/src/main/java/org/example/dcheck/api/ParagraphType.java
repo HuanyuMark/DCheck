@@ -27,7 +27,7 @@ public interface ParagraphType {
     Class<? extends Paragraph> getParagraphClass();
 
     @Nullable
-    ParagraphMetadata createExtension(Map<String, Object> all, String documentId, ParagraphLocation location);
+    ParagraphMetadata createExtension(Map<String, Object> all, ParagraphMetadata parent);
 
     Paragraph createParagraph(Object content, ParagraphMetadata metadata);
 }

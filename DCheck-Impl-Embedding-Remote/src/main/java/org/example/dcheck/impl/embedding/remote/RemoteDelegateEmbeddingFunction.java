@@ -43,6 +43,11 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Override
+    public void inited() throws Exception {
+        target.inited();
+    }
+
+    @Override
     public String getName() {
         try {
             init();

@@ -2,7 +2,6 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +54,6 @@ public class TestApp {
     public void test() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        objectMapper.registerModule(new ParameterNamesModule());
         objectMapper.addMixIn(Point.class, PointMixin.class);
         String json = objectMapper.writeValueAsString(new ZPoint(1, 2, 3));
         System.out.println(json);

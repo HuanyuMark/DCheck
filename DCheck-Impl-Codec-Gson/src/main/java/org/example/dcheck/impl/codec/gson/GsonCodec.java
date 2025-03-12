@@ -80,7 +80,7 @@ public class GsonCodec implements Codec {
                     @SuppressWarnings("unchecked")
                     var all = (Map<String, Object>) context.deserialize(json, MapType);
                     var ins = (ParagraphMetadata) context.deserialize(json, paragraphLocationType);
-                    var extensions = paragraphType.createExtension(all, ins.getDocumentId(), ins.getLocation());
+                    var extensions = paragraphType.createExtension(all, ins);
                     if (extensions != null) return extensions;
                     return ins;
                 })

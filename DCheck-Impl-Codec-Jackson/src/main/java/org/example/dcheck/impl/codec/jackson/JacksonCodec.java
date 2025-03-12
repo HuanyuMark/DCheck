@@ -5,14 +5,15 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.example.dcheck.api.*;
+import org.example.dcheck.impl.ContentMatchParagraphLocation;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -41,32 +42,23 @@ public class JacksonCodec implements Codec {
     @Getter
     private ObjectMapper objectMapper;
 
-    private final static com.fasterxml.jackson.databind.Module dcheckModule;
+    public final static com.fasterxml.jackson.databind.Module dcheckModule;
 
-    private final static com.fasterxml.jackson.databind.Module parameterNamesModule = new ParameterNamesModule();
+    public final static com.fasterxml.jackson.databind.Module parameterNamesModule = new ParameterNamesModule(JsonCreator.Mode.DEFAULT);
 
     private final static TypeReference<Map<String, Object>> MapType = new TypeReference<Map<String, Object>>() {
     };
 
-
-    @SuppressWarnings("unused")
-    public static class ParagraphMetadataMixin {
-
-        // indicate 'ParagraphMetadata(String documentId, ParagraphLocation location)' is used for deserialization
-        @JsonCreator
-        public ParagraphMetadataMixin(String documentId, ParagraphLocation location) {
-        }
-    }
-
-    @SuppressWarnings("unused")
-    public interface NameIdentityMixin {
-        @JsonValue
-        String name();
-    }
-
-
     static {
-        dcheckModule = new SimpleModule(VERSION.getArtifactId(), VERSION)
+        dcheckModule = new SimpleModule(VERSION.getArtifactId(), VERSION) {
+            @Override
+            public void setupModule(SetupContext context) {
+                context.insertAnnotationIntrospector(new BuilderAutoDetectIntrospector(
+                        new JsonPOJOBuilder.Value("build", "")
+                ));
+            }
+        }
+                .setMixInAnnotation(ContentMatchParagraphLocation.class, ContentMatchParagraphLocationMixin.class)
                 .addDeserializer(ParagraphLocation.class, new JsonDeserializer<ParagraphLocation>() {
                     @Override
                     public ParagraphLocation deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
@@ -79,14 +71,18 @@ public class JacksonCodec implements Codec {
                         if (!(typeNode instanceof TextNode)) {
                             throw new JsonParseException(jsonParser, "unknown ParagraphLocationType: " + typeNode);
                         }
-                        var locationType = ParagraphLocationType.ALL_TYPES.get(((TextNode) typeNode).textValue());
+                        String type = jsonParser.getCodec().treeToValue(typeNode, String.class);
+                        var locationType = ParagraphLocationType.ALL_TYPES.get(type);
+                        if (locationType == null) {
+                            throw new JsonParseException(jsonParser, "unknown ParagraphLocationType: " + type);
+                        }
                         if (locationType.getIfSingleton() != null) {
                             return locationType.getIfSingleton();
                         }
                         return jsonParser.getCodec().treeToValue(tree, locationType.type());
                     }
                 })
-                .setMixInAnnotation(ParagraphMetadata.class, ParagraphMetadataMixin.class)
+//                .setMixInAnnotation(ParagraphMetadata.class, ParagraphMetadataMixin.class)
                 .addDeserializer(ParagraphMetadata.class, new JsonDeserializer<ParagraphMetadata>() {
                     @Override
                     public ParagraphMetadata deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
@@ -104,7 +100,7 @@ public class JacksonCodec implements Codec {
                         @SuppressWarnings("unchecked")
                         var all = (Map<String, Object>) codec.treeToValue(treeNode, codec.constructType(MapType));
                         var ins = codec.treeToValue(treeNode, paragraphLocationType);
-                        var extensions = paragraphType.createExtension(all, ins.getDocumentId(), ins.getLocation());
+                        var extensions = paragraphType.createExtension(all, ins);
                         if (extensions != null) return extensions;
                         return ins;
                     }
@@ -150,8 +146,10 @@ public class JacksonCodec implements Codec {
                 });
     }
 
-    {
-        setObjectMapper(new ObjectMapper());
+    @SuppressWarnings("unused")
+    public interface NameIdentityMixin {
+        @JsonValue
+        String name();
     }
 
     public void setObjectMapper(@NonNull ObjectMapper objectMapper) {
@@ -159,6 +157,20 @@ public class JacksonCodec implements Codec {
         objectMapper.registerModule(parameterNamesModule);
         objectMapper.registerModule(dcheckModule);
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+    }
+
+    {
+        setObjectMapper(new ObjectMapper());
+    }
+
+    @SuppressWarnings("unused")
+    public static class ContentMatchParagraphLocationMixin {
+
+        // indicate 'ContentMatchParagraphLocationMixin(String documentId, ParagraphLocation location)' is used for deserialization
+        @JsonCreator
+        public ContentMatchParagraphLocationMixin(String startText, String endText, int splitIdx) {
+        }
     }
 
     @Override

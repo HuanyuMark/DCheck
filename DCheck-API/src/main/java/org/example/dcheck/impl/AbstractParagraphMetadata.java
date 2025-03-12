@@ -29,7 +29,7 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
     @Getter
     private final ParagraphLocation location;
     @NonNull
-    private final HashMap<String, Object> raw = new HashMap<>(4);
+    protected final Map<String, Object> raw = new HashMap<>(4);
 
     public AbstractParagraphMetadata(String documentId, ParagraphLocation location) {
         this.documentId = documentId;
@@ -37,14 +37,7 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
         syncFieldMap();
     }
 
-    public AbstractParagraphMetadata(@Nullable Map<? extends String, ?> m, String documentId, ParagraphLocation location) {
-        this.documentId = documentId;
-        this.location = location;
-        if (m != null) {
-            raw.putAll(m);
-        }
-        syncFieldMap();
-    }
+    public abstract AbstractParagraphMetadata withOthers(Map<String, ?> rawMetadata);
 
     protected void syncFieldMap() {
         if (!raw.isEmpty()) return;

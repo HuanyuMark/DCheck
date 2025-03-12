@@ -17,16 +17,17 @@ import java.util.Map;
  * @author 三石而立Sunsy
  */
 @Getter
-public enum BuiltinParagraphType implements ParagraphType {
+public enum BuiltinParagraphType implements ParagraphType, PreloadClass {
     TEXT(TextParagraphMetadata.class, TextParagraph.class) {
         @Override
-        public @Nullable ParagraphMetadata createExtension(Map<String, Object> all, String documentId, ParagraphLocation location) {
+        public @Nullable ParagraphMetadata createExtension(Map<String, Object> all, ParagraphMetadata parent) {
             if (all == null || all.isEmpty()) return null;
             if (all.size() == 2) return null;
             if (all.size() < 2) {
                 throw new IllegalArgumentException("all must have contain documentId,location");
             }
-            return new TextParagraphMetadata(all, documentId, location);
+            if (parent instanceof TextParagraphMetadata) return ((TextParagraphMetadata) parent).withOthers(all);
+            return new TextParagraphMetadata(parent.getDocumentId(), parent.getLocation()).withOthers(all);
         }
 
         @Override
@@ -64,5 +65,9 @@ public enum BuiltinParagraphType implements ParagraphType {
         this.metadataClass = metadataClass;
         this.paragraphClass = paragraphClass;
         ALL_TYPES.put(name(), this);
+    }
+
+    @PreloadMethod
+    private static void preload() {
     }
 }
