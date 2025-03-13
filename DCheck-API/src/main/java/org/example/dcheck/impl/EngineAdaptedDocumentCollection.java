@@ -7,6 +7,7 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -54,26 +55,14 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
                     .mapToObj(documents::get)
                     .flatMap(document -> DocumentProcessorProvider
                             .getInstance()
-                            .split(document)
-                            .map(documentParagraph -> {
-                                if (documentParagraph.getParagraphType() == BuiltinParagraphType.TEXT) {
-                                    return ParagraphRelevancyCreation.Record.builder()
-                                            .paragraph(documentParagraph)
-                                            .metadata(TextParagraphMetadata.builder()
-                                                    .documentId(document.getId())
-                                                    .location(documentParagraph.getLocation())
-                                                    .build())
-                                            .build();
-                                }
-                                //TODO support add other type of paragraph
-                                throw new UnsupportedOperationException();
-                            })).collect(Collectors.toList());
+                            .splitToParagraphs(document)
+                    ).collect(Collectors.toList());
             engine.addParagraph(new ParagraphRelevancyCreation(id, batch));
         });
     }
 
     @Override
-    public void deleteDocument(List<String> documentIds) {
+    public void deleteDocument(Set<String> documentIds) {
         doWithNormalOperationLock(() -> engine.removeDocument(DocumentDelete.builder()
                 .collectionId(id)
                 .metadataMatchCondition(MetadataMatchCondition.builder()

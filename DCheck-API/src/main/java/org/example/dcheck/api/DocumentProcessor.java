@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import org.example.dcheck.impl.TextParagraphMetadata;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Stream;
@@ -9,6 +10,7 @@ import java.util.stream.Stream;
  * process document. split document to small segment 'paragraph'
  * 负责进行文档切分等对文档进行处理的操作
  * Note: use spring order mechanism to determine which processor supporting same type should be used.
+ *
  * @author 三石而立Sunsy
  * @see org.example.dcheck.spi.Providers#findAllImplementations(Class)
  */
@@ -22,7 +24,7 @@ public interface DocumentProcessor extends DCheckComponent {
         }
 
         @Override
-        public Stream<DocumentParagraph> split(@NotNull Document document) {
+        public Stream<SimpleParagraph> split(@NotNull Document document) {
             return Stream.empty();
         }
     };
@@ -33,5 +35,22 @@ public interface DocumentProcessor extends DCheckComponent {
     /**
      * 文本切分
      */
-    Stream<DocumentParagraph> split(@NotNull Document document);
+    Stream<SimpleParagraph> split(@NotNull Document document);
+
+
+    default Stream<UniversalParagraph> splitToParagraphs(@NotNull Document document) {
+        return split(document).map(documentParagraph -> {
+            if (documentParagraph.getParagraphType() == BuiltinParagraphType.TEXT) {
+                return UniversalParagraph.builder()
+                        .paragraph(documentParagraph)
+                        .metadata(TextParagraphMetadata.builder()
+                                .documentId(document.getId())
+                                .location(documentParagraph.getLocation())
+                                .build())
+                        .build();
+            }
+            //TODO support add other type of paragraph
+            throw new UnsupportedOperationException();
+        });
+    }
 }

@@ -5,9 +5,9 @@ import lombok.Data;
 import lombok.Singular;
 import lombok.var;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Date 2025/02/28
@@ -17,12 +17,18 @@ import java.util.Map;
 @Data
 @Builder(toBuilder = true)
 public class MetadataMatchCondition {
+    // equal
     @Singular
     private final Map<String, String> eqs;
+    // in
     @Singular
-    private final Map<String, Collection<String>> ins;
+    private final Map<String, Set<String>> ins;
+    // not equal
     @Singular
-    private final Map<String,String> nes;
+    private final Map<String, String> nes;
+    // not in
+    @Singular
+    private final Map<String, Set<String>> nins;
 
     public void validate() throws IllegalArgumentException {
         var uniqueFields = new HashSet<>(eqs.keySet());

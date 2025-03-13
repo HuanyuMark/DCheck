@@ -2,7 +2,7 @@ package org.example.dcheck.api;
 
 import lombok.Getter;
 import org.example.dcheck.impl.CharSeqTextContent;
-import org.example.dcheck.impl.ReaderTextContent;
+import org.example.dcheck.impl.ReadableTextContent;
 import org.example.dcheck.impl.TextParagraph;
 import org.example.dcheck.impl.TextParagraphMetadata;
 import org.springframework.lang.Nullable;
@@ -46,7 +46,7 @@ public enum BuiltinParagraphType implements ParagraphType, PreloadClass {
                 return new CharSeqTextContent((CharSequence) content);
             }
             if (content instanceof Reader) {
-                return new ReaderTextContent((Reader) content);
+                return new ReadableTextContent((Reader) content);
             }
             if (content instanceof InputStream) {
                 return () -> ((InputStream) content);
@@ -68,6 +68,7 @@ public enum BuiltinParagraphType implements ParagraphType, PreloadClass {
     }
 
     @PreloadMethod
+    @SuppressWarnings("unused")
     private static void preload() {
     }
 }

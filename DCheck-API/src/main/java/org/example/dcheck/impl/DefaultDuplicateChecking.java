@@ -10,12 +10,14 @@ import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -105,7 +107,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
         // if check.documentId is in collection, we assume queryBuilder.paragraphs() is null
         if (!relevancyEngine.hasDocument(new DocumentIdQuery(collection.getId(), Collections.singletonList(check.getDocument().getId()))).get(0)) {
             queryBuilder
-                    .paragraphs(DocumentProcessorProvider.getInstance().split(check.getDocument()).map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()));
+                    .paragraphs(DocumentProcessorProvider.getInstance().splitToParagraphs(check.getDocument()).collect(Collectors.toList()));
         }
         var queryResult = relevancyEngine.queryParagraph(queryBuilder.build());
 
@@ -119,8 +121,9 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
         return CheckResult.builder()
                 .relevantDocuments(
-                        queryResult.getRecords().stream()
-                                .flatMap(Collection::stream)
+                        queryResult.getDuplicateParts()
+                                .stream()
+                                .flatMap(p -> p.getDuplicates().stream())
                                 // calculate total score of each document
                                 .map(r -> new CheckResult.RelevantDocument(r.getMetadata().getDocumentId(), r.getRelevancy()))
                                 .collect(Collectors.groupingBy(CheckResult.RelevantDocument::getDocumentId))
@@ -128,12 +131,12 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                                 .stream()
                                 .map(e -> new Entry(e.getKey(), e.getValue().stream().mapToDouble(CheckResult.RelevantDocument::getScore).sum()))
                                 // sort and limit to tokOfDocument
-                                .sorted(Comparator.comparingDouble(Entry::getTotalScore))
+                                .sorted(Comparator.comparingDouble(Entry::getTotalScore).reversed())
                                 .limit(check.getTopKOfDocument())
                                 .map(e -> new CheckResult.RelevantDocument(e.getDocumentId(), e.getTotalScore()))
                                 .collect(Collectors.toList())
                 )
-                .relevantParagraphs(queryResult.getRecords())
+                .duplicateParts(queryResult.getDuplicateParts())
                 .build();
     }
 

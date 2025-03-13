@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
@@ -13,8 +14,9 @@ import java.util.function.Supplier;
  */
 @Data
 @Builder
+@AllArgsConstructor
 @SuppressWarnings("unused")
-public class DocumentParagraph {
+public class SimpleParagraph {
     @NonNull
     private final Supplier<Content> content;
     @NonNull

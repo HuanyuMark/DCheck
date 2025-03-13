@@ -25,6 +25,11 @@
             <artifactId>DCheck-Embedding</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Reranker</artifactId>
+        </dependency>
+
         <!--        <dependency>-->
         <!--            <groupId>org.example.dcheck</groupId>-->
         <!--            <artifactId>DCheck-Impl-Default-Embedding</artifactId>-->

@@ -1,18 +1,9 @@
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
 import org.example.dcheck.api.*;
-import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.PdfDocument;
-import org.example.dcheck.impl.codec.jackson.JacksonCodec;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
-import tech.amikos.chromadb.Client;
-import tech.amikos.chromadb.Embedding;
-import tech.amikos.chromadb.embeddings.EmbeddingFunction;
-import tech.amikos.chromadb.handler.ApiException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,8 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
-import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -35,46 +26,6 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings("all")
 public class DcheckAggregateTest {
-
-    @Test
-    public void quickStart() throws Exception {
-        DuplicateChecking checking = getDuplicateChecking();
-
-        // 临时构建文档集合（从中查找重复内容）
-        // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
-        List<Document> tempDiffCollection = getDocuments();
-
-        // 选择第一个文档（可以不存在于集合中）
-        // 如果你需要互相对比集合中各个文档。建议把这些文档都加入到该集合，节省性能
-        Document diffTarget = tempDiffCollection.get(0);
-
-        //多次对同一个tempDiffCollection调用check方法，会造成较大的性能损耗，如果需要复用一个tempDiffCollection
-        // 请参照 quickStartDurable() 用例
-        CheckResult checkResult = checking.check(
-                Check.builder()
-                        .document(diffTarget)
-                        .topKOfDocument(2)
-                        .topKOfEachParagraph(5)
-                        .build(),
-                tempDiffCollection);
-
-        print(checkResult);
-
-        checking.close();
-    }
-
-    @Test
-    public void testJackson() throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(JacksonCodec.dcheckModule);
-        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        System.out.println(objectMapper.readValue("{\"startText\":\"# 城市公园景观提升项目招标文\",\"endText\":\"\\n在功能优化上，我们将合理规划不同区域功能。增加休闲座椅、健身设施、儿童游乐区等，满足不同年龄段人群需求。例如，在阳光充足、视野开阔区域设置健身广场，配备多样化健身器材；在相对安静、绿树环绕处打造儿童游乐区，设置安全有趣的游乐设施，让孩子在自然环境中快乐玩耍。\",\"splitIdx\":0,\"type\":\"CONTENT_MATCH\"}", ContentMatchParagraphLocation.class));
-    }
-
-    @Data
-    static class TestRecord {
-        private final String name;
-    }
 
     @Test
     public void quickStartDurable() throws Exception {
@@ -111,6 +62,16 @@ public class DcheckAggregateTest {
 
         checking.close();
     }
+
+
+    private static void print(CheckResult checkResult) {
+        checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
+        for (DuplicatePart duplicatePart : checkResult.getDuplicateParts()) {
+            System.out.println("check for paragrah: " + duplicatePart.getParagraph());
+            System.out.println("duplicate paragraphs: \n" + duplicatePart.getDuplicates().stream().map(Objects::toString).collect(Collectors.toList()).stream().collect(Collectors.joining("\n")));
+        }
+    }
+
 
     @NotNull
     private static List<Document> getDocuments() throws IOException {
@@ -152,35 +113,30 @@ public class DcheckAggregateTest {
         return checking;
     }
 
-    private static void print(CheckResult checkResult) {
-        checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
-        for (int i = 0; i < checkResult.getRelevantParagraphs().size(); i++) {
-            int finalI = i;
-            checkResult.getRelevantParagraphs().get(i).forEach(paragraph -> System.out.println("paragraph of doc '" + finalI + "': " + paragraph.getMetadata().getDocumentId() + " relevancy: " + paragraph.getRelevancy() + " location: " + paragraph.getMetadata().getLocation()));
-        }
-    }
-
     @Test
-    public void testChroma() throws ApiException {
-        Client c = new Client("http://localhost:8000");
-        c.heartbeat();
-        String collectionName = "temp\0ffff";
-        c.createCollection(collectionName, Collections.emptyMap(), true, new EmbeddingFunction() {
-            @Override
-            public Embedding embedQuery(String query) {
-                return null;
-            }
+    public void quickStart() throws Exception {
+        DuplicateChecking checking = getDuplicateChecking();
 
-            @Override
-            public List<Embedding> embedDocuments(List<String> documents) {
-                return null;
-            }
+        // 临时构建文档集合（从中查找重复内容）
+        // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
+        List<Document> tempDiffCollection = getDocuments();
 
-            @Override
-            public List<Embedding> embedDocuments(String[] documents) {
-                return null;
-            }
-        });
-        c.deleteCollection(collectionName);
+        // 选择第一个文档（可以不存在于集合中）
+        // 如果你需要互相对比集合中各个文档。建议把这些文档都加入到该集合，节省性能
+        Document diffTarget = tempDiffCollection.get(0);
+
+        //多次对同一个tempDiffCollection调用check方法，会造成较大的性能损耗，如果需要复用一个tempDiffCollection
+        // 请参照 quickStartDurable() 用例
+        CheckResult checkResult = checking.check(
+                Check.builder()
+                        .document(diffTarget)
+                        .topKOfDocument(2)
+                        .topKOfEachParagraph(5)
+                        .build(),
+                tempDiffCollection);
+
+        print(checkResult);
+
+        checking.close();
     }
 }

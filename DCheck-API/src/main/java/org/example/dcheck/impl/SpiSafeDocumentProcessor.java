@@ -3,9 +3,9 @@ package org.example.dcheck.impl;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.Document;
-import org.example.dcheck.api.DocumentParagraph;
 import org.example.dcheck.api.DocumentProcessor;
 import org.example.dcheck.api.DocumentType;
+import org.example.dcheck.api.SimpleParagraph;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Stream;
@@ -17,6 +17,7 @@ import java.util.stream.Stream;
  */
 @Slf4j
 @Getter
+@SuppressWarnings("unused")
 public abstract class SpiSafeDocumentProcessor implements DocumentProcessor {
     private DocumentProcessor unsafe;
 
@@ -32,9 +33,9 @@ public abstract class SpiSafeDocumentProcessor implements DocumentProcessor {
                 log.warn("[Spi Safe Load]: fail to load class '{}'", getUnsafeDocumentProcessorClassName(), e);
                 return;
             }
-            if (!DocumentProcessor.class.isAssignableFrom(candidate)) {
-
-            }
+//            if (!DocumentProcessor.class.isAssignableFrom(candidate)) {
+//
+//            }
 //            candidate.getConstructor().newInstance();
 //            unsafe.init();
         }
@@ -48,7 +49,7 @@ public abstract class SpiSafeDocumentProcessor implements DocumentProcessor {
     }
 
     @Override
-    public Stream<DocumentParagraph> split(@NotNull Document document) {
+    public Stream<SimpleParagraph> split(@NotNull Document document) {
         return unsafe == null ? Stream.empty() : unsafe.split(document);
     }
 }

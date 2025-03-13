@@ -74,7 +74,7 @@ public class PdfBoxDocumentProcessor implements DocumentProcessor {
 
 
     @Override
-    public Stream<DocumentParagraph> split(@NotNull Document document) {
+    public Stream<SimpleParagraph> split(@NotNull Document document) {
         init();
         dev.langchain4j.data.document.Document lcDoc;
         try {
@@ -87,7 +87,7 @@ public class PdfBoxDocumentProcessor implements DocumentProcessor {
             var seg = segments.get(i);
             // clean ref to seg
             var content = new CharSeqTextContent(seg.text());
-            return DocumentParagraph.builder()
+            return SimpleParagraph.builder()
                     // now nowhere to introspect the location, maybe we should define a new splitter to do this
                     .location(ContentMatchParagraphLocation.formLine(seg.text(), i))
                     .content(() -> content)

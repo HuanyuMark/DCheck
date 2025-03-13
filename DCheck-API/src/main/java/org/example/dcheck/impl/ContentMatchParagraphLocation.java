@@ -31,13 +31,13 @@ public class ContentMatchParagraphLocation implements ParagraphLocation {
         if (firstIdx < 0) {
             startText = trim;
         } else {
-            startText = trim.substring(0, firstIdx);
+            startText = trim.substring(0, firstIdx + 1);
         }
         int lastIdx = trim.lastIndexOf("\n");
         if (lastIdx < 0) {
             endText = trim;
         } else {
-            endText = trim.substring(lastIdx);
+            endText = trim.substring(lastIdx + 1);
         }
         return new ContentMatchParagraphLocation(startText, endText, splitIdx);
     }

@@ -4,9 +4,9 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.Document;
-import org.example.dcheck.api.DocumentParagraph;
 import org.example.dcheck.api.DocumentProcessor;
 import org.example.dcheck.api.DocumentType;
+import org.example.dcheck.api.SimpleParagraph;
 import org.example.dcheck.exception.UnsupportedDocumentTypeException;
 
 import java.util.List;
@@ -65,7 +65,7 @@ public class DocumentProcessorProvider implements DCheckProvider, DocumentProces
     }
 
     @Override
-    public Stream<DocumentParagraph> split(@NonNull Document document) {
+    public Stream<SimpleParagraph> split(@NonNull Document document) {
         DocumentProcessor processor = getProcessor(document.getDocumentType());
         if (processor == UNSUPPORTED) {
             throw new UnsupportedDocumentTypeException(document.getDocumentType());

@@ -19,6 +19,11 @@
             <artifactId>DCheck-Common</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Reranker</artifactId>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/okhttp -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>

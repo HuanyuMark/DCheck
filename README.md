@@ -53,7 +53,7 @@ maven编译条件：
             <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
             <version>${dcheck.version}</version>
         </dependency>
-        <!-- 如果你运行的jre版本>=17, 则使用这该库 -->
+        <!-- 如果你运行的jre版本>=17, 则可以使用这该库 -->
         <dependency>
             <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
@@ -69,7 +69,43 @@ maven编译条件：
         <!-- 选择一款Codec实现库 -->
         <dependency>
             <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Codec-Jackson</artifactId>
+            <version>${dcheck.version}</version>
+        </dependency>
+
+        <!--&lt;!&ndash;正在开发中，暂不推荐使用&ndash;&gt;
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
             <artifactId>DCheck-Impl-Codec-Gson</artifactId>
+            <version>${dcheck.version}</version>
+        </dependency>-->
+        <!--  -->
+
+        <!-- 必须添加文档处理器依赖。文档处理器提供了对不同类型文件的支持 -->
+        <!-- 文档处理器: 启用处理docx文件 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
+            <version>${dcheck.version}</version>
+        </dependency>
+
+        <!-- 文档处理器: 启用处理pdf文件 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Default-PdfProcessor</artifactId>
+            <version>${dcheck.version}</version>
+        </dependency>
+
+        <!-- 文档处理器: 启用tika自动处理 -->
+        <!--        <dependency>-->
+        <!--            <groupId>org.example.dcheck</groupId>-->
+        <!--            <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>-->
+        <!--        </dependency>-->
+
+        <!-- 部分库还依赖 embedding 库(比如Default-RelevancyEngine和)，详情请查看各个库的说明 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Embedding-Remote</artifactId>
             <version>${dcheck.version}</version>
         </dependency>
     </dependencies>

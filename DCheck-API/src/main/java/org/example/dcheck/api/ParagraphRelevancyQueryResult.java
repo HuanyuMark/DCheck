@@ -1,7 +1,6 @@
 package org.example.dcheck.api;
 
 import lombok.*;
-import lombok.experimental.Delegate;
 
 import java.util.List;
 
@@ -17,17 +16,5 @@ import java.util.List;
 public class ParagraphRelevancyQueryResult {
     @With
     @Singular
-    private final List<List<Record>> records;
-
-    @Data
-    @Builder
-    @AllArgsConstructor
-    public static class Record {
-        @NonNull
-        @Delegate
-        private final Paragraph paragraph;
-        @With
-        @Getter
-        private final double relevancy;
-    }
+    private final List<DuplicatePart> duplicateParts;
 }

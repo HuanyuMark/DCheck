@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -166,10 +165,10 @@ public class DefaultReranker implements Reranker {
                         RequestTemplate.RERANK.getBuilder()
                                 .post(RequestBody.create((String) codec.serialize(
                                         new RerankRequest(
-                                                query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList()),
-                                                relevancyResult.getRecords().stream()
-                                                        .map(records -> records.stream()
-                                                                .map(ParagraphRelevancyQueryResult.Record::getContent)
+                                                query.getParagraphs().stream().map(UniversalParagraph::getContent).map(ContentConvert::castToText).collect(Collectors.toList()),
+                                                relevancyResult.getDuplicateParts().stream()
+                                                        .map(part -> part.getDuplicates().stream()
+                                                                .map(DuplicatePart.DuplicateParagraph::getContent)
                                                                 .map(ContentConvert::castToText)
                                                                 .collect(Collectors.toList()))
                                                         .collect(Collectors.toList())
@@ -198,11 +197,13 @@ public class DefaultReranker implements Reranker {
             if (!engine.hasDocument(new DocumentIdQuery(query.getCollectionId(), Collections.singletonList(query.getDocumentId()))).get(0)) {
                 throw new IllegalStateException("document not found");
             }
-            @SuppressWarnings("unchecked")
-            var paragraphs = (List<Supplier<? extends Content>>) ((Object) engine.getParagraphs(ParagraphGet.builder()
-                    .collectionId(query.getDocumentId())
-                    .condition(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build())
-                    .build()).stream().map(p -> (Supplier<Content>) (p::getContent)).collect(Collectors.toList()));
+            var paragraphs = engine.getParagraphs(ParagraphGet.builder()
+                            .collectionId(query.getDocumentId())
+                            .condition(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build())
+                            .build())
+                    .stream()
+                    .map(p -> new UniversalParagraph(new SimpleParagraph(p::getContent, p.getMetadata().getParagraphType(), p.getMetadata().getLocation()), p.getMetadata()))
+                    .collect(Collectors.toList());
             applyQuery = query.withParagraphs(paragraphs);
         } else {
             applyQuery = query;
@@ -217,19 +218,19 @@ public class DefaultReranker implements Reranker {
             throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
         }
 
-        var reranked = IntStream.range(0, relevancyResult.getRecords().size())
+        var reranked = IntStream.range(0, relevancyResult.getDuplicateParts().size())
                 .mapToObj(i -> {
-                    var currentQueryEmbeddingResult = relevancyResult.getRecords().get(i);
+                    var duplicatePart = relevancyResult.getDuplicateParts().get(i);
                     float[] currentQueryScores = rerankResponse.getScores()[i];
-                    if (currentQueryScores.length != currentQueryEmbeddingResult.size()) {
+                    if (currentQueryScores.length != duplicatePart.getDuplicates().size()) {
                         throw new IllegalStateException("rerank fail: response scores length not match");
                     }
-                    return IntStream.range(0, currentQueryEmbeddingResult.size())
-                            .mapToObj(j -> currentQueryEmbeddingResult.get(i).withRelevancy(currentQueryScores[j]))
-                            .collect(Collectors.toList());
+                    return duplicatePart.withDuplicates(IntStream.range(0, duplicatePart.getDuplicates().size())
+                            .mapToObj(j -> duplicatePart.getDuplicates().get(i).withRelevancy(currentQueryScores[j]))
+                            .collect(Collectors.toList()));
                 }).collect(Collectors.toList());
 
-        return relevancyResult.withRecords(reranked);
+        return relevancyResult.withDuplicateParts(reranked);
     }
 
     @Getter

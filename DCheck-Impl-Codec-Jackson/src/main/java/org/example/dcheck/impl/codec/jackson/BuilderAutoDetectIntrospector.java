@@ -9,8 +9,6 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
-import lombok.var;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.annotation.AnnotationUtils;
 
@@ -72,11 +70,11 @@ public class BuilderAutoDetectIntrospector extends AnnotationIntrospector {
 
     @Nullable
     protected Class<?> findBuilder(AnnotatedClass ac) {
-        Class<?> builderClass = ac.getRawType();
+        Class<?> builtTarget = ac.getRawType();
 
         Method builderMethod;
         try {
-            builderMethod = builderClass.getDeclaredMethod(builderGenerateMethodName);
+            builderMethod = builtTarget.getDeclaredMethod(builderGenerateMethodName);
             if (!Modifier.isStatic(builderMethod.getModifiers())) {
                 log.warn("builder method must be static: {}", builderMethod);
                 return null;
@@ -88,9 +86,9 @@ public class BuilderAutoDetectIntrospector extends AnnotationIntrospector {
         var candidateBuilderType = builderMethod.getReturnType();
         Class<?>[] innerTypes;
         try {
-            innerTypes = builderClass.getDeclaredClasses();
+            innerTypes = builtTarget.getDeclaredClasses();
         } catch (SecurityException e) {
-            log.warn("fail to get inner types of class: {}", builderClass.getName(), e);
+            log.warn("fail to get inner types of class: {}", builtTarget.getName(), e);
             return null;
         }
 

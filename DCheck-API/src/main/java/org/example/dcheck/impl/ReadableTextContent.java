@@ -6,7 +6,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.*;
@@ -17,23 +16,28 @@ import java.nio.charset.*;
  * @author 三石而立Sunsy
  */
 @Data
-public class ReaderTextContent implements TextContent {
+public class ReadableTextContent implements TextContent {
 
-    private final Reader reader;
+    private final Readable reader;
 
     @Override
     public InputStream getInputStream() {
         return new ReaderInputStream(reader, StandardCharsets.UTF_8);
     }
 
+    @Override
+    public String toString() {
+        return reader.toString();
+    }
+
     protected static class ReaderInputStream extends InputStream {
-        private final Reader reader;
+        private final Readable reader;
         private final CharsetEncoder encoder;
         private final CharBuffer charBuffer;
         private final ByteBuffer byteBuffer = ByteBuffer.allocate(512);
         private boolean endOfInput = false;
 
-        public ReaderInputStream(Reader reader, Charset charset) {
+        public ReaderInputStream(Readable reader, Charset charset) {
             this.reader = reader;
             this.encoder = charset.newEncoder()
                     .onMalformedInput(CodingErrorAction.REPLACE)
@@ -91,7 +95,14 @@ public class ReaderTextContent implements TextContent {
 
         @Override
         public void close() throws IOException {
-            reader.close();
+            if (reader instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) reader).close();
+                } catch (Exception e) {
+                    if (e instanceof IOException) throw (IOException) e;
+                    throw new IOException(e);
+                }
+            }
         }
     }
 }

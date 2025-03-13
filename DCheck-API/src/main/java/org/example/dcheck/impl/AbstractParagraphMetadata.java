@@ -3,11 +3,9 @@ package org.example.dcheck.impl;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
-import org.example.dcheck.api.ParagraphType;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.lang.Nullable;
 
@@ -19,11 +17,9 @@ import java.util.function.BiConsumer;
  *
  * @author 三石而立Sunsy
  */
-@ToString
 @SuperBuilder
 @EqualsAndHashCode
 public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Map<String, Object> {
-    protected final ParagraphType paragraphType = getParagraphType();
     @Getter
     private final String documentId;
     @Getter
@@ -37,13 +33,22 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
         syncFieldMap();
     }
 
+    @Override
+    public String toString() {
+        return raw.toString();
+    }
+
     public abstract AbstractParagraphMetadata withOthers(Map<String, ?> rawMetadata);
 
     protected void syncFieldMap() {
         if (!raw.isEmpty()) return;
-        raw.put("paragraphType", paragraphType);
-        raw.put("documentId", documentId);
-        raw.put("location", location);
+        forceSyncFieldMap();
+    }
+
+    protected void forceSyncFieldMap() {
+        raw.put("paragraphType", getParagraphType());
+        raw.put("documentId", getDocumentId());
+        raw.put("location", getLocation());
     }
 
     @Override

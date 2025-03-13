@@ -19,10 +19,8 @@ import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.util.StringUtils;
-import tech.amikos.chromadb.ChromaCollection;
-import tech.amikos.chromadb.Client;
 import tech.amikos.chromadb.Collection;
-import tech.amikos.chromadb.GetEmbeddingInclude;
+import tech.amikos.chromadb.*;
 import tech.amikos.chromadb.handler.ApiException;
 import tech.amikos.chromadb.model.AnyOfGetEmbeddingIncludeItems;
 import tech.amikos.chromadb.model.GetEmbedding;
@@ -49,15 +47,6 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     public static final List<AnyOfGetEmbeddingIncludeItems> GET_PARAGRAPH_INCLUDE = Arrays.asList(GetEmbeddingInclude.metadatas, GetEmbeddingInclude.documents);
     protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
     private static final int CHUNK_SIZE = 50;
-
-//    static {
-//        try {
-//            // use the name with unescaped char to avoid name conflict
-//            TEMP_COLLECTION_PREFIX = URLEncoder.encode("tm$p9843975uy6hn3w$x2zc$p8o435a$s5poq", StandardCharsets.UTF_8.name());
-//        } catch (UnsupportedEncodingException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
     private final Map<String, ChromaCollection> chromaCollections = new ConcurrentSkipListMap<>();
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
@@ -198,12 +187,13 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
-    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Collections.singletonList(GetEmbeddingInclude.embeddings);
+    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Arrays.asList(GetEmbeddingInclude.embeddings, GetEmbeddingInclude.documents, GetEmbeddingInclude.metadatas);
 
     @Override
     @SuppressWarnings("unchecked")
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
         init();
+        List<Paragraph> paragraphs;
         var documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         ChromaCollection collection = getCollection(documentCollection.getId());
         Collection.QueryResponse response;
@@ -211,7 +201,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         if (query.getParagraphs() == null) {
             List<float[]> embeddings;
             try {
-                embeddings = Failsafe.with(collectionAccessPolicy)
+                var getResult = Failsafe.with(collectionAccessPolicy)
                         .get(() -> collection.get(new GetEmbedding()
                                 .where(ChromaDSLFactory.where(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build(), e -> {
                                     try {
@@ -221,17 +211,30 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                                     }
                                 }))
                                 .include(GET_EMBEDDING_INCLUDES)
-                        ).getEmbeddings());
+                        ));
+                embeddings = getResult.getEmbeddings();
                 if (embeddings.isEmpty()) {
                     throw new IllegalArgumentException("query document embeddings fail: not found documentId=" + query.getDocumentId());
                 }
                 req.setQueryEmbeddings((List<Object>) ((Object) embeddings));
+                paragraphs = mapToParagraphs(getResult);
             } catch (FailsafeException e) {
                 throw new IllegalStateException("query document embeddings fail: " + e.getMessage(), e);
             }
         } else {
             try {
-                req.setQueryEmbeddings(embeddingFunction.embedDocuments(query.getParagraphs().stream().map(ContentConvert::castToText).collect(Collectors.toList())).stream().map(Embedding::asArray).collect(Collectors.toList()));
+                req.setQueryEmbeddings(embeddingFunction.embedDocuments(query.getParagraphs().stream().map(UniversalParagraph::getContent).map(ContentConvert::castToText).collect(Collectors.toList())).stream().map(Embedding::asArray).collect(Collectors.toList()));
+                paragraphs = query.getParagraphs().stream()
+                        .map(p -> {
+                            if (p.getParagraphType() == BuiltinParagraphType.TEXT) {
+                                if (!(p.getContent() instanceof TextContent)) {
+                                    throw new IllegalArgumentException("paragraph content type must be TextContent");
+                                }
+                                return new TextParagraph(() -> (TextContent) p.getContent(), p.getMetadata());
+                            }
+                            // todo: add other paragraph type
+                            throw new UnsupportedOperationException();
+                        }).collect(Collectors.toList());
             } catch (Exception e) {
                 throw new IllegalStateException("calculate paragraph embeddings fail: " + e.getMessage(), e);
             }
@@ -259,7 +262,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     var queryResultDocument = response.getDocuments().get(i);
                     var queryResultMetadata = response.getMetadatas().get(i);
                     var queryResultScore = response.getDistances().get(i);
-                    return IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
+                    var duplicates = IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
                         var document = queryResultDocument.get(j);
                         @SuppressWarnings("unchecked")
                         var metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
@@ -278,14 +281,15 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                             throw new IllegalArgumentException("parse metadata fail: " + e.getMessage(), e);
                         }
 
-                        return ParagraphRelevancyQueryResult.Record.builder()
+                        return DuplicatePart.DuplicateParagraph.builder()
                                 .paragraph(metadataObj.getParagraphType().createParagraph(document, metadataObj))
                                 .relevancy(score)
                                 .build();
                     }).collect(Collectors.toList());
+                    return new DuplicatePart(paragraphs.get(i), duplicates);
                 }).collect(Collectors.toList());
 
-        ParagraphRelevancyQueryResult queryEmbeddingRes = builder.records(result).build();
+        ParagraphRelevancyQueryResult queryEmbeddingRes = builder.duplicateParts(result).build();
 
         //2. rerank
         return reranker.rerank(queryEmbeddingRes, query);
@@ -295,7 +299,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     public void addParagraph(ParagraphRelevancyCreation creation) {
         init();
         var collection = getCollection(creation.getCollectionId());
-        var batch = creation.getBatch().stream().collect(Collectors.groupingBy(ParagraphRelevancyCreation.Record::getParagraphType));
+        var batch = creation.getBatch().stream().collect(Collectors.groupingBy(UniversalParagraph::getParagraphType));
         var textParagraphs = batch.get(BuiltinParagraphType.TEXT);
         if (textParagraphs != null) {
             try {
@@ -306,7 +310,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                             .run(() -> collection.add(
                                     null,
                                     chunk.stream()
-                                            .map(ParagraphRelevancyCreation.Record::getMetadata)
+                                            .map(UniversalParagraph::getMetadata)
                                             .map(m -> m.toFlatMap(form -> {
                                                 try {
                                                     return codec.serialize(form, String.class);
@@ -316,7 +320,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                                             }))
                                             .collect(Collectors.toList()),
                                     chunk.stream()
-                                            .map(ParagraphRelevancyCreation.Record::getParagraph)
+                                            .map(UniversalParagraph::getParagraph)
                                             .map(p -> ContentConvert.castToText(p.getContent())).collect(Collectors.toList()),
                                     // 这里的id是否需要预先生成？
                                     chunk.stream().map(e -> UUID.randomUUID().toString()).collect(Collectors.toList())
@@ -383,6 +387,33 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         return getEngineAdaptedDocumentCollection(generateTempDocumentCollectionId());
     }
 
+    protected List<Paragraph> mapToParagraphs(GetResult getResult) {
+        return IntStream.range(0, getResult.getIds().size())
+                .mapToObj(i -> {
+                    Map<String, Object> flatMetadata = getResult.getMetadatas().get(i);
+                    Map<String, Object> objMetadata = flatMetadata.entrySet().stream()
+                            .map(e -> {
+                                try {
+                                    return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
+                                } catch (IOException ex) {
+                                    throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                }
+                            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                    ParagraphMetadata metadata;
+                    try {
+                        metadata = codec.convertTo(objMetadata, ParagraphMetadata.class);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("convert metadata to ParagraphMetadata fail: " + e.getMessage(), e);
+                    }
+
+                    var paragraphClass = metadata.getParagraphType().getParagraphClass();
+
+                    String document = getResult.getDocuments().get(i);
+
+                    return metadata.getParagraphType().createParagraph(document, metadata);
+                }).collect(Collectors.toList());
+    }
+
     @Override
     public List<Paragraph> getParagraphs(ParagraphGet query) {
         var collection = getCollection(query.getCollectionId());
@@ -404,30 +435,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         try {
             var getResult = Failsafe.with(collectionAccessPolicy)
                     .get(() -> collection.get(req));
-            return IntStream.range(0, getResult.getIds().size())
-                    .mapToObj(i -> {
-                        Map<String, Object> flatMetadata = getResult.getMetadatas().get(i);
-                        Map<String, Object> objMetadata = flatMetadata.entrySet().stream()
-                                .map(e -> {
-                                    try {
-                                        return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
-                                    } catch (IOException ex) {
-                                        throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
-                                    }
-                                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                        ParagraphMetadata metadata;
-                        try {
-                            metadata = codec.convertTo(objMetadata, ParagraphMetadata.class);
-                        } catch (IOException e) {
-                            throw new IllegalStateException("convert metadata to ParagraphMetadata fail: " + e.getMessage(), e);
-                        }
-
-                        var paragraphClass = metadata.getParagraphType().getParagraphClass();
-
-                        String document = getResult.getDocuments().get(i);
-
-                        return metadata.getParagraphType().createParagraph(document, metadata);
-                    }).collect(Collectors.toList());
+            return mapToParagraphs(getResult);
         } catch (FailsafeException e) {
             throw new IllegalStateException("getParagraphs fail: " + e.getMessage(), e.getCause());
         }

@@ -1,6 +1,5 @@
 package org.example.dcheck.impl;
 
-import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.var;
 import org.example.dcheck.api.BuiltinParagraphType;
@@ -16,7 +15,6 @@ import java.util.function.BiFunction;
  *
  * @author 三石而立Sunsy
  */
-@ToString
 @SuperBuilder
 @SuppressWarnings("unused")
 public class TextParagraphMetadata extends AbstractParagraphMetadata {
@@ -31,7 +29,7 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
         if (rawMetadata != null) {
             cur.raw.putAll(rawMetadata);
         }
-        cur.syncFieldMap();
+        cur.forceSyncFieldMap();
         return cur;
     }
 

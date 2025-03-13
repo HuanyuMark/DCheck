@@ -18,7 +18,7 @@ import java.util.List;
 public class CheckResult {
     @Singular("paragraph")
     // 对于每一个段落，前 topKOfDocument 个最相似的文档
-    private final List<List<ParagraphRelevancyQueryResult.Record>> relevantParagraphs;
+    private final List<DuplicatePart> duplicateParts;
     // 前 topKOfDocument 个最相似的文档
     @Singular("document")
     private final List<RelevantDocument> relevantDocuments;

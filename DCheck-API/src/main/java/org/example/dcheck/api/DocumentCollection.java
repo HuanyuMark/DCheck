@@ -1,6 +1,7 @@
 package org.example.dcheck.api;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Date 2025/02/25
@@ -15,7 +16,7 @@ public interface DocumentCollection {
 
     void addDocument(List<Document> creations);
 
-    void deleteDocument(List<String> documentIds);
+    void deleteDocument(Set<String> documentIds);
 
     List<Boolean> hasDocument(List<String> documentIds);
 

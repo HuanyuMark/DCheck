@@ -8,6 +8,7 @@ import java.lang.annotation.*;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 public interface PreloadClass {
 
     // 标记某个该类的某个静态方法会在预加载完成后（类加载完成后）被运行

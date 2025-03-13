@@ -18,6 +18,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexSetting;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
+import org.neo4j.kernel.impl.core.NodeEntity;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
@@ -31,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -69,7 +71,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             """
                     MATCH (p: {PARAGRAPH_LABEL})
                     WHERE p.{DOCUMENT_ID_PROPERTY} == $queryDocument
-                    RETURN p.{VECTOR_PROPERTY} as {VECTOR_PROPERTY}
+                    RETURN p
                     """,
             Map.of(
                     "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
@@ -217,66 +219,92 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     .getProperty(EMBEDDING_FUC_PROPERTY));
 
 
-            Stream<Embedding> queryEmbeddings;
+            Stream<Map.Entry<UniversalParagraph, Embedding>> embeddingArguments;
             if (query.getParagraphs() == null) {
-                queryEmbeddings = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
+                embeddingArguments = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
                         .stream()
-                        .map(properties -> Embedding.from((float[]) properties.get(VECTOR_PROPERTY), embeddingFunctionName));
+                        .map(result -> {
+                            Map<String, Object> properties = ((NodeEntity) result.get("p")).getAllProperties();
+                            Paragraph paragraph = mapToParagraph(properties);
+                            return new AbstractMap.SimpleEntry<>(new UniversalParagraph(new SimpleParagraph(paragraph::getContent, paragraph.getMetadata().getParagraphType(), paragraph.getMetadata().getLocation()),
+                                    paragraph.getMetadata()),
+                                    Embedding.from((float[]) properties.get(VECTOR_PROPERTY), embeddingFunctionName));
+                        });
             } else {
                 // do partition for batch
                 var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
-                queryEmbeddings = partitions.stream().flatMap(partition -> embed(partition.stream()).stream());
+                embeddingArguments = partitions.stream().flatMap(partition -> {
+                    var embeddings = embed(partition.stream().map(UniversalParagraph::getContent));
+                    return IntStream.range(0, partition.size())
+                            .mapToObj(i -> new AbstractMap.SimpleEntry<>(partition.get(i), embeddings.get(i)));
+                });
             }
 
             String cypher = getQueryParagraphCypher(query.getIncludeMetadata());
-            var records = queryEmbeddings.map(embedding -> tx.execute(cypher,
-                            Map.of(
-                                    "embedding", embedding.asArray(),
-                                    "selfDocumentId", query.getDocumentId(),
-                                    "VECTOR_INDEX", VECTOR_INDEX,
-                                    "topK", query.getTopK(),
-                                    "VECTOR_PROPERTY", VECTOR_PROPERTY
-                            ))
-                    .stream()
-                    .map(result -> {
-                        @SuppressWarnings("unchecked")
-                        var nodeProperties = ((Map<String, Object>) result.get("node"));
-                        var flatProperties = nodeProperties.entrySet().stream().filter(kv -> kv.getValue() instanceof String)
-                                .map(kv -> new AbstractMap.SimpleEntry<>(kv.getKey(), (((String) kv.getValue()))))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            var duplicateParts = embeddingArguments.map(entry -> {
+                Paragraph diffTarget;
 
-                        ParagraphMetadata metadata;
-                        try {
-                            var flatMetadata = new HashMap<>(flatProperties);
-                            flatMetadata.remove(CONTENT_PROPERTY);
-                            flatMetadata.remove(VECTOR_PROPERTY);
-                            metadata = codec.convertTo(flatMetadata.entrySet().stream().map(e -> {
-                                try {
-                                    return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getKey(), Object.class));
-                                } catch (IOException ex) {
-                                    throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
-                                }
-                            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)), ParagraphMetadata.class);
-                        } catch (IOException e) {
-                            throw new IllegalStateException("convert flatProperties to ParagraphMetadata fail: " + e.getMessage(), e);
-                        }
+                UniversalParagraph universalParagraph = entry.getKey();
+                if (universalParagraph.getParagraphType() == BuiltinParagraphType.TEXT) {
+                    diffTarget = new TextParagraph(() -> (TextContent) universalParagraph.getContent(), universalParagraph.getMetadata());
+                } else {
+                    throw new UnsupportedOperationException("unsupported paragraph type: " + entry.getKey().getParagraphType());
+                }
 
-                        var paragraphContent = ContentConvert.castToContent(flatProperties.get(CONTENT_PROPERTY));
+                var duplicates = tx.execute(cypher,
+                                Map.of(
+                                        "embedding", entry.getValue().asArray(),
+                                        "selfDocumentId", query.getDocumentId(),
+                                        "VECTOR_INDEX", VECTOR_INDEX,
+                                        "topK", query.getTopK(),
+                                        "VECTOR_PROPERTY", VECTOR_PROPERTY
+                                ))
+                        .stream()
+                        .map(result -> {
+                            @SuppressWarnings("unchecked")
+                            var nodeProperties = ((Map<String, Object>) result.get("node"));
+                            return new DuplicatePart.DuplicateParagraph(mapToParagraph(nodeProperties), (double) result.get("score"));
+                        }).toList();
 
-                        if (metadata.getParagraphType() != BuiltinParagraphType.TEXT) {
-                            throw new UnsupportedOperationException("unsupported paragraph type: " + metadata.getParagraphType());
-                        }
+                return new DuplicatePart(diffTarget, duplicates);
+            }).toList();
 
-                        var paragraph = new TextParagraph(
-                                () -> (TextContent) paragraphContent,
-                                metadata
-                        );
-
-                        return new ParagraphRelevancyQueryResult.Record(paragraph, (double) result.get("score"));
-                    }).toList()).toList();
             tx.commit();
-            return new ParagraphRelevancyQueryResult(records);
+            return new ParagraphRelevancyQueryResult(duplicateParts);
         }
+    }
+
+    protected Paragraph mapToParagraph(Map<String, Object> nodeProperties) {
+        var flatProperties = nodeProperties.entrySet().stream().filter(kv -> kv.getValue() instanceof String)
+                .map(kv -> new AbstractMap.SimpleEntry<>(kv.getKey(), (((String) kv.getValue()))))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        ParagraphMetadata metadata;
+        try {
+            var flatMetadata = new HashMap<>(flatProperties);
+            flatMetadata.remove(CONTENT_PROPERTY);
+            flatMetadata.remove(VECTOR_PROPERTY);
+            metadata = codec.convertTo(flatMetadata.entrySet().stream().map(e -> {
+                try {
+                    return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getKey(), Object.class));
+                } catch (IOException ex) {
+                    throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                }
+            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)), ParagraphMetadata.class);
+        } catch (IOException e) {
+            throw new IllegalStateException("convert flatProperties to ParagraphMetadata fail: " + e.getMessage(), e);
+        }
+
+        var paragraphContent = ContentConvert.castToContent(flatProperties.get(CONTENT_PROPERTY));
+
+        if (metadata.getParagraphType() != BuiltinParagraphType.TEXT) {
+            throw new UnsupportedOperationException("unsupported paragraph type: " + metadata.getParagraphType());
+        }
+
+        return new TextParagraph(
+                () -> (TextContent) paragraphContent,
+                metadata
+        );
     }
 
 
@@ -297,7 +325,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
         try (var tx = collection.beginTx()) {
             for (var partition : partitions) {
-                var embeddings = embed(partition.stream().map(ParagraphRelevancyCreation.Record::getContent));
+                var embeddings = embed(partition.stream().map(UniversalParagraph::getContent));
 
                 for (int i = 0; i < partition.size(); i++) {
                     var record = partition.get(i);
@@ -334,11 +362,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             for (Map.Entry<String, String> kv : delete.getMetadataMatchCondition().getEqs().entrySet()) {
                 tx.findNodes(PARAGRAPH_LABEL, kv.getKey(), valueReader.apply(kv.getKey(), kv.getValue())).forEachRemaining(Node::delete);
             }
-            for (Map.Entry<String, Collection<String>> kvs : delete.getMetadataMatchCondition().getIns().entrySet()) {
+            for (Map.Entry<String, Set<String>> kvs : delete.getMetadataMatchCondition().getIns().entrySet()) {
                 for (String value : kvs.getValue()) {
                     tx.findNodes(PARAGRAPH_LABEL, kvs.getKey(), valueReader.apply(kvs.getKey(), value)).forEachRemaining(Node::delete);
                 }
             }
+//            delete.getMetadataMatchCondition()
             tx.commit();
         }
     }
@@ -362,7 +391,84 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     @Override
     public List<Paragraph> getParagraphs(ParagraphGet query) {
         // TODO: implement this
-        throw new UnsupportedOperationException();
+        var collection = getCollection(query.getCollectionId());
+
+        var condition = query.getCondition();
+        if (condition == null || query.getCondition().getEqs().isEmpty() && query.getCondition().getIns().isEmpty() && query.getCondition().getNes().isEmpty() && query.getCondition().getNins().isEmpty()) {
+            try (var tx = collection.beginTx()) {
+                var ns = tx.findNodes(PARAGRAPH_LABEL).stream().map(node -> mapToParagraph(node.getAllProperties())).toList();
+                tx.commit();
+                return ns;
+            }
+        }
+
+        var cypherBuilder = new StringBuilder("MATCH (p:").append(PARAGRAPH_LABEL.name()).append(") ").append("WHERE ");
+        var arguments = new CypherArgument();
+
+        var eqs = condition
+                .getEqs()
+                .entrySet()
+                .stream()
+                .map(entry -> entry.getKey() + " = " + arguments.addSingle(entry.getValue()));
+
+        var nes = condition.getNes().entrySet()
+                .stream()
+                .map(entry -> entry.getKey() + " != " + arguments.addSingle(entry.getValue()));
+
+        var ins = condition.getIns().entrySet().stream().map(entry -> new StringBuilder(entry.getKey()).append(" IN ").append(arguments.addList(entry.getValue())));
+
+        var nins = condition.getIns().entrySet().stream().map(entry -> " NOT " + entry.getKey() + " IN " + arguments.addList(entry.getValue()));
+
+        String whereStatement = Stream.concat(eqs, Stream.concat(nes, Stream.concat(ins, nins))).collect(Collectors.joining(" AND "));
+
+        cypherBuilder
+                .append(whereStatement)
+                .append(" RETURN apoc.map.removeKey(node {.*}, $VECTOR_PROPERTY) as p");
+
+        arguments.put("$VECTOR_PROPERTY", VECTOR_PROPERTY);
+
+        try (var tx = collection.beginTx()) {
+            var ns = tx.execute(cypherBuilder.toString(), arguments)
+                    .stream()
+                    .map(result -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> p = (Map<String, Object>) result.get("p");
+                        return mapToParagraph(p);
+                    })
+                    .collect(Collectors.toList());
+            tx.commit();
+            return ns;
+        }
+    }
+
+    protected class CypherArgument extends HashMap<String, Object> {
+
+        @Override
+        public Object put(String key, Object value) {
+            try {
+                return super.put(key.startsWith("$") ? key : "$" + key, codec.serialize(value, String.class));
+            } catch (IOException e) {
+                throw new IllegalStateException("serialize '" + key + "=" + value + "' fail: " + e.getMessage(), e);
+            }
+        }
+
+        public String addSingle(Object value) {
+            String argName = "$" + size();
+            put(argName, value);
+            return argName;
+        }
+
+        public String addList(Collection<?> values) {
+            String argName = "$" + size();
+            super.put(argName, values.stream().map(v -> {
+                try {
+                    return codec.serialize(v, String.class);
+                } catch (IOException e) {
+                    throw new IllegalStateException("serialize value '" + v + "' fail: " + e.getMessage(), e);
+                }
+            }));
+            return argName;
+        }
     }
 
     @Override
