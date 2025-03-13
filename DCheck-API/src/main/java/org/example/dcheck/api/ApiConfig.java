@@ -1,7 +1,7 @@
 package org.example.dcheck.api;
 
 import org.example.dcheck.spi.ConfigProvider;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Properties;
 

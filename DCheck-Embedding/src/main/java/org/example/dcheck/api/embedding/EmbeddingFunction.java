@@ -1,7 +1,7 @@
 package org.example.dcheck.api.embedding;
 
 import org.example.dcheck.api.DCheckComponent;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
 import java.util.List;

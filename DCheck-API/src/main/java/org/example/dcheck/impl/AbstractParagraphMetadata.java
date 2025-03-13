@@ -7,7 +7,7 @@ import lombok.experimental.SuperBuilder;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;

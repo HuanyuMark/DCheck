@@ -11,7 +11,6 @@ import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.lang.NonNull;
 
 import java.io.IOException;
 import java.time.Duration;

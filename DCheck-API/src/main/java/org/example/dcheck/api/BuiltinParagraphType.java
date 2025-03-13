@@ -5,7 +5,7 @@ import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.ReadableTextContent;
 import org.example.dcheck.impl.TextParagraph;
 import org.example.dcheck.impl.TextParagraphMetadata;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.Reader;

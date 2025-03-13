@@ -12,6 +12,7 @@ import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
+import org.jetbrains.annotations.Nullable;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -20,7 +21,6 @@ import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
 import org.neo4j.kernel.impl.core.NodeEntity;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;

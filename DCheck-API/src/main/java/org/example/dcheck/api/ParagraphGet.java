@@ -3,7 +3,7 @@ package org.example.dcheck.api;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Date: 2025/3/10

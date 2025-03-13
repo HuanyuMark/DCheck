@@ -4,7 +4,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.var;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;

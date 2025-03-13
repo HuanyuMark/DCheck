@@ -3,7 +3,7 @@ package org.example.dcheck.spi;
 import lombok.Getter;
 import lombok.var;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
-import org.springframework.lang.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;

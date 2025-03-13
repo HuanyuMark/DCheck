@@ -11,8 +11,9 @@
     <packaging>pom</packaging>
     <modules>
         <module>DCheck-API</module>
-        <module>DCheck-Embedding</module>
         <module>DCheck-Common</module>
+        <module>DCheck-Embedding</module>
+        <module>DCheck-Reranker</module>
         <module>DCheck-Impl-Embedding-Remote</module>
         <module>DCheck-Impl-Default-Embedding</module>
         <module>DCheck-Impl-Default-RelevancyEngine</module>
@@ -25,7 +26,6 @@
         <module>DCheck-Impl-Default-PdfProcessor</module>
         <module>DCheck-Impl-Default-TikaProcessor</module>
         <module>DCheck-Test</module>
-        <module>DCheck-Reranker</module>
     </modules>
 
     <properties>
@@ -221,7 +221,14 @@
                                 如果输出到target/generated-sources中会导致IDEA也将其识别为源码，最终就是导致IDEA报错，因为class重复
                             -->
                             <outputDirectory>${delombok.dir}</outputDirectory>
+                            <formatPreferences>
+                                <javaLangAsFQN>skip</javaLangAsFQN>
+                                <suppressWarnings>skip</suppressWarnings>
+                                <finalParams>skip</finalParams>
+                                <generateDelombokComment>skip</generateDelombokComment>
+                            </formatPreferences>
                         </configuration>
+
                         <dependencies>
                             <dependency>
                                 <groupId>org.projectlombok</groupId>
