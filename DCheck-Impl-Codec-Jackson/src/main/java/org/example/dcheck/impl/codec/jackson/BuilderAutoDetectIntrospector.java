@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
+import lombok.var;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.annotation.AnnotationUtils;
 
