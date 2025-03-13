@@ -29,6 +29,13 @@ public class ParagraphRelevancyQuery {
     private final List<UniversalParagraph> paragraphs;
     @Builder.Default
     private final int topK = 5;
+
+    /**
+     * 如果相关性分数小于minRelevancy，则该段落会被忽略，不会参与后续的相似度计算
+     */
+    //TODO skip <= minRelevancy
+    private final double minRelevancy;
+
     /**
      * return all metadata if empty
      */
