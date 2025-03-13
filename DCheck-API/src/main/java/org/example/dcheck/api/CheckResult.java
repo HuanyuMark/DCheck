@@ -1,9 +1,6 @@
 package org.example.dcheck.api;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Singular;
+import lombok.*;
 
 import java.util.List;
 
@@ -27,6 +24,7 @@ public class CheckResult {
     @Builder
     @AllArgsConstructor
     public static class RelevantDocument {
+        @NonNull
         private final String documentId;
         private final double score;
     }

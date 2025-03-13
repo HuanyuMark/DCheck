@@ -1,10 +1,11 @@
-package org.example.dcheck.api;
+package org.example.dcheck.util;
 
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
+import org.example.dcheck.api.PreloadClass;
 import org.jetbrains.annotations.NotNull;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
@@ -13,7 +14,6 @@ import org.reflections.util.ConfigurationBuilder;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
 
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,6 +21,7 @@ import java.util.List;
 
 /**
  * Date 2025/03/12
+ * preload class to invoke static initialize methods
  *
  * @author 三石而立Sunsy
  */
@@ -37,21 +38,24 @@ public class PreloadClassLoader {
         var reflections = buildReflections();
         try {
             var preloaded = reflections.getSubTypesOf(PreloadClass.class);
-            for (Class<? extends PreloadClass> clazz : preloaded) {
-                for (Method method : ReflectionUtils.getDeclaredMethods(clazz)) {
-                    if (AnnotationUtils.findAnnotation(method, PreloadClass.PreloadMethod.class) != null) {
-                        if (method.getParameterCount() != 0 || !Modifier.isStatic(method.getModifiers())) {
-                            throw new IllegalArgumentException("@PreloadClass.PreloadMethod method must be static and no parameters: " + method);
-                        }
-                        ReflectionUtils.makeAccessible(method);
-                        ReflectionUtils.invokeMethod(method, null);
-                    }
-                }
-            }
+            preloaded.forEach(this::doPreload);
             log.info("preload PreloadClass success: {}", preloaded);
         } catch (Throwable e) {
             throw new IllegalStateException("preload fail: " + e.getMessage(), e);
         }
+    }
+
+    protected void doPreload(Class<? extends PreloadClass> clazz) {
+        ReflectionUtils.doWithLocalMethods(clazz, method -> {
+            if (AnnotationUtils.findAnnotation(method, PreloadClass.PreloadMethod.class) == null) {
+                return;
+            }
+            if (method.getParameterCount() != 0 || !Modifier.isStatic(method.getModifiers())) {
+                throw new IllegalArgumentException("@PreloadClass.PreloadMethod method must be static and no parameters: " + method);
+            }
+            ReflectionUtils.makeAccessible(method);
+            ReflectionUtils.invokeMethod(method, null);
+        });
     }
 
     @NotNull

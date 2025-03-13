@@ -1,17 +1,19 @@
 package org.example.dcheck.api;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.NonNull;
+import lombok.*;
 
 /**
  * Date: 2025/2/25
  * represent a check task.
  * core api to start a duplicate checking
+ *
  * @author 三石而立Sunsy
  */
-@Data
+@Getter
+@Setter
 @Builder
+@ToString
+@EqualsAndHashCode
 public class Check {
     /**
      * 查重文件
@@ -29,4 +31,33 @@ public class Check {
      */
     @Builder.Default
     private final int topKOfDocument = 5;
+
+    /**
+     * 如果相关性分数小于minParagraphRelevancy，则该段落会被忽略，不会参与后续的相似度计算
+     */
+    private final double minParagraphRelevancy;
+
+    /**
+     * 如果相关性分数小于minDocumentRelevancy，则该文档会被忽略，不会参与后续的相似度计算
+     */
+    private final double minDocumentRelevancy;
+
+    @SuppressWarnings("unused")
+    public static class CheckBuilder {
+        public Check build() {
+            if (topKOfEachParagraph$value < 1) {
+                throw new IllegalArgumentException("topKOfEachParagraph must be >= 1");
+            }
+            if (topKOfDocument$value < 1) {
+                throw new IllegalArgumentException("topKOfDocument must be >= 1");
+            }
+            if (minParagraphRelevancy < 0) {
+                throw new IllegalArgumentException("minParagraphRelevancy must be >= 0");
+            }
+            if (minDocumentRelevancy < 0) {
+                throw new IllegalArgumentException("minDocumentRelevancy must be >= 0");
+            }
+            return new Check(document, topKOfEachParagraph$value, topKOfDocument$value, minParagraphRelevancy, minDocumentRelevancy);
+        }
+    }
 }

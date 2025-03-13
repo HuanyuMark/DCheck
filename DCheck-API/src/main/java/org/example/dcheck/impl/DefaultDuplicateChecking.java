@@ -8,6 +8,7 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
+import org.example.dcheck.util.PreloadClassLoader;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
@@ -103,6 +104,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
         var queryBuilder = ParagraphRelevancyQuery.builder()
                 .documentId(check.getDocument().getId())
                 .collectionId(collection.getId())
+                .minRelevancy(check.getMinParagraphRelevancy())
                 .topK(check.getTopKOfEachParagraph());
         // if check.documentId is in collection, we assume queryBuilder.paragraphs() is null
         if (!relevancyEngine.hasDocument(new DocumentIdQuery(collection.getId(), Collections.singletonList(check.getDocument().getId()))).get(0)) {
@@ -130,6 +132,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                                 .entrySet()
                                 .stream()
                                 .map(e -> new Entry(e.getKey(), e.getValue().stream().mapToDouble(CheckResult.RelevantDocument::getScore).sum()))
+                                .filter(e -> e.getTotalScore() >= check.getMinDocumentRelevancy())
                                 // sort and limit to tokOfDocument
                                 .sorted(Comparator.comparingDouble(Entry::getTotalScore).reversed())
                                 .limit(check.getTopKOfDocument())
