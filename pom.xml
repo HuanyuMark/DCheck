@@ -16,7 +16,8 @@
         <module>DCheck-Reranker</module>
         <module>DCheck-Impl-Embedding-Remote</module>
         <module>DCheck-Impl-Default-Embedding</module>
-        <module>DCheck-Impl-Default-RelevancyEngine</module>
+        <module>DCheck-Impl-RelevancyEngine-Chroma</module>
+        <module>DCheck-Impl-RelevancyEngine-JVector</module>
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Impl-Codec-Gson</module>
         <module>DCheck-Impl-Codec-Jackson</module>
@@ -54,7 +55,7 @@
             </dependency>
             <dependency>
                 <groupId>org.example.dcheck</groupId>
-                <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
+                <artifactId>DCheck-Impl-RelevancyEngine-Chroma</artifactId>
                 <version>0.0.1</version>
             </dependency>
             <dependency>

@@ -50,7 +50,7 @@ maven编译条件：
         <dependency>
             <groupId>org.example.dcheck</groupId>
             <!-- 该库需要准备额外环境 -->
-            <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
+            <artifactId>DCheck-Impl-RelevancyEngine-Chroma</artifactId>
             <version>${dcheck.version}</version>
         </dependency>
         <!-- 如果你运行的jre版本>=17, 则可以使用这该库 -->
@@ -114,10 +114,10 @@ maven编译条件：
 
 ##### 依赖安装须知
 
-1. 选择```DCheck-Impl-Default-RelevancyEngine```还是```DCheck-Impl-RelevancyEngine-EmbeddedNeo4j```
+1. 选择```DCheck-Impl-RelevancyEngine-Chroma```还是```DCheck-Impl-RelevancyEngine-EmbeddedNeo4j```
    作为你的RelevancyEngine实现库，取决于以下要素：
 
-    1. DCheck-Impl-Default-RelevancyEngine
+    1. DCheck-Impl-RelevancyEngine-Chroma
         1. 系统资源（内存）较为充足
         2. 需要python环境(>=3.11)，愿意参照[该项目](https://gitee.com/GiteeHuanyu/DCheck-Impl-ChromaRelevancyEngine)
            的指导预先准备环境

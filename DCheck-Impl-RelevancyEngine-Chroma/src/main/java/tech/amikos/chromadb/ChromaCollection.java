@@ -1,10 +1,10 @@
 package tech.amikos.chromadb;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.Delegate;
 import tech.amikos.chromadb.handler.ApiException;
 import tech.amikos.chromadb.model.GetEmbedding;
