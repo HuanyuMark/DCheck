@@ -118,6 +118,7 @@ public class Neo4jDbms {
         var procedures = new ArrayList<>(GraphDatabaseSettings.procedure_allowlist.defaultValue());
         procedures.addAll(GraphDatabaseSettings.procedure_unrestricted.defaultValue());
         procedures.add("apoc*");
+        procedures.add("apoc.*");
         builder.setConfig(GraphDatabaseSettings.procedure_allowlist, procedures);
         builder.setConfig(GraphDatabaseSettings.procedure_unrestricted, procedures);
         builder.setConfig(GraphDatabaseSettings.plugin_dir, pluginDir);

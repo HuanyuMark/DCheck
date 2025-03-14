@@ -46,21 +46,25 @@
 
 
         <!-- neo4j apoc plugin -->
-        <dependency>
-            <groupId>org.neo4j.procedure</groupId>
-            <artifactId>apoc-core</artifactId>
-            <version>${neo4j.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.neo4j.procedure/apoc -->
         <!--
                 <dependency>
                     <groupId>org.neo4j.procedure</groupId>
-                    <artifactId>apoc</artifactId>
-                    <version>4.4.0.35</version>
+                    <artifactId>apoc-core</artifactId>
+                    <version>${neo4j.version}</version>
+                    <scope>runtime</scope>
                 </dependency>
         -->
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>

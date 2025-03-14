@@ -12,6 +12,7 @@ import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -35,6 +36,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Date: 2025/2/28
@@ -133,7 +135,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         WHERE p.{DOCUMENT_ID_PROPERTY} <> $selfDocumentId
                         CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
                         YIELD node,score
-                        RETURN apoc.map.removeKey(node {{includeProperties}}, $VECTOR_PROPERTY) as node,score
+                        RETURN node,score
                         """,
                 Map.of(
                         "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
@@ -221,6 +223,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         embeddingFunction.inited();
     }
 
+    @NotNull
+    private static String[] filterVectorPropertyKey(Node node) {
+        return StreamSupport.stream(node.getPropertyKeys().spliterator(), false)
+                .filter(k -> !VECTOR_PROPERTY.equals(k)).toArray(String[]::new);
+    }
+
     @Override
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery _query) {
 
@@ -280,8 +288,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                                 ))
                         .stream()
                         .map(result -> {
-                            @SuppressWarnings("unchecked")
-                            var nodeProperties = ((Map<String, Object>) result.get("node"));
+                            NodeEntity node = (NodeEntity) result.get("node");
+
+                            String[] filteredPropertyKeys = filterVectorPropertyKey(node);
+
+                            var nodeProperties = (node).getProperties(filteredPropertyKeys);
+
                             return new DuplicatePart.DuplicateParagraph(mapToParagraph(nodeProperties), (double) result.get("score"));
                         }).toList();
 
@@ -300,10 +312,9 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
         ParagraphMetadata metadata;
         try {
-            var flatMetadata = new HashMap<>(flatProperties);
-            flatMetadata.remove(CONTENT_PROPERTY);
-            flatMetadata.remove(VECTOR_PROPERTY);
-            metadata = codec.convertTo(flatMetadata.entrySet().stream().map(e -> {
+            flatProperties.remove(CONTENT_PROPERTY);
+            flatProperties.remove(VECTOR_PROPERTY);
+            metadata = codec.convertTo(flatProperties.entrySet().stream().map(e -> {
                 try {
                     return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
                 } catch (IOException ex) {
@@ -417,7 +428,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         var condition = query.getCondition();
         if (condition == null || query.getCondition().getEqs().isEmpty() && query.getCondition().getIns().isEmpty() && query.getCondition().getNes().isEmpty() && query.getCondition().getNins().isEmpty()) {
             try (var tx = collection.beginTx()) {
-                var ns = tx.findNodes(PARAGRAPH_LABEL).stream().map(node -> mapToParagraph(node.getAllProperties())).toList();
+                var ns = tx.findNodes(PARAGRAPH_LABEL).stream().map(node -> mapToParagraph(node.getProperties(filterVectorPropertyKey(node)))).toList();
                 tx.commit();
                 return ns;
             }
@@ -444,7 +455,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
         cypherBuilder
                 .append(whereStatement)
-                .append(" RETURN apoc.map.removeKey(p {.*}, $VECTOR_PROPERTY) as p");
+                .append(" RETURN p");
 
         arguments.put("$VECTOR_PROPERTY", VECTOR_PROPERTY);
 
@@ -452,8 +463,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             var ns = tx.execute(cypherBuilder.toString(), arguments)
                     .stream()
                     .map(result -> {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> p = (Map<String, Object>) result.get("p");
+                        Node node = (Node) result.get("p");
+                        Map<String, Object> p = node.getProperties(filterVectorPropertyKey(node));
                         return mapToParagraph(p);
                     })
                     .collect(Collectors.toList());

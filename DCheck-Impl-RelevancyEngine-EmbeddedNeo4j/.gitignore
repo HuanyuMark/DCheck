@@ -37,4 +37,4 @@ build/
 ### Mac OS ###
 .DS_Store
 
-/src/main/resources/neo4j/plugins/
+/src/*/resources/neo4j/plugins/
