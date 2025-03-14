@@ -6,7 +6,7 @@ import com.google.gson.stream.JsonReader;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
-import org.springframework.core.ParameterizedTypeReference;
+import org.example.dcheck.util.UtilConst;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -43,8 +43,6 @@ public class GsonCodec implements Codec {
     public GsonCodec() {
     }
 
-    private static final Type MapType = new ParameterizedTypeReference<Map<String, Object>>() {
-    }.getType();
 
     {
         setGson(defaultGsonBuilder
@@ -64,7 +62,7 @@ public class GsonCodec implements Codec {
                     }
                     return context.deserialize(json, type.type());
                 })
-                .registerTypeAdapter(ParagraphMetadata.class, (JsonSerializer<ParagraphMetadata>) (ParagraphMetadata src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src, MapType))
+                .registerTypeAdapter(ParagraphMetadata.class, (JsonSerializer<ParagraphMetadata>) (ParagraphMetadata src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src, UtilConst.MAP_TYPE))
                 .registerTypeAdapter(ParagraphMetadata.class, (JsonDeserializer<ParagraphMetadata>) (json, typeOfT, context) -> {
                     //unwrap
                     if (json.isJsonPrimitive()) {
@@ -78,7 +76,7 @@ public class GsonCodec implements Codec {
                     var paragraphType = (ParagraphType) context.deserialize(ptValue, ParagraphType.class);
                     var paragraphLocationType = paragraphType.getMetadataClass();
                     @SuppressWarnings("unchecked")
-                    var all = (Map<String, Object>) context.deserialize(json, MapType);
+                    var all = (Map<String, Object>) context.deserialize(json, UtilConst.MAP_TYPE);
                     var ins = (ParagraphMetadata) context.deserialize(json, paragraphLocationType);
                     var extensions = paragraphType.createExtension(all, ins);
                     if (extensions != null) return extensions;

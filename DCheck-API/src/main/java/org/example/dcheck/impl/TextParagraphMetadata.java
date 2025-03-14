@@ -5,6 +5,7 @@ import lombok.var;
 import org.example.dcheck.api.BuiltinParagraphType;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphType;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -27,6 +28,7 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
     public AbstractParagraphMetadata withOthers(Map<String, ?> rawMetadata) {
         var cur = new TextParagraphMetadata(getDocumentId(), getLocation());
         if (rawMetadata != null) {
+            cur.raw.putAll(raw);
             cur.raw.putAll(rawMetadata);
         }
         cur.forceSyncFieldMap();
@@ -34,7 +36,7 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
     }
 
     @Override
-    public ParagraphType getParagraphType() {
+    public @NotNull ParagraphType getParagraphType() {
         return BuiltinParagraphType.TEXT;
     }
 

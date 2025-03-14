@@ -12,6 +12,7 @@ import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
+import org.example.dcheck.util.UtilConst;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.neo4j.graphdb.Label;
@@ -21,12 +22,10 @@ import org.neo4j.graphdb.schema.IndexSetting;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
 import org.neo4j.kernel.impl.core.NodeEntity;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.util.ConcurrentLruCache;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -56,9 +55,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     public static final String HNSW_EF_CONSTRUCTION = "relevancy-engine.embedded-neo4j.config.hnsw.ef_construction";
     /////
 
-
-    public static final Type MapType = new ParameterizedTypeReference<Map<String, Object>>() {
-    }.getType();
     protected static final Label PARAGRAPH_LABEL = Label.label("Paragraph");
     protected static final String VECTOR_INDEX = "vector_index";
     protected static final String DOCUMENT_ID_INDEX = "document_id_index";
@@ -370,9 +366,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         }
                         node.setProperty(kv.getKey(), codec.serialize(kv.getValue(), String.class));
                     }
-                    if (!node.hasProperty(DOCUMENT_ID_PROPERTY)) {
-                        throw new IllegalArgumentException("invalid metadata: '" + DOCUMENT_ID_PROPERTY + "' is required");
-                    }
                 }
             }
             tx.commit();
@@ -581,7 +574,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 }
                 Map<String, Object> details;
                 try {
-                    details = codec.deserialize(properties.get(EMBEDDING_FUC_DETAILS_PROPERTY), MapType);
+                    details = codec.deserialize(properties.get(EMBEDDING_FUC_DETAILS_PROPERTY), UtilConst.MAP_TYPE);
                 } catch (IOException e) {
                     throw new IllegalStateException("deserialize embedding function state fail: " + e.getMessage(), e);
                 }

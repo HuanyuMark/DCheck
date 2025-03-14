@@ -10,9 +10,7 @@ import org.example.dcheck.api.ParagraphMetadata;
 import org.example.dcheck.spi.CodecProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.core.ParameterizedTypeReference;
 
-import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -29,12 +27,13 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
     @Getter
     private final ParagraphLocation location;
     @NonNull
-    protected final Map<String, Object> raw = new HashMap<>(4);
+    protected final Map<String, Object> raw = new HashMap<>(getRawInitialCapacity());
+
+    protected int getRawInitialCapacity() {
+        return 6;
+    }
 
     private static final Codec codec;
-
-    private static final Type MapType = new ParameterizedTypeReference<Map<String, Object>>() {
-    }.getType();
 
     static {
         codec = CodecProvider.getInstance().getCodecs().stream().findFirst().orElseThrow(() -> new IllegalStateException("not found available codec form CodecProvider. please list a Codec Implementation in classpath"));

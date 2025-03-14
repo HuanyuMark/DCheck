@@ -18,7 +18,7 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-document-parser-apache-poi</artifactId>
-            <version>0.30.0</version>
+            <version>${langchain4j.version}</version>
         </dependency>
 
         <dependency>

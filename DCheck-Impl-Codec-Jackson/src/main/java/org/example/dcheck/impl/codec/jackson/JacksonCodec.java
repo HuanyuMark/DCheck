@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
+import org.example.dcheck.util.UtilConst;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -46,9 +47,6 @@ public class JacksonCodec implements Codec {
     public final static com.fasterxml.jackson.databind.Module dcheckModule;
 
     public final static com.fasterxml.jackson.databind.Module parameterNamesModule = new ParameterNamesModule(JsonCreator.Mode.DEFAULT);
-
-    private final static TypeReference<Map<String, Object>> MapType = new TypeReference<Map<String, Object>>() {
-    };
 
     static {
         dcheckModule = new SimpleModule(VERSION.getArtifactId(), VERSION)
@@ -92,7 +90,7 @@ public class JacksonCodec implements Codec {
                         var paragraphType = p.getCodec().treeToValue(paragraphTypeNode, ParagraphType.class);
                         var paragraphLocationType = paragraphType.getMetadataClass();
                         @SuppressWarnings("unchecked")
-                        var all = (Map<String, Object>) codec.treeToValue(treeNode, codec.constructType(MapType));
+                        var all = (Map<String, Object>) codec.treeToValue(treeNode, codec.constructType(UtilConst.MAP_TYPE));
                         var ins = codec.treeToValue(treeNode, paragraphLocationType);
                         var extensions = paragraphType.createExtension(all, ins);
                         if (extensions != null) return extensions;
@@ -102,7 +100,7 @@ public class JacksonCodec implements Codec {
                 .addSerializer(ParagraphMetadata.class, new JsonSerializer<ParagraphMetadata>() {
                     @Override
                     public void serialize(ParagraphMetadata value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-                        JsonSerializer<Object> serializer = serializers.findValueSerializer(serializers.getTypeFactory().constructType(MapType));
+                        JsonSerializer<Object> serializer = serializers.findValueSerializer(serializers.getTypeFactory().constructType(UtilConst.MAP_TYPE));
                         serializer.serialize(value, gen, serializers);
                     }
                 })

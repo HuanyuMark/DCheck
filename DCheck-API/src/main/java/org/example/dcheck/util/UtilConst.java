@@ -1,5 +1,9 @@
 package org.example.dcheck.util;
 
+import org.springframework.core.ParameterizedTypeReference;
+
+import java.lang.reflect.Type;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -16,4 +20,7 @@ public class UtilConst {
     public static <T> CompletableFuture<T> emptyFuture() {
         return (CompletableFuture<T>) emptyFuture;
     }
+
+    public static final Type MAP_TYPE = new ParameterizedTypeReference<Map<String, Object>>() {
+    }.getType();
 }

@@ -7,6 +7,7 @@
         <version>0.0.1</version>
     </parent>
     <artifactId>DCheck-Impl-Base-Langchain</artifactId>
+
     <dependencies>
         <dependency>
             <groupId>org.example.dcheck</groupId>
@@ -18,7 +19,7 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j</artifactId>
-            <version>0.30.0</version>
+            <version>${langchain4j.version}</version>
         </dependency>
 
         <dependency>

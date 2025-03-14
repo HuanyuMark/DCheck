@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import lombok.NonNull;
 import lombok.var;
 import org.springframework.cglib.beans.BeanMap;
 
@@ -15,11 +16,13 @@ import java.util.function.Function;
  */
 @SuppressWarnings("unused")
 public interface ParagraphMetadata extends Map<String, Object> {
-
+    @NonNull
     String getDocumentId();
 
+    @NonNull
     ParagraphType getParagraphType();
 
+    @NonNull
     ParagraphLocation getLocation();
 
     default Map<String, String> toFlatMap(Function<Object, String> jsonSerializer) {
