@@ -406,8 +406,6 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         throw new IllegalStateException("convert metadata to ParagraphMetadata fail: " + e.getMessage(), e);
                     }
 
-                    var paragraphClass = metadata.getParagraphType().getParagraphClass();
-
                     String document = getResult.getDocuments().get(i);
 
                     return metadata.getParagraphType().createParagraph(document, metadata);

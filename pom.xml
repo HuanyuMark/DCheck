@@ -221,6 +221,9 @@
                                 如果输出到target/generated-sources中会导致IDEA也将其识别为源码，最终就是导致IDEA报错，因为class重复
                             -->
                             <outputDirectory>${delombok.dir}</outputDirectory>
+                            <!--
+                            @see https://github.com/projectlombok/lombok/blob/master/src/delombok/lombok/delombok/FormatPreferences.java
+                            -->
                             <formatPreferences>
                                 <javaLangAsFQN>skip</javaLangAsFQN>
                                 <suppressWarnings>skip</suppressWarnings>

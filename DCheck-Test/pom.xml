@@ -6,6 +6,7 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
+
     <artifactId>DCheck-Test</artifactId>
 
     <dependencies>
@@ -70,4 +71,13 @@
         </dependency>
 
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>jdk21</id>
+            <properties>
+                <java.version>21</java.version>
+            </properties>
+        </profile>
+    </profiles>
 </project>

@@ -390,7 +390,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
     @Override
     public List<Paragraph> getParagraphs(ParagraphGet query) {
-        // TODO: implement this
         var collection = getCollection(query.getCollectionId());
 
         var condition = query.getCondition();
@@ -423,7 +422,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
         cypherBuilder
                 .append(whereStatement)
-                .append(" RETURN apoc.map.removeKey(node {.*}, $VECTOR_PROPERTY) as p");
+                .append(" RETURN apoc.map.removeKey(p {.*}, $VECTOR_PROPERTY) as p");
 
         arguments.put("$VECTOR_PROPERTY", VECTOR_PROPERTY);
 
