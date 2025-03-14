@@ -11,10 +11,13 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedWithParams;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.AnnotationUtils;
 
+import java.beans.ConstructorProperties;
 import java.lang.reflect.Executable;
 import java.lang.reflect.MalformedParametersException;
 import java.lang.reflect.Parameter;
+import java.util.Arrays;
 import java.util.function.Function;
 
 /**
@@ -84,7 +87,9 @@ public class DefaultModeParameterNamesAnnotationIntrospector extends AnnotationI
             if (a.getRawType().getDeclaredConstructors().length == 1) {
                 return creatorBinding;
             }
-            log.warn("multiple constructor found. fail to bind single constructor as JsonCreator: " + a);
+            if (Arrays.stream(a.getRawType().getDeclaredConstructors()).noneMatch(c -> AnnotationUtils.findAnnotation(c, ConstructorProperties.class) != null)) {
+                log.warn("multiple constructor found. fail to bind single constructor as JsonCreator: " + a);
+            }
             return null;
         }
         JsonCreator.Mode mode = ann.mode();

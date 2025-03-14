@@ -4,11 +4,15 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.experimental.SuperBuilder;
+import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
+import org.example.dcheck.spi.CodecProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.core.ParameterizedTypeReference;
 
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -26,6 +30,15 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
     private final ParagraphLocation location;
     @NonNull
     protected final Map<String, Object> raw = new HashMap<>(4);
+
+    private static final Codec codec;
+
+    private static final Type MapType = new ParameterizedTypeReference<Map<String, Object>>() {
+    }.getType();
+
+    static {
+        codec = CodecProvider.getInstance().getCodecs().stream().findFirst().orElseThrow(() -> new IllegalStateException("not found available codec form CodecProvider. please list a Codec Implementation in classpath"));
+    }
 
     public AbstractParagraphMetadata(String documentId, ParagraphLocation location) {
         this.documentId = documentId;

@@ -14,6 +14,7 @@ import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.DCheckTokenizer;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.util.OnceRunner;
 import org.springframework.util.ConcurrentLruCache;
 import org.springframework.util.StringUtils;
 
@@ -49,7 +50,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
     @Getter
     private Codec codec;
 
-    private volatile boolean init;
+    private final OnceRunner runner = OnceRunner.of();
 
     @Getter
     @Setter
@@ -75,14 +76,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     @Override
     public void init() {
-        if (init) return;
-        synchronized (this) {
-            if (init) return;
-
-            doInit();
-
-            init = true;
-        }
+        runner.run(this::doInit);
     }
 
     private void doInit() {

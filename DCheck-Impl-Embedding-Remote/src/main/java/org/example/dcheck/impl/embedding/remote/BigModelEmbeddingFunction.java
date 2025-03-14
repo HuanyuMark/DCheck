@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
@@ -83,6 +84,15 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
     @Nullable
     private Object tokenizerToInject;
+
+    /**
+     * 在该实例创建后，累计消耗的token数量
+     */
+    private final AtomicReference<CallUsage> totalUsage = new AtomicReference<>(new CallUsage());
+
+    public CallUsage getTotalUsage() {
+        return totalUsage.get();
+    }
 
     @Override
     public void init() {
@@ -175,6 +185,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         Class<?> eventClass = Class.forName("org.example.dcheck.api.FileProcessorTokenizerInjectionEvent");
         Method publisher = eventClass.getDeclaredMethod("publish", IEventEmitter.class, Object.class);
         publisher.invoke(null, DuplicateCheckingProvider.getInstance().getChecking(), tokenizer);
+        log.info("tokenizer injected: {}", tokenizer.getClass());
     }
 
     protected TokenizerInitResult createAndInitTokenizer(Headers requestHeaders) {
@@ -219,7 +230,8 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     @NotNull
     private List<Embedding> doRequest(List<String> input) throws Exception {
         try {
-            return doPartition(input)
+            var currentUsage = new CallUsage[]{new CallUsage()};
+            var embeddings = doPartition(input)
                     .stream()
                     .flatMap(part -> {
                         try (var response = client.newCall(embeddingRequestTemplate.newBuilder()
@@ -245,18 +257,22 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                             if (res.getData().size() != part.size()) {
                                 throw new RuntimeException(new IOException("response data size is not " + part.size()));
                             }
-                            log.debug("document batch count {}. usage: {}", part.size(), res.getUsage());
+                            currentUsage[0] = currentUsage[0].addWith(res.getUsage());
                             return res.getData().stream().sorted(Comparator.comparingInt(IndexEmbeddingRecord::getIndex))
                                     .map(e -> Embedding.from(e.getEmbedding(), getName()));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                     }).collect(Collectors.toList());
+            log.debug("document batch count {}. usage: {}", input.size(), currentUsage[0]);
+
+            totalUsage.getAndAccumulate(currentUsage[0], CallUsage::addWith);
+
+            return embeddings;
         } catch (Throwable e) {
             if (e.getCause() instanceof IOException) throw (IOException) e.getCause();
             throw new RuntimeException(e);
         }
-
     }
 
     @Override
@@ -266,26 +282,29 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
     @NotNull
     private List<List<String>> doPartition(List<String> input) {
+        List<String> partition;
         var fixedTokenSizeList = new ArrayList<List<String>>();
         int totalToken = 0;
-        fixedTokenSizeList.add(new ArrayList<>());
+        fixedTokenSizeList.add((partition = new ArrayList<>()));
         for (var seg : input) {
-            if ((totalToken += tokenizer.applyAsInt(seg)) > requestMaxToken) {
-                fixedTokenSizeList.add(new ArrayList<>());
-                totalToken = 0;
+            int segTokens = tokenizer.applyAsInt(seg);
+            if ((totalToken += segTokens) > requestMaxToken) {
+                fixedTokenSizeList.add((partition = new ArrayList<>()));
+                totalToken = segTokens;
             }
-            fixedTokenSizeList.get(fixedTokenSizeList.size() - 1).add(seg);
+            partition.add(seg);
         }
 
         // repartition if needed
         return fixedTokenSizeList.stream().flatMap(part -> CollectionUtils.partition(part, maxInputLength).stream()).collect(Collectors.toList());
     }
 
-    @Data
+    @Value
+    @NonNull
     protected static class TokenizerInitResult {
-        private final ToIntFunction<String> tokenizerFuc;
+        ToIntFunction<String> tokenizerFuc;
         @Nullable
-        private final Object tokenizer;
+        Object tokenizer;
     }
 
     @Override
@@ -298,35 +317,51 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         return doRequest(Arrays.asList(documents));
     }
 
-    @Data
+    @Value
+    @NonNull
     protected static class CreateEmbeddingRequest {
         @NonNull
-        private final String model;
+        String model;
         @NonNull
-        private final List<String> input;
-        private final Integer dimensions;
+        List<String> input;
+        Integer dimensions;
     }
 
-    @Data
+    @Value
+    @NonNull
     protected static class CreateEmbeddingResponse {
         @NonNull
-        private final String model;
+        String model;
         @NonNull
-        private final List<IndexEmbeddingRecord> data;
-        private final CallUsage usage;
+        List<IndexEmbeddingRecord> data;
+        CallUsage usage;
     }
 
-    @Data
+    @Value
+    @NonNull
     protected static class IndexEmbeddingRecord {
-        private final int index;
-        private final float @NonNull [] embedding;
+        int index;
+        float @NonNull [] embedding;
     }
 
+    @Value
     @RequiredArgsConstructor
     protected static class CallUsage {
-        private int completion_tokens;
-        private int prompt_tokens;
-        private int total_tokens;
+        long completion_tokens;
+        long prompt_tokens;
+        long total_tokens;
+
+        public CallUsage() {
+            this(0, 0, 0);
+        }
+
+        public CallUsage addWith(CallUsage other) {
+            return new CallUsage(
+                    completion_tokens + other.completion_tokens,
+                    prompt_tokens + other.prompt_tokens,
+                    total_tokens + other.total_tokens
+            );
+        }
     }
 
     @Override

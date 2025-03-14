@@ -15,9 +15,16 @@
             <artifactId>DCheck-API</artifactId>
         </dependency>
 
+        <!--
+                        <dependency>
+                            <groupId>org.example.dcheck</groupId>
+                            <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
+                        </dependency>
+        -->
+
         <dependency>
             <groupId>org.example.dcheck</groupId>
-            <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
+            <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
         </dependency>
 
         <dependency>
@@ -74,9 +81,10 @@
 
     <profiles>
         <profile>
-            <id>jdk21</id>
+            <id>DCheck-Test:jre21</id>
             <properties>
                 <java.version>21</java.version>
+                <maven.compiler.release>${java.version}</maven.compiler.release>
             </properties>
         </profile>
     </profiles>

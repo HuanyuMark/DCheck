@@ -1,6 +1,9 @@
 package org.example.dcheck.impl;
 
+import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.configuration.BootloaderSettings;
 import org.neo4j.configuration.GraphDatabaseSettings;
@@ -21,7 +24,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -33,31 +36,36 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 @Slf4j
 public class Neo4jDbms {
-    private final static boolean SUPPORT_JDK21_VECTOR_API;
+    public final static boolean SUPPORT_JDK21_VECTOR_API;
+    protected static final Resource[] pluginResources;
 
     static {
-        boolean res;
-        try {
-            Class.forName("jdk.incubator.vector.Vector");
-            res = true;
-        } catch (ClassNotFoundException e) {
-            res = false;
-        }
-        SUPPORT_JDK21_VECTOR_API = res;
+        SUPPORT_JDK21_VECTOR_API = determineSupportedJDK21VectorAPI();
         if (SUPPORT_JDK21_VECTOR_API) {
             log.info("JDK21 Vector API is supported");
         }
     }
 
-    // extract plugin jar in plugin_dir
     static {
-        var resolver = new PathMatchingResourcePatternResolver();
         try {
-            Files.createDirectories(GraphDatabaseSettings.plugin_dir.defaultValue());
-            Resource[] resources = resolver.getResources("classpath*:neo4j/plugins/*");
-            for (Resource resource : resources) {
+            pluginResources = new PathMatchingResourcePatternResolver().getResources("classpath*:neo4j/plugins/*");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Getter
+    @Setter
+    @NonNull
+    private Path pluginDir = Path.of("dcheck-env", "vectordb", "embedded-neo4j-plugin");
+
+    // extract plugin jar in plugin_dir
+    {
+        try {
+            Files.createDirectories(pluginDir);
+            for (Resource resource : pluginResources) {
                 String filename = Objects.requireNonNull(resource.getFilename());
-                Path target = GraphDatabaseSettings.plugin_dir.defaultValue().resolve(filename);
+                Path target = pluginDir.resolve(filename);
                 if (Files.exists(target)) continue;
                 try (InputStream in = resource.getInputStream(); OutputStream out = Files.newOutputStream(target)) {
                     in.transferTo(out);
@@ -65,6 +73,15 @@ public class Neo4jDbms {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean determineSupportedJDK21VectorAPI() {
+        try {
+            Class.forName("jdk.incubator.vector.Vector");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 
@@ -97,9 +114,13 @@ public class Neo4jDbms {
             builder.setConfig(BootloaderSettings.additional_jvm, "--add-modules=jdk.incubator.vector");
         }
         // enable apoc.map.* procedures
-        var procedures = Collections.singletonList("apoc.map.*");
+
+        var procedures = new ArrayList<>(GraphDatabaseSettings.procedure_allowlist.defaultValue());
+        procedures.addAll(GraphDatabaseSettings.procedure_unrestricted.defaultValue());
+        procedures.add("apoc*");
         builder.setConfig(GraphDatabaseSettings.procedure_allowlist, procedures);
         builder.setConfig(GraphDatabaseSettings.procedure_unrestricted, procedures);
+        builder.setConfig(GraphDatabaseSettings.plugin_dir, pluginDir);
         return builder;
     }
 

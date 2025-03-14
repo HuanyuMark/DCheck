@@ -21,6 +21,7 @@ import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
 import org.neo4j.kernel.impl.core.NodeEntity;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.util.ConcurrentLruCache;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -65,12 +66,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected static final Label COLLECTION_METADATA_LABEL = Label.label("CollectionMetadata");
     public static final String DOCUMENT_ID_PROPERTY = "documentId";
 
-    public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 5;
+    public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 50;
     protected static final String EMBEDDING_FUC_DETAILS_PROPERTY = "_$$_embedding_func_details_$$_";
     protected static final String QueryEmbeddingCypher = MessageFormat.format(
             """
                     MATCH (p: {PARAGRAPH_LABEL})
-                    WHERE p.{DOCUMENT_ID_PROPERTY} == $queryDocument
+                    WHERE p.{DOCUMENT_ID_PROPERTY} = $queryDocument
                     RETURN p
                     """,
             Map.of(
@@ -118,7 +119,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         return vectorIndexSettings == null ? (vectorIndexSettings = new HashMap<>()) : vectorIndexSettings;
     }
 
-    protected String getQueryParagraphCypher(Collection<String> includeMetadata) {
+    protected final ConcurrentLruCache<Collection<String>, String> queryParagraphCypherCache = new ConcurrentLruCache<>(25, includeMetadata -> {
         var includeProperties = includeMetadata.isEmpty() ? ".*" : includeMetadata.stream().map(field -> {
             String property = field.trim();
             if (property.isEmpty()) {
@@ -129,7 +130,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         var cypher = MessageFormat.format(
                 """
                         MATCH (p: {PARAGRAPH_LABEL})
-                        WHERE p.{DOCUMENT_ID_PROPERTY} != $selfDocumentId
+                        WHERE p.{DOCUMENT_ID_PROPERTY} <> $selfDocumentId
                         CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
                         YIELD node,score
                         RETURN apoc.map.removeKey(node {{includeProperties}}, $VECTOR_PROPERTY) as node,score
@@ -141,6 +142,10 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 ));
         log.debug("QueryParagraphCypher:\n {}", cypher);
         return cypher;
+    });
+
+    protected String getQueryParagraphCypher(Collection<String> includeMetadata) {
+        return queryParagraphCypherCache.get(includeMetadata);
     }
 
     @Override
@@ -211,7 +216,21 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     }
 
     @Override
-    public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
+    public void inited() throws Exception {
+        super.inited();
+        embeddingFunction.inited();
+    }
+
+    @Override
+    public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery _query) {
+
+        ParagraphRelevancyQuery query;
+        try {
+            query = _query.withDocumentId(codec.serialize(_query.getDocumentId(), String.class));
+        } catch (IOException e) {
+            throw new IllegalStateException("serialize documentId '" + _query.getDocumentId() + "' fail: " + e.getMessage(), e);
+        }
+
         var collection = getCollection(query.getCollectionId());
         DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         try (var tx = collection.beginTx()) {
@@ -286,7 +305,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             flatMetadata.remove(VECTOR_PROPERTY);
             metadata = codec.convertTo(flatMetadata.entrySet().stream().map(e -> {
                 try {
-                    return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getKey(), Object.class));
+                    return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
                 } catch (IOException ex) {
                     throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
                 }
@@ -335,10 +354,13 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     // flat metadata would be great for neo4j match performance
                     // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
                     for (Map.Entry<String, Object> kv : record.getMetadata().entrySet()) {
-                        if (kv.getKey().equals(DOCUMENT_ID_PROPERTY) || kv.getKey().equals(VECTOR_PROPERTY)) {
+                        if (kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(CONTENT_PROPERTY)) {
                             throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
                         }
                         node.setProperty(kv.getKey(), codec.serialize(kv.getValue(), String.class));
+                    }
+                    if (!node.hasProperty(DOCUMENT_ID_PROPERTY)) {
+                        throw new IllegalArgumentException("invalid metadata: '" + DOCUMENT_ID_PROPERTY + "' is required");
                     }
                 }
             }
@@ -487,12 +509,10 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         initedCollections.remove(collectionId);
     }
 
-
-    protected void initCollectionIfNeeded(String collectionId, ManageableGraphDatabaseService collection) {
-        if (!initedCollections.add(collectionId)) {
-            return;
-        }
-        try (var tx = collection.beginTx()) {
+    protected Transaction initIndex(String collectionId, ManageableGraphDatabaseService collection) {
+        Transaction tx = collection.beginTx();
+        try {
+            boolean schemaUpdated = false;
             try {
                 // try get vector index
                 tx.schema().getIndexByName(VECTOR_INDEX);
@@ -510,6 +530,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
                 creator.on(VECTOR_PROPERTY)
                         .create();
+
+                schemaUpdated = true;
             }
             try {
                 // try get document id index
@@ -521,8 +543,26 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                         .withIndexType(IndexType.RANGE)
                         .on(DOCUMENT_ID_PROPERTY)
                         .create();
+                schemaUpdated = true;
             }
 
+            if (schemaUpdated) {
+                tx.commit();
+                return collection.beginTx();
+            }
+            return tx;
+        } catch (Throwable e) {
+            tx.rollback();
+            throw e;
+        }
+    }
+
+
+    protected void initCollectionIfNeeded(String collectionId, ManageableGraphDatabaseService collection) {
+        if (!initedCollections.add(collectionId)) {
+            return;
+        }
+        try (var tx = initIndex(collectionId, collection)) {
             tx.findNodes(COLLECTION_METADATA_LABEL).stream().findFirst().ifPresentOrElse(node -> {
                 var properties = node.getAllProperties();
                 if (!properties.get(EMBEDDING_FUC_PROPERTY).equals(embeddingFunction.getName())) {

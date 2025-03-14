@@ -15,18 +15,24 @@ public abstract class LazySplitter implements DCheckDocumentSplitter {
 
     protected DocumentSplitter delegate = createInitSplitter();
 
-    protected volatile boolean isLoaded;
+    protected volatile boolean inited = false;
 
     @Override
     public List<TextSegment> split(Document document) {
-        load();
         return doSplit(document);
     }
 
     @Override
     public void init() throws Exception {
-        if (delegate instanceof DCheckComponent) {
-            ((DCheckComponent) delegate).init();
+        if (inited) return;
+        synchronized (this) {
+            if (inited) return;
+
+            if (delegate instanceof DCheckComponent) {
+                ((DCheckComponent) delegate).init();
+            }
+
+            inited = true;
         }
     }
 
@@ -35,24 +41,12 @@ public abstract class LazySplitter implements DCheckDocumentSplitter {
         if (delegate instanceof DCheckComponent) {
             ((DCheckComponent) delegate).inited();
         }
-        load();
-    }
-
-    private void load() {
-        if (!isLoaded) {
-            synchronized (this) {
-                if (!isLoaded) {
-                    delegate = createLoadedSplitter();
-                    isLoaded = true;
-                }
-            }
-        }
+        delegate = createLoadedSplitter();
     }
 
     @Override
     public List<TextSegment> splitAll(List<Document> documents) {
-        load();
-        return DCheckDocumentSplitter.super.splitAll(documents);
+        return delegate.splitAll(documents);
     }
 
     protected List<TextSegment> doSplit(Document document) {
@@ -61,7 +55,9 @@ public abstract class LazySplitter implements DCheckDocumentSplitter {
 
     protected abstract DocumentSplitter createInitSplitter();
 
-    protected abstract DocumentSplitter createLoadedSplitter();
+    protected DocumentSplitter createLoadedSplitter() {
+        return delegate;
+    }
 
     @Override
     public String toString() {

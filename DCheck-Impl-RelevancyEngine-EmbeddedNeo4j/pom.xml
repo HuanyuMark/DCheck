@@ -10,9 +10,8 @@
 
     <properties>
         <java.version>21</java.version>
-        <neo4j.version>2025.01.0</neo4j.version>
-        <!--        <maven.compiler.source>17</maven.compiler.source>-->
-        <!--        <maven.compiler.target>17</maven.compiler.target>-->
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <neo4j.version>2025.02.0</neo4j.version>
     </properties>
 
     <dependencies>
@@ -54,6 +53,15 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.neo4j.procedure/apoc -->
+        <!--
+                <dependency>
+                    <groupId>org.neo4j.procedure</groupId>
+                    <artifactId>apoc</artifactId>
+                    <version>4.4.0.35</version>
+                </dependency>
+        -->
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -66,6 +74,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
+                <version>3.4.0</version>
                 <configuration>
                     <filesets>
                         <fileset>
@@ -90,7 +99,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <includeArtifactIds>apoc-core</includeArtifactIds>
+                            <includeGroupIds>org.neo4j.procedure</includeGroupIds>
                             <outputDirectory>${project.basedir}/src/main/resources/neo4j/plugins</outputDirectory>
                             <overWriteReleases>false</overWriteReleases>
                             <overWriteSnapshots>false</overWriteSnapshots>

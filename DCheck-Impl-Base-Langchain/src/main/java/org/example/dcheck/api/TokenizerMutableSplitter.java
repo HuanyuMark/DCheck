@@ -1,10 +1,14 @@
 package org.example.dcheck.api;
 
+import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.DocumentSplitter;
+import dev.langchain4j.data.segment.TextSegment;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.example.dcheck.util.UtilConst;
+
+import java.util.List;
 
 /**
  * Date: 2025/3/11
@@ -28,17 +32,18 @@ public abstract class TokenizerMutableSplitter extends LazySplitter {
 
     @Override
     public void inited() throws Exception {
+        super.inited();
         tokenizer.inited();
     }
 
     @Override
-    protected DocumentSplitter createLoadedSplitter() {
+    protected List<TextSegment> doSplit(Document document) {
         if (tokenizer != DCheckTokenizer.NONE) {
-            return createLoadedSplitter(tokenizer);
+            delegate = createLoadedSplitter(tokenizer);
         } else {
-            log.warn("tokenizer is not injected, use default splitter");
+            log.warn("tokenizer is not injected, use default splitter. to resolve this WARNING, publish '{}' to inject tokenizer after", FileProcessorTokenizerInjectionEvent.class);
         }
-        return delegate;
+        return super.doSplit(document);
     }
 
     protected abstract DocumentSplitter createLoadedSplitter(DCheckTokenizer tokenizer);

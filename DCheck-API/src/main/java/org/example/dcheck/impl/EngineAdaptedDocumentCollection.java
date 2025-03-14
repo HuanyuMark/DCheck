@@ -46,19 +46,21 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
 
     @Override
     public void addDocument(List<Document> documents) {
-        doWithNormalOperationLock(() -> {
-            // ...
-            var added = hasDocument(documents.stream().map(Document::getId).collect(Collectors.toList()));
+        var added = hasDocument(documents.stream().map(Document::getId).collect(Collectors.toList()));
 
-            var batch = IntStream.range(0, documents.size())
-                    .filter(i -> !added.get(i))
-                    .mapToObj(documents::get)
-                    .flatMap(document -> DocumentProcessorProvider
-                            .getInstance()
-                            .splitToParagraphs(document)
-                    ).collect(Collectors.toList());
-            engine.addParagraph(new ParagraphRelevancyCreation(id, batch));
-        });
+        var batch = IntStream.range(0, documents.size())
+                .filter(i -> !added.get(i))
+                .mapToObj(documents::get)
+                .flatMap(document -> DocumentProcessorProvider
+                        .getInstance()
+                        .splitToParagraphs(document)
+                ).collect(Collectors.toList());
+
+        if (batch.isEmpty()) {
+            return;
+        }
+
+        doWithNormalOperationLock(() -> engine.addParagraph(new ParagraphRelevancyCreation(id, batch)));
     }
 
     @Override

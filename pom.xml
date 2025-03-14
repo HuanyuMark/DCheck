@@ -34,7 +34,7 @@
         <lombok.version>1.18.36</lombok.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- 原始源码目录，我们后边要将源码目录切换到delombok.dir中 -->
         <origin.source.dir>src/main/java</origin.source.dir>
         <!-- 打包生成source时使用的目录 -->

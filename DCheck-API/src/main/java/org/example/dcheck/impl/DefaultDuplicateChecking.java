@@ -8,7 +8,7 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
-import org.example.dcheck.util.PreloadClassLoader;
+import org.example.dcheck.support.PreloadClassLoader;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;

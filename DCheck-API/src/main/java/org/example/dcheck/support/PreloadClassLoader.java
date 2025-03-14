@@ -1,4 +1,4 @@
-package org.example.dcheck.util;
+package org.example.dcheck.support;
 
 import lombok.Builder;
 import lombok.NoArgsConstructor;
