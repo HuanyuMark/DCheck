@@ -184,9 +184,14 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <compilerArgument>
-                        -parameters
-                    </compilerArgument>
+                    <compilerArgs>
+                        <arg>
+                            -parameters
+                        </arg>
+                        <arg>
+                            -Xlint:-restricted
+                        </arg>
+                    </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

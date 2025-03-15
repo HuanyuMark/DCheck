@@ -251,7 +251,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                             }
                             currentUsage[0] = currentUsage[0].addWith(res.getUsage());
                             return res.getData().stream().sorted(Comparator.comparingInt(IndexEmbeddingRecord::getIndex))
-                                    .map(e -> Embedding.from(e.getEmbedding(), getName()));
+                                    .map(e -> Embedding.from(e.getEmbedding()));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
