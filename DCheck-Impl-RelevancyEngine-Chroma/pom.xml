@@ -30,12 +30,6 @@
             <artifactId>DCheck-Reranker</artifactId>
         </dependency>
 
-        <!--        <dependency>-->
-        <!--            <groupId>org.example.dcheck</groupId>-->
-        <!--            <artifactId>DCheck-Impl-Default-Embedding</artifactId>-->
-        <!--            <version>0.0.1</version>-->
-        <!--        </dependency>-->
-
         <!-- Chroma SDK: remove useless deps -->
         <dependency>
             <groupId>io.github.amikos-tech</groupId>
