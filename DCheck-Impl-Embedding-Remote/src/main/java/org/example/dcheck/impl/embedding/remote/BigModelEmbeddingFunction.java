@@ -70,7 +70,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     public BigModelEmbeddingFunction(String baseUrl, String modelName) {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
         this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
-        var details = new HashMap<String, Object>();
+        Map<String, Object> details = new HashMap<>();
         details.put("baseUrl", getBaseUrl());
         details.put("modelName", getModelName());
         details.put("dimension", getDimension());
@@ -107,7 +107,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
             if (apiKey == null) {
                 throw new IllegalArgumentException("missing required config '" + API_KEY_CONFIG + "'");
             }
-            var requestHeaders = Headers.of(new HashMap<String, String>() {{
+            Headers requestHeaders = Headers.of(new HashMap<String, String>() {{
                 put("Accept", "application/json");
                 put("Content-Type", "application/json");
                 put("User-Agent", Constant.HTTP_USER_AGENT);
@@ -143,7 +143,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                 requestMaxToken = DEFAULT_REQUEST_MAX_TOKEN;
             }
 
-            var tokenizerInitResult = createAndInitTokenizer(requestHeaders);
+            TokenizerInitResult tokenizerInitResult = createAndInitTokenizer(requestHeaders);
 
             tokenizer = tokenizerInitResult.getTokenizerFuc();
 

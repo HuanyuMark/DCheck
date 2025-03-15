@@ -1,6 +1,5 @@
 package org.example.dcheck.api;
 
-import lombok.var;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 
 import java.util.List;
@@ -43,7 +42,7 @@ public interface DuplicateChecking extends AutoCloseable, IEventEmitter {
      * 3. {@link #check(Check, DocumentCollection)}
      */
     default CheckResult check(Check check, List<Document> tempCheckArea) {
-        try (var collection = getRelevancyEngine().newTempDocumentCollection()) {
+        try (TempDocumentCollection collection = getRelevancyEngine().newTempDocumentCollection()) {
             collection.addDocument(tempCheckArea);
             return check(check, collection);
         }

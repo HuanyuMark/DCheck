@@ -1,7 +1,6 @@
 package org.example.dcheck.api.embedding;
 
 import lombok.Getter;
-import lombok.var;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -49,7 +48,7 @@ public class Embedding {
 
     @Override
     public String toString() {
-        var b = new StringBuilder(getClass().getSimpleName()).append('(');
+        StringBuilder b = new StringBuilder(getClass().getSimpleName()).append('(');
 
         int i;
         for (i = 0; i < embedding.length && i <= TRUNCATE_COUNT; i++) {

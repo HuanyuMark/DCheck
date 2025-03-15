@@ -106,11 +106,11 @@ public class DefaultReranker implements Reranker {
         RequestTemplate.init();
 
 
-        try (var resp = getClient().newCall(RequestTemplate.INIT.getRequest()).execute()) {
+        try (Response resp = getClient().newCall(RequestTemplate.INIT.getRequest()).execute()) {
             if (resp.body() == null) {
                 throw new IOException("response body is null");
             }
-            var initResponse = (BaseResponse) codec.deserialize(new String(resp.body().bytes()), BaseResponse.class);
+            BaseResponse initResponse = codec.deserialize(new String(resp.body().bytes()), BaseResponse.class);
             if (initResponse.isSuccess()) {
                 return;
             }
@@ -137,7 +137,7 @@ public class DefaultReranker implements Reranker {
         assert query.getParagraphs() != null;
         try {
             return Failsafe.with(retryPolicy).get(() -> {
-                try (var r = getClient().newCall(
+                try (Response r = getClient().newCall(
                         RequestTemplate.RERANK.getBuilder()
                                 .post(RequestBody.create((String) codec.serialize(
                                         new RerankRequest(

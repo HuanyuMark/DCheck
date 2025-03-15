@@ -28,9 +28,8 @@ import java.util.stream.Collectors;
  * @author 三石而立Sunsy
  */
 @Slf4j
-@SuppressWarnings({"unused", "deprecated"})
+@SuppressWarnings("unused")
 class Providers {
-
     static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
     static final Properties ENVIRONMENT_VARIABLES = AccessController.doPrivileged((PrivilegedAction<Map<String, String>>) System::getenv).entrySet().stream().collect(Properties::new, (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
     private final static ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
@@ -54,6 +53,7 @@ class Providers {
         return results.stream().map(AdaptedOrdered::new).sorted(Comparator.comparing(Ordered::getOrder)).map(AdaptedOrdered::getIns).collect(Collectors.toList());
     }
 
+    @SuppressWarnings("all")
     static <Service> Service findImpl(Class<Service> serviceClass, String specifyKey) {
         ServiceLoader<Service> loader = ServiceLoader.load(serviceClass);
         Iterator<Service> allImpl = loader.iterator();

@@ -1,7 +1,6 @@
 package org.example.dcheck.api;
 
 import lombok.NonNull;
-import lombok.var;
 import org.springframework.cglib.beans.BeanMap;
 
 import java.util.HashMap;
@@ -28,7 +27,7 @@ public interface ParagraphMetadata extends Map<String, Object> {
 
     default Map<String, String> toFlatMap(Function<Object, String> jsonSerializer) {
         BeanMap beanMap = BeanMap.create(this);
-        var res = new HashMap<String, String>((int) Math.ceil(beanMap.size() / 0.75f));
+        Map<String, String> res = new HashMap<>((int) Math.ceil(beanMap.size() / 0.75f));
         for (Object key : beanMap.keySet()) {
             if (!(key instanceof CharSequence)) continue;
             Object value = beanMap.get(key);

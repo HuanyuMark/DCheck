@@ -3,7 +3,6 @@ package org.example.dcheck.api;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
-import lombok.var;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -31,7 +30,7 @@ public class MetadataMatchCondition {
     private final Map<String, Set<String>> nins;
 
     public void validate() throws IllegalArgumentException {
-        var uniqueFields = new HashSet<>(eqs.keySet());
+        Set<String> uniqueFields = new HashSet<>(eqs.keySet());
         for (String field : ins.keySet()) {
             if (uniqueFields.add(field)) {
                 continue;

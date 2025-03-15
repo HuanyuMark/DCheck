@@ -184,9 +184,11 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
+                    <parameters>true</parameters>
                     <compilerArgs>
+                        <!--suppress maven.compiler.source maven.compiler.target deprecated warning in 3.13.0 version -->
                         <arg>
-                            -parameters
+                            -Xlint:-options
                         </arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
