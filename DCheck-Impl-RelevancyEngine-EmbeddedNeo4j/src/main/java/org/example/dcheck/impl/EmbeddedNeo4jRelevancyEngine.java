@@ -45,16 +45,6 @@ import java.util.stream.StreamSupport;
 @Slf4j
 @SuppressWarnings("unused")
 public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngine {
-    /////
-    //@see https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/vector-indexes/
-    // here are builtin api config
-    public static final String DB_ROOT = "relevancy-engine.embedded-neo4j.data-path";
-    public static final String SIMILARITY_FUNCTION = "relevancy-engine.embedded-neo4j.config.similarity_function";
-    public static final String QUANTIZATION_ENABLE = "relevancy-engine.embedded-neo4j.config.quantization.enable";
-    public static final String HNSW_M = "relevancy-engine.embedded-neo4j.config.hnsw.m";
-    public static final String HNSW_EF_CONSTRUCTION = "relevancy-engine.embedded-neo4j.config.hnsw.ef_construction";
-    /////
-
     protected static final Label PARAGRAPH_LABEL = Label.label("Paragraph");
     protected static final String VECTOR_INDEX = "vector_index";
     protected static final String DOCUMENT_ID_INDEX = "document_id_index";
@@ -163,28 +153,28 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         } catch (IOException e) {
             throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
         }
-        var dbRoot = apiConfig.getProperty(DB_ROOT);
+        var dbRoot = apiConfig.getProperty(EmbeddedNeo4jConfigKey.DB_ROOT);
         if (!StringUtils.hasText(dbRoot)) {
-            throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "'");
+            throw new IllegalStateException("invalid config '" + EmbeddedNeo4jConfigKey.DB_ROOT + "=" + dbRoot + "'");
         }
         Path dbRootPath;
         try {
             dbRootPath = Paths.get(dbRoot);
         } catch (Exception e) {
-            throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
+            throw new IllegalStateException("invalid config '" + EmbeddedNeo4jConfigKey.DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
         }
         dbms = new Neo4jDbms(dbRootPath);
 
-        String similarityFunc = apiConfig.getProperty(SIMILARITY_FUNCTION);
-        String quantizationEnable = apiConfig.getProperty(QUANTIZATION_ENABLE);
-        String hnswM = apiConfig.getProperty(HNSW_M);
-        String hnswEfConstruction = apiConfig.getProperty(HNSW_EF_CONSTRUCTION);
+        String similarityFunc = apiConfig.getProperty(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
+        String quantizationEnable = apiConfig.getProperty(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
+        String hnswM = apiConfig.getProperty(EmbeddedNeo4jConfigKey.HNSW_M);
+        String hnswEfConstruction = apiConfig.getProperty(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
         if (similarityFunc != null) {
             getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
         }
         if (quantizationEnable != null) {
             if (!"true".equalsIgnoreCase(quantizationEnable) && !"false".equalsIgnoreCase(quantizationEnable)) {
-                throw new IllegalArgumentException("invalid config '" + QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
+                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
             }
             getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, Boolean.parseBoolean(quantizationEnable));
         }
@@ -192,14 +182,14 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             try {
                 getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, Integer.parseInt(hnswM));
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
+                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
             }
         }
         if (hnswEfConstruction != null) {
             try {
                 getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, Integer.parseInt(hnswEfConstruction));
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
+                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
             }
         }
 
