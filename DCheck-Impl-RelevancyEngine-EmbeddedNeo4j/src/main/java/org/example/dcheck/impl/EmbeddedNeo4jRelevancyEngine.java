@@ -241,7 +241,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                             Paragraph paragraph = mapToParagraph(properties);
                             return new AbstractMap.SimpleEntry<>(new UniversalParagraph(new SimpleParagraph(paragraph::getContent, paragraph.getMetadata().getParagraphType(), paragraph.getMetadata().getLocation()),
                                     paragraph.getMetadata()),
-                                    Embedding.from((float[]) properties.get(VECTOR_PROPERTY), embeddingFunctionName));
+                                    Embedding.from((float[]) properties.get(VECTOR_PROPERTY)));
                         });
             } else {
                 // do partition for batch

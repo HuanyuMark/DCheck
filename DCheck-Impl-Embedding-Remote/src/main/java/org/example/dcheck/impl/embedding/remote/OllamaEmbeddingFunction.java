@@ -91,7 +91,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
         CreateEmbeddingResponse response = createEmbedding(
                 new CreateEmbeddingRequest(modelName, Collections.singletonList(query))
         );
-        return new Embedding(response.getEmbeddings().get(0), getName());
+        return new Embedding(response.getEmbeddings().get(0));
     }
 
     @Override
@@ -99,7 +99,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
         CreateEmbeddingResponse response = createEmbedding(
                 new CreateEmbeddingRequest(modelName, documents)
         );
-        return response.getEmbeddings().stream().map(e -> Embedding.from(e, getName())).collect(Collectors.toList());
+        return response.getEmbeddings().stream().map(Embedding::from).collect(Collectors.toList());
     }
 
     @Override

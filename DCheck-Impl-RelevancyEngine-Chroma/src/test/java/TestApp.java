@@ -57,7 +57,7 @@ public class TestApp {
 
         @Override
         public Embedding embedQuery(String query) throws Exception {
-            return Embedding.from(new float[]{1f, 2f, 3f}, getName());
+            return Embedding.from(new float[]{1f, 2f, 3f});
         }
 
         @Override
