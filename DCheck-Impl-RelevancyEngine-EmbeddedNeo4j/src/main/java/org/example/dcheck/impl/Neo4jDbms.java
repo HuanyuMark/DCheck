@@ -1,9 +1,6 @@
 package org.example.dcheck.impl;
 
-import lombok.Getter;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.configuration.BootloaderSettings;
 import org.neo4j.configuration.GraphDatabaseSettings;
@@ -15,18 +12,11 @@ import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.ResultTransformer;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.fs.FileUtils;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
@@ -37,42 +27,11 @@ import java.util.concurrent.ConcurrentSkipListMap;
 @Slf4j
 public class Neo4jDbms {
     public final static boolean SUPPORT_JDK21_VECTOR_API;
-    protected static final Resource[] pluginResources;
 
     static {
         SUPPORT_JDK21_VECTOR_API = determineSupportedJDK21VectorAPI();
         if (SUPPORT_JDK21_VECTOR_API) {
             log.info("JDK21 Vector API is supported");
-        }
-    }
-
-    static {
-        try {
-            pluginResources = new PathMatchingResourcePatternResolver().getResources("classpath*:neo4j/plugins/*");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Getter
-    @Setter
-    @NonNull
-    private Path pluginDir = Path.of("dcheck-env", "vectordb", "embedded-neo4j-plugin");
-
-    // extract plugin jar in plugin_dir
-    {
-        try {
-            Files.createDirectories(pluginDir);
-            for (Resource resource : pluginResources) {
-                String filename = Objects.requireNonNull(resource.getFilename());
-                Path target = pluginDir.resolve(filename);
-                if (Files.exists(target)) continue;
-                try (InputStream in = resource.getInputStream(); OutputStream out = Files.newOutputStream(target)) {
-                    in.transferTo(out);
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -113,15 +72,6 @@ public class Neo4jDbms {
             //@see https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/vector-indexes/#performance
             builder.setConfig(BootloaderSettings.additional_jvm, "--add-modules=jdk.incubator.vector");
         }
-        // enable apoc.map.* procedures
-
-        var procedures = new ArrayList<>(GraphDatabaseSettings.procedure_allowlist.defaultValue());
-        procedures.addAll(GraphDatabaseSettings.procedure_unrestricted.defaultValue());
-        procedures.add("apoc*");
-        procedures.add("apoc.*");
-        builder.setConfig(GraphDatabaseSettings.procedure_allowlist, procedures);
-        builder.setConfig(GraphDatabaseSettings.procedure_unrestricted, procedures);
-        builder.setConfig(GraphDatabaseSettings.plugin_dir, pluginDir);
         return builder;
     }
 
