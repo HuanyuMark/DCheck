@@ -1,7 +1,6 @@
 package org.example.dcheck.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.IEventEmitter;
 import org.example.dcheck.util.UtilConst;
 import org.jetbrains.annotations.NotNull;
@@ -26,10 +25,10 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
 
     // 为了避免在eventClassCache.computeIfAbsent()的mapper中递归调用search所以需要单独将生成逻辑以及其递归部分抽离出来
     protected List<Class<?>> doSearchClass(Class<?> startSearch) {
-        var result = new ArrayList<Class<?>>();
+        List<Class<?>> result = new ArrayList<>();
         for (Class<?> search = startSearch; search != Object.class && search != null; search = search.getSuperclass()) {
             result.add(search);
-            var interfaces = search.getInterfaces();
+            Class<?>[] interfaces = search.getInterfaces();
             result.addAll(Arrays.asList(interfaces));
             for (Class<?> inter : interfaces) {
                 result.addAll(doSearchClass(inter));
@@ -51,11 +50,11 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
     @Override
     @SuppressWarnings("unchecked")
     public <T> CompletableFuture<?> emitEvent(Class<T> evnetClass, T event) {
-        var eventClasses = searchEventClass(evnetClass);
+        List<Class<?>> eventClasses = searchEventClass(evnetClass);
 
-        var allEventLis = new ArrayList<Set<Function<?, CompletableFuture<?>>>>(1);
-        for (var evtClass : eventClasses) {
-            var lis = bus.get(evtClass);
+        List<Set<Function<?, CompletableFuture<?>>>> allEventLis = new ArrayList<>(1);
+        for (Class<?> evtClass : eventClasses) {
+            Set<Function<?, CompletableFuture<?>>> lis = bus.get(evtClass);
             if (lis != null) {
                 allEventLis.add(lis);
             }
@@ -64,8 +63,8 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
             log.warn("emitter: no listener for event type: {}, content: {}", eventClasses, event);
             return UtilConst.emptyFuture();
         }
-        var result = new ArrayList<CompletableFuture<?>>(allEventLis.size());
-        for (var lis : allEventLis) {
+        List<CompletableFuture<?>> result = new ArrayList<>(allEventLis.size());
+        for (Set<Function<?, CompletableFuture<?>>> lis : allEventLis) {
             result.add(CompletableFuture.allOf(lis.stream().flatMap(l -> {
                 try {
                     return Stream.of(((Function<Object, CompletableFuture<?>>) l).apply(event));
@@ -115,7 +114,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
 
     @Override
     public <E> void removeListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
-        var ls = bus.get(event);
+        Set<Function<?, CompletableFuture<?>>> ls = bus.get(event);
         if (ls == null) {
             log.warn("remove: no listener for event {}", event);
             return;

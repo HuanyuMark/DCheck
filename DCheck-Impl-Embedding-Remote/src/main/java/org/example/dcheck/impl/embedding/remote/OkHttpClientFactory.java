@@ -1,8 +1,8 @@
 package org.example.dcheck.impl.embedding.remote;
 
 import lombok.Getter;
-import lombok.var;
 import okhttp3.OkHttpClient;
+import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.spi.ConfigProvider;
 
 import java.time.Duration;
@@ -20,7 +20,7 @@ public class OkHttpClientFactory {
     private static final OkHttpClientFactory instance = new OkHttpClientFactory();
 
     public OkHttpClient create() {
-        var apiConfig = ConfigProvider.getInstance().getApiConfig();
+        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
         String timeout = apiConfig.getProperty(READ_TIME_OUT);
         Duration timeoutDuration;
         try {

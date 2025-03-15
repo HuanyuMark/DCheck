@@ -3,7 +3,6 @@ package org.example.dcheck.spi;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -22,15 +21,18 @@ import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 /**
  * Date 2025/02/26
  *
  * @author 三石而立Sunsy
  */
 @Slf4j
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "deprecated"})
 class Providers {
 
+    static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
+    static final Properties ENVIRONMENT_VARIABLES = AccessController.doPrivileged((PrivilegedAction<Map<String, String>>) System::getenv).entrySet().stream().collect(Properties::new, (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
     private final static ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
     /**
@@ -41,8 +43,8 @@ class Providers {
      * @see ParagraphRelevancyEngine#init()  ParagraphRelevancyEngine.init()
      */
     static <Service> List<Service> findAllImplementations(Class<Service> serviceClass) {
-        var loader = ServiceLoader.load(serviceClass);
-        var results = new ArrayList<Service>();
+        ServiceLoader<Service> loader = ServiceLoader.load(serviceClass);
+        List<Service> results = new ArrayList<>();
         try {
             loader.iterator().forEachRemaining(results::add);
         } catch (Throwable e) {
@@ -53,13 +55,13 @@ class Providers {
     }
 
     static <Service> Service findImpl(Class<Service> serviceClass, String specifyKey) {
-        var loader = ServiceLoader.load(serviceClass);
-        var allImpl = loader.iterator();
+        ServiceLoader<Service> loader = ServiceLoader.load(serviceClass);
+        Iterator<Service> allImpl = loader.iterator();
         Service candidate = null;
         boolean multiple = false;
 
         while (allImpl.hasNext()) {
-            var cur = allImpl.next();
+            Service cur = allImpl.next();
             if (candidate != null) {
                 String implClass = System.getProperty(specifyKey);
                 if (implClass != null) {
@@ -74,7 +76,7 @@ class Providers {
         }
 
         if (multiple) {
-            var throwImplClass = new ArrayList<String>();
+            List<String> throwImplClass = new ArrayList<>();
             loader.iterator().forEachRemaining(i -> throwImplClass.add(i.getClass().getCanonicalName()));
             throw new IllegalStateException("multiple '" + serviceClass + "' impl found: please add single implementation on classpath or" +
                     " specify implementation with jvm arg '-D" + specifyKey + "=<impl canonical name>', find implementations: " + throwImplClass);
@@ -97,7 +99,7 @@ class Providers {
 
     @SuppressWarnings("unchecked")
     static <Service> Service createService(Properties map, String instanceName, String mapKey) {
-        var classname = map.getProperty(mapKey);
+        String classname = map.getProperty(mapKey);
         if (classname == null) {
             throw new IllegalArgumentException("unsupported " + instanceName + ": '" + mapKey + "'");
         }
@@ -108,14 +110,9 @@ class Providers {
         }
     }
 
-    static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
-
-
-    static final Properties ENVIRONMENT_VARIABLES = AccessController.doPrivileged((PrivilegedAction<Map<String, String>>) System::getenv).entrySet().stream().collect(Properties::new, (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
-
     static Properties loadConfig(String configName) {
         try {
-            var base = new Properties(ENVIRONMENT_VARIABLES);
+            Properties base = new Properties(ENVIRONMENT_VARIABLES);
             base.putAll(AccessController.doPrivileged((PrivilegedAction<Properties>) System::getProperties));
             Properties config = new Properties(base);
 

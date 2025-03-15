@@ -36,22 +36,16 @@ public class BigModelTokenizer implements DCheckTokenizer {
     protected static final String BASE_URL = "https://open.bigmodel.cn/api/paas/v4/tokenizer";
 
     protected static final String DEFAULT_MODEL_NAME = "glm-4-flash";
-
+    private final OnceRunner runner = OnceRunner.of();
     @Getter
     @Setter
     @NonNull
     private OkHttpClient client;
-
     private Request requestTemplate;
-
     @With
     private String modelName;
-
     @Getter
     private Codec codec;
-
-    private final OnceRunner runner = OnceRunner.of();
-
     @Getter
     @Setter
     @NonNull

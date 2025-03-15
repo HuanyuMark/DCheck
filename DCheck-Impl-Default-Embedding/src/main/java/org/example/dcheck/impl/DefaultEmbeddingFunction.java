@@ -74,6 +74,8 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
         private static final Path modelFile = modelPath.resolve("model.onnx");
         private static final String ARCHIVE_FILENAME = "onnx.tar.gz";
         private static final URL MODEL_DOWNLOAD_URL;
+        //        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(DefaultEmbeddingFunction.class.getClassLoader().getResource("org/example/dcheck/models/onnx.tar.gz"));
+        private static final String MODEL_SHA256_CHECKSUM = "913d7300ceae3b2dbc2c50d1de4baacab4be7b9380491c27fab7418616a16ec3";
 
         static {
             try {
@@ -83,8 +85,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
             }
         }
 
-        //        private static final URL MODEL_DOWNLOAD_URL = Objects.requireNonNull(DefaultEmbeddingFunction.class.getClassLoader().getResource("org/example/dcheck/models/onnx.tar.gz"));
-        private static final String MODEL_SHA256_CHECKSUM = "913d7300ceae3b2dbc2c50d1de4baacab4be7b9380491c27fab7418616a16ec3";
         OrtSession session;
         private HuggingFaceTokenizer tokenizer;
         private OrtEnvironment env;
@@ -308,7 +308,6 @@ public class DefaultEmbeddingFunction implements EmbeddingFunction {
 
         /**
          * Check if the model is present at the expected location
-         *
          */
         private boolean validateModel() {
             return modelFile.toFile().exists() && modelFile.toFile().isFile();

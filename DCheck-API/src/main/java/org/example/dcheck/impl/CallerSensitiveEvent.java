@@ -1,7 +1,6 @@
 package org.example.dcheck.impl;
 
 import lombok.Data;
-import lombok.var;
 
 /**
  * Date: 2025/3/11
@@ -13,8 +12,8 @@ public abstract class CallerSensitiveEvent {
     protected final Class<?> emitSource;
 
     public CallerSensitiveEvent() {
-        var currentThread = Thread.currentThread();
-        var stackTrace = currentThread.getStackTrace();
+        Thread currentThread = Thread.currentThread();
+        StackTraceElement[] stackTrace = currentThread.getStackTrace();
         try {
             this.emitSource = currentThread.getContextClassLoader().loadClass(stackTrace[1].getClassName());
         } catch (ClassNotFoundException e) {

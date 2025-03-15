@@ -37,11 +37,6 @@ public class DefaultReranker implements Reranker {
 
     @Getter
     private Codec codec;
-
-    public void setCodec(@NonNull Codec codec) {
-        this.codec = codec;
-    }
-
     @Getter
     @Setter
     @NonNull
@@ -51,8 +46,11 @@ public class DefaultReranker implements Reranker {
             // 初始等待1s，最多30s,每次重试时间以2倍增长
             .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
             .build();
-
     private OkHttpClient client;
+
+    public void setCodec(@NonNull Codec codec) {
+        this.codec = codec;
+    }
 
     protected OkHttpClient buildClient() {
         return new OkHttpClient.Builder()
@@ -122,27 +120,6 @@ public class DefaultReranker implements Reranker {
         }
     }
 
-    @Data
-    protected static class BaseResponse {
-        private boolean success;
-        private String msg;
-        private String cause;
-    }
-
-    @Data
-    @EqualsAndHashCode(callSuper = true)
-    protected static class RerankResponse extends BaseResponse {
-        private float[][] scores;
-    }
-
-    @Data
-    @AllArgsConstructor
-    protected static class RerankRequest {
-        private List<String> query;
-        private List<List<String>> passages;
-    }
-
-
     public OkHttpClient getClient() {
         if (client != null) return client;
         synchronized (this) {
@@ -186,7 +163,6 @@ public class DefaultReranker implements Reranker {
         }
     }
 
-
     @Override
     public ParagraphRelevancyQueryResult rerank(ParagraphRelevancyQueryResult relevancyResult, ParagraphRelevancyQuery query) {
         RerankResponse rerankResponse;
@@ -196,7 +172,7 @@ public class DefaultReranker implements Reranker {
             if (!engine.hasDocument(new DocumentIdQuery(query.getCollectionId(), Collections.singletonList(query.getDocumentId()))).get(0)) {
                 throw new IllegalStateException("document not found");
             }
-            var paragraphs = engine.getParagraphs(ParagraphGet.builder()
+            List<UniversalParagraph> paragraphs = engine.getParagraphs(ParagraphGet.builder()
                             .collectionId(query.getDocumentId())
                             .condition(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build())
                             .build())
@@ -217,9 +193,9 @@ public class DefaultReranker implements Reranker {
             throw new IllegalStateException("rerank fail: " + rerankResponse.getCause());
         }
 
-        var reranked = IntStream.range(0, relevancyResult.getDuplicateParts().size())
+        List<DuplicatePart> reranked = IntStream.range(0, relevancyResult.getDuplicateParts().size())
                 .mapToObj(i -> {
-                    var duplicatePart = relevancyResult.getDuplicateParts().get(i);
+                    DuplicatePart duplicatePart = relevancyResult.getDuplicateParts().get(i);
                     float[] currentQueryScores = rerankResponse.getScores()[i];
                     if (currentQueryScores.length != duplicatePart.getDuplicates().size()) {
                         throw new IllegalStateException("rerank fail: response scores length not match");
@@ -271,5 +247,25 @@ public class DefaultReranker implements Reranker {
             request = request.newBuilder().url(request.url().newBuilder().host(url.host()).port(url.port()).build()).build();
             builder = request.newBuilder();
         }
+    }
+
+    @Data
+    protected static class BaseResponse {
+        private boolean success;
+        private String msg;
+        private String cause;
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    protected static class RerankResponse extends BaseResponse {
+        private float[][] scores;
+    }
+
+    @Data
+    @AllArgsConstructor
+    protected static class RerankRequest {
+        private List<String> query;
+        private List<List<String>> passages;
     }
 }

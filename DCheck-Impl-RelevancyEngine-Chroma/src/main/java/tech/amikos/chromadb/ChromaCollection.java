@@ -19,13 +19,12 @@ import java.lang.reflect.Type;
  */
 @RequiredArgsConstructor
 public class ChromaCollection {
+    protected final static Gson gson = Collection.gson.newBuilder()
+            .registerTypeAdapter(GetEmbeddingInclude.class, (JsonSerializer<GetEmbeddingInclude>) (GetEmbeddingInclude src, Type typeOfSrc, JsonSerializationContext context) -> context.serialize(src.name().toLowerCase()))
+            .create();
     @Getter
     @Delegate
     protected final Collection target;
-
-    protected final static Gson gson = Collection.gson.newBuilder()
-            .registerTypeAdapter(GetEmbeddingInclude.class, (JsonSerializer<GetEmbeddingInclude>)(GetEmbeddingInclude src, Type typeOfSrc, JsonSerializationContext context)-> context.serialize(src.name().toLowerCase()))
-            .create();
 
     public GetResult get(GetEmbedding req) throws ApiException {
         String json = gson.toJson(target.api.get(req, this.target.collectionId));

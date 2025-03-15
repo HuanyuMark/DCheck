@@ -3,7 +3,10 @@ package org.example.dcheck.impl.codec.gson;
 import com.google.gson.*;
 import com.google.gson.internal.bind.JsonTreeWriter;
 import com.google.gson.stream.JsonReader;
-import lombok.*;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.example.dcheck.util.UtilConst;
@@ -23,7 +26,13 @@ import java.util.Map;
 @Slf4j
 public class GsonCodec implements Codec {
     private final String name = "DCheck-Impl-Codec-Gson";
-
+    /**
+     * you can reuse this builder to reuse the default configuration of gson.
+     * change/add configuration of that builder, and then call setGson(builder.create())
+     * to reset the gson instance.
+     */
+    @Getter
+    private final GsonBuilder defaultGsonBuilder = new GsonBuilder();
     /**
      * access to underlying gson instance.
      */
@@ -32,18 +41,6 @@ public class GsonCodec implements Codec {
     @NonNull
     private Gson gson;
 
-    /**
-     * you can reuse this builder to reuse the default configuration of gson.
-     * change/add configuration of that builder, and then call setGson(builder.create())
-     * to reset the gson instance.
-     */
-    @Getter
-    private final GsonBuilder defaultGsonBuilder = new GsonBuilder();
-
-    public GsonCodec() {
-    }
-
-
     {
         setGson(defaultGsonBuilder
                 .registerTypeAdapter(ParagraphLocation.class, (JsonDeserializer<ParagraphLocation>) (json, typeOfT, context) -> {
@@ -51,12 +48,12 @@ public class GsonCodec implements Codec {
                     if (json.isJsonPrimitive()) {
                         return context.deserialize(getGson().toJsonTree(json.getAsString()), typeOfT);
                     }
-                    var obj = json.getAsJsonObject();
-                    var str = obj.get("type");
+                    JsonObject obj = json.getAsJsonObject();
+                    JsonElement str = obj.get("type");
                     if (str == null) {
                         throw new IllegalArgumentException("unknown ParagraphLocationType: " + json);
                     }
-                    var type = (ParagraphLocationType) context.deserialize(str, ParagraphLocationType.class);
+                    ParagraphLocationType type = (ParagraphLocationType) context.deserialize(str, ParagraphLocationType.class);
                     if (type.getIfSingleton() != null) {
                         return type.getIfSingleton();
                     }
@@ -68,17 +65,16 @@ public class GsonCodec implements Codec {
                     if (json.isJsonPrimitive()) {
                         return context.deserialize(getGson().toJsonTree(json.getAsString()), typeOfT);
                     }
-                    var obj = json.getAsJsonObject();
+                    JsonObject obj = json.getAsJsonObject();
                     JsonElement ptValue = obj.get("paragraphType");
                     if (ptValue == null) {
                         throw new IllegalArgumentException("unknown ParagraphMetadata: " + json);
                     }
-                    var paragraphType = (ParagraphType) context.deserialize(ptValue, ParagraphType.class);
-                    var paragraphLocationType = paragraphType.getMetadataClass();
-                    @SuppressWarnings("unchecked")
-                    var all = (Map<String, Object>) context.deserialize(json, UtilConst.MAP_TYPE);
-                    var ins = (ParagraphMetadata) context.deserialize(json, paragraphLocationType);
-                    var extensions = paragraphType.createExtension(all, ins);
+                    ParagraphType paragraphType = context.deserialize(ptValue, ParagraphType.class);
+                    Class<? extends ParagraphMetadata> paragraphLocationType = paragraphType.getMetadataClass();
+                    Map<String, Object> all = context.deserialize(json, UtilConst.MAP_TYPE);
+                    ParagraphMetadata ins = context.deserialize(json, paragraphLocationType);
+                    ParagraphMetadata extensions = paragraphType.createExtension(all, ins);
                     if (extensions != null) return extensions;
                     return ins;
                 })
@@ -90,7 +86,7 @@ public class GsonCodec implements Codec {
                     } catch (UnsupportedOperationException e) {
                         throw new IllegalArgumentException("unknown ParagraphType: " + json);
                     }
-                    var paragraphType = ParagraphType.ALL_TYPES.get(str);
+                    ParagraphType paragraphType = ParagraphType.ALL_TYPES.get(str);
                     if (paragraphType == null) {
                         log.warn("Check if forget to register that type instance to: {}.ALL_TYPES: throw Unknown ParagraphType: {}", ParagraphType.class, str);
                         throw new IllegalArgumentException("unknown ParagraphType: " + str);
@@ -105,7 +101,7 @@ public class GsonCodec implements Codec {
                     } catch (UnsupportedOperationException e) {
                         throw new IllegalArgumentException("unknown ParagraphLocationType: " + json);
                     }
-                    var paragraphLocationType = ParagraphLocationType.ALL_TYPES.get(type);
+                    ParagraphLocationType paragraphLocationType = ParagraphLocationType.ALL_TYPES.get(type);
                     if (paragraphLocationType == null) {
                         log.warn("Check if forget to register that type instance to: {}.ALL_TYPES: throw Unknown ParagraphLocationType: {}", ParagraphLocationType.class, type);
                         throw new IllegalArgumentException("unknown ParagraphLocationType: " + type);
@@ -113,6 +109,10 @@ public class GsonCodec implements Codec {
                     return paragraphLocationType;
                 })
                 .create());
+    }
+
+
+    public GsonCodec() {
     }
 
     @Override

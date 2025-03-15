@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.util.UtilConst;
@@ -38,14 +37,7 @@ public class JacksonCodec implements Codec {
     );
 
     public static final String CONFIGURABLE_BUILDER_AUTO_DETECTION_MODULE = "ConfigurableBuilderAutoDetectionModule";
-
-    private final String name = "DCheck-Impl-Codec-Jackson";
-
-    @Getter
-    private ObjectMapper objectMapper;
-
     public final static com.fasterxml.jackson.databind.Module dcheckModule;
-
     public final static com.fasterxml.jackson.databind.Module parameterNamesModule = new ParameterNamesModule(JsonCreator.Mode.DEFAULT);
 
     static {
@@ -55,7 +47,7 @@ public class JacksonCodec implements Codec {
                     @Override
                     public ParagraphLocation deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
                         if (jsonParser.getCurrentToken() == JsonToken.VALUE_STRING) {
-                            var codec = (ObjectMapper) jsonParser.getCodec();
+                            ObjectMapper codec = (ObjectMapper) jsonParser.getCodec();
                             return codec.readValue(jsonParser.readValueAs(String.class), ParagraphLocation.class);
                         }
                         TreeNode tree = jsonParser.readValueAsTree();
@@ -64,7 +56,7 @@ public class JacksonCodec implements Codec {
                             throw new JsonParseException(jsonParser, "unknown ParagraphLocationType: " + typeNode);
                         }
                         String type = jsonParser.getCodec().treeToValue(typeNode, String.class);
-                        var locationType = ParagraphLocationType.ALL_TYPES.get(type);
+                        ParagraphLocationType locationType = ParagraphLocationType.ALL_TYPES.get(type);
                         if (locationType == null) {
                             throw new JsonParseException(jsonParser, "unknown ParagraphLocationType: " + type);
                         }
@@ -78,7 +70,7 @@ public class JacksonCodec implements Codec {
                 .addDeserializer(ParagraphMetadata.class, new JsonDeserializer<ParagraphMetadata>() {
                     @Override
                     public ParagraphMetadata deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-                        var codec = (ObjectMapper) p.getCodec();
+                        ObjectMapper codec = (ObjectMapper) p.getCodec();
                         if (p.getCurrentToken() == JsonToken.VALUE_STRING) {
                             return codec.readValue(p.readValueAs(String.class), ParagraphMetadata.class);
                         }
@@ -87,12 +79,11 @@ public class JacksonCodec implements Codec {
                         if (!(paragraphTypeNode instanceof TextNode)) {
                             throw new JsonParseException(p, "unknown ParagraphType: " + paragraphTypeNode);
                         }
-                        var paragraphType = p.getCodec().treeToValue(paragraphTypeNode, ParagraphType.class);
-                        var paragraphLocationType = paragraphType.getMetadataClass();
-                        @SuppressWarnings("unchecked")
-                        var all = (Map<String, Object>) codec.treeToValue(treeNode, codec.constructType(UtilConst.MAP_TYPE));
-                        var ins = codec.treeToValue(treeNode, paragraphLocationType);
-                        var extensions = paragraphType.createExtension(all, ins);
+                        ParagraphType paragraphType = p.getCodec().treeToValue(paragraphTypeNode, ParagraphType.class);
+                        Class<? extends ParagraphMetadata> paragraphLocationType = paragraphType.getMetadataClass();
+                        Map<String, Object> all = codec.treeToValue(treeNode, codec.constructType(UtilConst.MAP_TYPE));
+                        ParagraphMetadata ins = codec.treeToValue(treeNode, paragraphLocationType);
+                        ParagraphMetadata extensions = paragraphType.createExtension(all, ins);
                         if (extensions != null) return extensions;
                         return ins;
                     }
@@ -112,7 +103,7 @@ public class JacksonCodec implements Codec {
                             throw new JsonParseException(p, "unknown ParagraphType: " + p.currentValue());
                         }
                         String str = p.readValueAs(String.class);
-                        var paragraphType = ParagraphType.ALL_TYPES.get(str);
+                        ParagraphType paragraphType = ParagraphType.ALL_TYPES.get(str);
                         if (paragraphType == null) {
                             log.warn("Check if forget to register that type instance to: {}.ALL_TYPES: throw Unknown ParagraphType: {}", ParagraphType.class, str);
                             throw new JsonParseException(p, "unknown ParagraphType: " + str);
@@ -128,7 +119,7 @@ public class JacksonCodec implements Codec {
                             throw new JsonParseException(p, "unknown ParagraphLocationType: " + p.currentValue());
                         }
                         String str = p.readValueAs(String.class);
-                        var paragraphLocationType = ParagraphLocationType.ALL_TYPES.get(str);
+                        ParagraphLocationType paragraphLocationType = ParagraphLocationType.ALL_TYPES.get(str);
                         if (paragraphLocationType == null) {
                             log.warn("Check if forget to register that type instance to: {}.ALL_TYPES: throw Unknown ParagraphLocationType: {}", ParagraphLocationType.class, str);
                             throw new JsonParseException(p, "unknown ParagraphLocationType: " + str);
@@ -138,13 +129,14 @@ public class JacksonCodec implements Codec {
                 });
     }
 
+    private final String name = "DCheck-Impl-Codec-Jackson";
     @Getter
     protected ConfigurableBuilderAutoDetectionModule configurableBuilderAutoDetectionModule = new ConfigurableBuilderAutoDetectionModule();
+    @Getter
+    private ObjectMapper objectMapper;
 
-    @SuppressWarnings("unused")
-    public interface NameIdentityMixin {
-        @JsonValue
-        String name();
+    {
+        setObjectMapper(new ObjectMapper());
     }
 
     public void setObjectMapper(@NonNull ObjectMapper objectMapper) {
@@ -153,19 +145,6 @@ public class JacksonCodec implements Codec {
         objectMapper.registerModule(dcheckModule);
         objectMapper.registerModule(configurableBuilderAutoDetectionModule);
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    }
-
-    {
-        setObjectMapper(new ObjectMapper());
-    }
-
-    @SuppressWarnings("unused")
-    public static class ContentMatchParagraphLocationMixin {
-
-        // indicate 'ContentMatchParagraphLocationMixin(String documentId, ParagraphLocation location)' is used for deserialization
-        @JsonCreator
-        public ContentMatchParagraphLocationMixin(String startText, String endText, int splitIdx) {
-        }
     }
 
     @Override
@@ -238,5 +217,20 @@ public class JacksonCodec implements Codec {
             return objectMapper.treeToValue(objectMapper.valueToTree(input), (JavaType) targetTypeHint);
         }
         return Codec.super.convertTo(input, targetTypeHint);
+    }
+
+    @SuppressWarnings("unused")
+    public interface NameIdentityMixin {
+        @JsonValue
+        String name();
+    }
+
+    @SuppressWarnings("unused")
+    public static class ContentMatchParagraphLocationMixin {
+
+        // indicate 'ContentMatchParagraphLocationMixin(String documentId, ParagraphLocation location)' is used for deserialization
+        @JsonCreator
+        public ContentMatchParagraphLocationMixin(String startText, String endText, int splitIdx) {
+        }
     }
 }

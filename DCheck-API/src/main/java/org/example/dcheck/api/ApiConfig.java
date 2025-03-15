@@ -10,8 +10,9 @@ import java.util.Properties;
  * common interface to access all config in dcheck.
  * you can access the config instance by {@link ConfigProvider#getApiConfig()}
  * there are some loading mechanism to load config. see in the provider...
- * @see ConfigProvider
+ *
  * @author 三石而立Sunsy
+ * @see ConfigProvider
  */
 @SuppressWarnings("unused")
 public class ApiConfig extends Properties {

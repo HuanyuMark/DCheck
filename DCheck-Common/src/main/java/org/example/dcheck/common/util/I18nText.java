@@ -2,7 +2,6 @@ package org.example.dcheck.common.util;
 
 import lombok.Data;
 import lombok.Getter;
-import lombok.var;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -49,7 +48,7 @@ public class I18nText {
     }
 
     private String loadContent() {
-        try (var reader = new BufferedReader(new InputStreamReader(Objects.requireNonNull(getInputStream()), StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(Objects.requireNonNull(getInputStream()), StandardCharsets.UTF_8))) {
             return reader.lines().collect(Collectors.joining("\n"));
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -22,27 +22,27 @@ import java.util.function.BiConsumer;
 @SuperBuilder
 @EqualsAndHashCode
 public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Map<String, Object> {
-    @Getter
-    private final String documentId;
-    @Getter
-    private final ParagraphLocation location;
-    @NonNull
-    protected final Map<String, Object> raw = new HashMap<>(getRawInitialCapacity());
-
-    protected int getRawInitialCapacity() {
-        return 6;
-    }
-
     private static final Codec codec;
 
     static {
         codec = CodecProvider.getInstance().getCodecs().stream().findFirst().orElseThrow(() -> new IllegalStateException("not found available codec form CodecProvider. please list a Codec Implementation in classpath"));
     }
 
+    @NonNull
+    protected final Map<String, Object> raw = new HashMap<>(getRawInitialCapacity());
+    @Getter
+    private final String documentId;
+    @Getter
+    private final ParagraphLocation location;
+
     public AbstractParagraphMetadata(String documentId, ParagraphLocation location) {
         this.documentId = documentId;
         this.location = location;
         syncFieldMap();
+    }
+
+    protected int getRawInitialCapacity() {
+        return 6;
     }
 
     @Override

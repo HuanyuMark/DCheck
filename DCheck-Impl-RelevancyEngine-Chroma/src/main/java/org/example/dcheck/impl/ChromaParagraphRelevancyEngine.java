@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
@@ -46,15 +45,32 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     public static final List<QueryEmbedding.IncludeEnum> QUERY_PARAGRAPH_INCLUDE = Arrays.asList(QueryEmbedding.IncludeEnum.METADATAS, QueryEmbedding.IncludeEnum.DISTANCES, QueryEmbedding.IncludeEnum.DOCUMENTS);
     public static final List<AnyOfGetEmbeddingIncludeItems> GET_PARAGRAPH_INCLUDE = Arrays.asList(GetEmbeddingInclude.metadatas, GetEmbeddingInclude.documents);
     protected static final String TEMP_COLLECTION_PREFIX = "tmp9843975u";
+    protected static final String EMBEDDING_FUNC_KEY = "embedding_function";
+    protected static final String EMBEDDING_FUNC_DETAILS_KEY = "__$$_embedding_func_details_$$__";
     private static final int CHUNK_SIZE = 50;
-
+    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Arrays.asList(GetEmbeddingInclude.embeddings, GetEmbeddingInclude.documents, GetEmbeddingInclude.metadatas);
     private final Map<String, ChromaCollection> chromaCollections = new ConcurrentSkipListMap<>();
     private final Map<String, EngineAdaptedDocumentCollection> documentCollections = new ConcurrentSkipListMap<>();
-    protected static final String EMBEDDING_FUNC_KEY = "embedding_function";
+    private final RetryPolicy<Object> collectionAccessPolicy = RetryPolicy.builder()
+            .handle(ApiException.class)
+            .withMaxRetries(3)
+            // 初始等待1s，最多30s,每次重试时间以2倍增长
+            .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
+            .build();
     @Getter
     private EmbeddingFunction embeddingFunction;
-
     private String embeddingFuncDetailsKey;
+    @Getter
+    @Setter
+    private Reranker reranker = Reranker.NOP;
+    @Getter
+    private Codec codec;
+    @Getter
+    private Client client;
+
+    public ChromaParagraphRelevancyEngine() {
+
+    }
 
     public void setEmbeddingFunction(@NonNull EmbeddingFunction embeddingFunction) {
         this.embeddingFunction = embeddingFunction;
@@ -65,25 +81,8 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
-    private final RetryPolicy<Object> collectionAccessPolicy = RetryPolicy.builder()
-            .handle(ApiException.class)
-            .withMaxRetries(3)
-            // 初始等待1s，最多30s,每次重试时间以2倍增长
-            .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
-            .build();
-
-    @Getter
-    @Setter
-    private Reranker reranker = Reranker.NOP;
-    @Getter
-    private Codec codec;
-
     public void setCodec(@NonNull Codec codec) {
         this.codec = codec;
-    }
-
-    public ChromaParagraphRelevancyEngine() {
-
     }
 
     @Override
@@ -96,10 +95,10 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
 
-        var embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        String embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
         setEmbeddingFunction(EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel));
 
-        var url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
+        String url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
         if (!StringUtils.hasText(url)) {
             throw new IllegalStateException("invalid config '" + ApiConfig.DB_VECTOR_URL + "=" + url + "'");
         }
@@ -119,7 +118,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                 // init chroma client
                 CompletableFuture.runAsync(() -> {
                     client = new Client(url);
-                    var policy = RetryPolicy.builder()
+                    RetryPolicy<Object> policy = RetryPolicy.builder()
                             .handle(ApiException.class)
                             .withMaxRetries(3)
                             // 初始等待1s，最多30s,每次重试时间以2倍增长
@@ -187,21 +186,19 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
     }
 
-    private static final List<AnyOfGetEmbeddingIncludeItems> GET_EMBEDDING_INCLUDES = Arrays.asList(GetEmbeddingInclude.embeddings, GetEmbeddingInclude.documents, GetEmbeddingInclude.metadatas);
-
     @Override
     @SuppressWarnings("unchecked")
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query) {
         init();
         List<Paragraph> paragraphs;
-        var documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
+        DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
         ChromaCollection collection = getCollection(documentCollection.getId());
         Collection.QueryResponse response;
-        var req = new QueryEmbedding();
+        QueryEmbedding req = new QueryEmbedding();
         if (query.getParagraphs() == null) {
             List<float[]> embeddings;
             try {
-                var getResult = Failsafe.with(collectionAccessPolicy)
+                GetResult getResult = Failsafe.with(collectionAccessPolicy)
                         .get(() -> collection.get(new GetEmbedding()
                                 .where(ChromaDSLFactory.where(MetadataMatchCondition.builder().eq("documentId", query.getDocumentId()).build(), e -> {
                                     try {
@@ -256,16 +253,16 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             throw new IllegalStateException("query paragraph fail: " + e.getCause().getMessage(), e.getCause());
         }
 
-        var builder = ParagraphRelevancyQueryResult.builder();
-        var result = IntStream.range(0, response.getDocuments().size())
+        ParagraphRelevancyQueryResult.ParagraphRelevancyQueryResultBuilder builder = ParagraphRelevancyQueryResult.builder();
+        List<DuplicatePart> result = IntStream.range(0, response.getDocuments().size())
                 .mapToObj(i -> {
-                    var queryResultDocument = response.getDocuments().get(i);
-                    var queryResultMetadata = response.getMetadatas().get(i);
-                    var queryResultScore = response.getDistances().get(i);
-                    var duplicates = IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
-                        var document = queryResultDocument.get(j);
+                    List<String> queryResultDocument = response.getDocuments().get(i);
+                    List<Map<String, Object>> queryResultMetadata = response.getMetadatas().get(i);
+                    List<Float> queryResultScore = response.getDistances().get(i);
+                    List<DuplicatePart.DuplicateParagraph> duplicates = IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
+                        String document = queryResultDocument.get(j);
                         @SuppressWarnings("unchecked")
-                        var metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
+                        Map<String, Object> metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
                                 .entrySet().stream().map(e -> {
                                     try {
                                         return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
@@ -273,7 +270,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                                         throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
                                     }
                                 }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                        var score = queryResultScore.get(j);
+                        Float score = queryResultScore.get(j);
                         ParagraphMetadata metadataObj;
                         try {
                             metadataObj = codec.convertTo(metadata, ParagraphMetadata.class);
@@ -298,14 +295,14 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     @Override
     public void addParagraph(ParagraphRelevancyCreation creation) {
         init();
-        var collection = getCollection(creation.getCollectionId());
-        var batch = creation.getBatch().stream().collect(Collectors.groupingBy(UniversalParagraph::getParagraphType));
-        var textParagraphs = batch.get(BuiltinParagraphType.TEXT);
+        ChromaCollection collection = getCollection(creation.getCollectionId());
+        Map<ParagraphType, List<UniversalParagraph>> batch = creation.getBatch().stream().collect(Collectors.groupingBy(UniversalParagraph::getParagraphType));
+        List<UniversalParagraph> textParagraphs = batch.get(BuiltinParagraphType.TEXT);
         if (textParagraphs != null) {
             try {
-                var partition = CollectionUtils.partition(textParagraphs, CHUNK_SIZE);
+                List<List<UniversalParagraph>> partition = CollectionUtils.partition(textParagraphs, CHUNK_SIZE);
                 for (int i = 0; i < partition.size(); i++) {
-                    var chunk = partition.get(i);
+                    List<UniversalParagraph> chunk = partition.get(i);
                     Failsafe.with(collectionAccessPolicy)
                             .run(() -> collection.add(
                                     null,
@@ -338,9 +335,9 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     @Override
     public void removeDocument(DocumentDelete delete) {
         init();
-        var collection = getCollection(delete.getCollectionId());
+        ChromaCollection collection = getCollection(delete.getCollectionId());
         try {
-            var where = ChromaDSLFactory.where(delete.getMetadataMatchCondition(), e -> {
+            Map<String, Object> where = ChromaDSLFactory.where(delete.getMetadataMatchCondition(), e -> {
                 try {
                     return codec.serialize(e.getValue(), String.class);
                 } catch (IOException ex) {
@@ -360,10 +357,10 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
      */
     @Override
     public List<Boolean> hasDocument(DocumentIdQuery query) {
-        var collection = getCollection(query.getCollectionId());
+        ChromaCollection collection = getCollection(query.getCollectionId());
         try {
             return query.getDocumentIds().stream().map(id -> {
-                var req = new GetEmbedding();
+                GetEmbedding req = new GetEmbedding();
                 req.limit(1);
                 try {
                     req.where(ChromaDSLFactory.where(MetadataMatchCondition.builder()
@@ -414,8 +411,8 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
     @Override
     public List<Paragraph> getParagraphs(ParagraphGet query) {
-        var collection = getCollection(query.getCollectionId());
-        var req = new GetEmbedding();
+        ChromaCollection collection = getCollection(query.getCollectionId());
+        GetEmbedding req = new GetEmbedding();
         if (query.getMaxCount() != null) {
             req.limit(query.getMaxCount());
         }
@@ -431,7 +428,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         }
 
         try {
-            var getResult = Failsafe.with(collectionAccessPolicy)
+            GetResult getResult = Failsafe.with(collectionAccessPolicy)
                     .get(() -> collection.get(req));
             return mapToParagraphs(getResult);
         } catch (FailsafeException e) {
@@ -466,12 +463,8 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
         documentCollections.remove(collectionId);
     }
 
-    protected static final String EMBEDDING_FUNC_DETAILS_KEY = "__$$_embedding_func_details_$$__";
-    @Getter
-    private Client client;
-
     protected ChromaCollection getCollection(String collectionId) {
-        var res = chromaCollections.computeIfAbsent(collectionId, (key) -> {
+        ChromaCollection res = chromaCollections.computeIfAbsent(collectionId, (key) -> {
             try {
                 return Failsafe.with(collectionAccessPolicy)
                         .get(() -> {

@@ -39,34 +39,32 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     protected static final String DEFAULT_MODEL_NAME = "embedding-3";
     protected static final String DEFAULT_BASE_API = "https://open.bigmodel.cn/api/paas/v4/embeddings";
     protected static final int maxInputLength = 50;
+    private static final int DEFAULT_REQUEST_MAX_TOKEN = 3500;
     @Getter
     private final String modelName;
     @Getter
     private final String baseUrl;
     private final Codec codec;
     private final Map<String, Object> details;
+    private final OnceRunner initRunner = OnceRunner.of();
+    /**
+     * 在该实例创建后，累计消耗的token数量
+     */
+    private final AtomicReference<CallUsage> totalUsage = new AtomicReference<>(new CallUsage());
     @Getter
     private Integer dimension;
-    private static final int DEFAULT_REQUEST_MAX_TOKEN = 3500;
-
     private Request embeddingRequestTemplate;
     @Getter
     private OkHttpClient client;
     @Getter
     private int requestMaxToken;
-
-    private final OnceRunner initRunner = OnceRunner.of();
     private ToIntFunction<String> tokenizer;
+    @Nullable
+    private Object tokenizerToInject;
 
     {
         codec = CodecProvider.getInstance().getCodecs().stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException("No codec provider found"));
-    }
-
-    @Override
-    public Map<String, Object> getDetails() {
-        init();
-        return details;
     }
 
     public BigModelEmbeddingFunction(String baseUrl, String modelName) {
@@ -79,17 +77,15 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         this.details = Collections.unmodifiableMap(details);
     }
 
+    @Override
+    public Map<String, Object> getDetails() {
+        init();
+        return details;
+    }
+
     public void setClient(@NonNull OkHttpClient client) {
         this.client = client;
     }
-
-    @Nullable
-    private Object tokenizerToInject;
-
-    /**
-     * 在该实例创建后，累计消耗的token数量
-     */
-    private final AtomicReference<CallUsage> totalUsage = new AtomicReference<>(new CallUsage());
 
     public CallUsage getTotalUsage() {
         return totalUsage.get();
@@ -222,11 +218,11 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     @NotNull
     private List<Embedding> doRequest(List<String> input) throws Exception {
         try {
-            var currentUsage = new CallUsage[]{new CallUsage()};
-            var embeddings = doPartition(input)
+            CallUsage[] currentUsage = new CallUsage[]{new CallUsage()};
+            List<Embedding> embeddings = doPartition(input)
                     .stream()
                     .flatMap(part -> {
-                        try (var response = client.newCall(embeddingRequestTemplate.newBuilder()
+                        try (Response response = client.newCall(embeddingRequestTemplate.newBuilder()
                                 .method(
                                         "POST",
                                         RequestBody.create(
@@ -245,7 +241,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                                 throw new IOException("fail response: " + response);
                             }
 
-                            var res = (CreateEmbeddingResponse) codec.deserialize(response.body().bytes(), CreateEmbeddingResponse.class);
+                            CreateEmbeddingResponse res = codec.deserialize(response.body().bytes(), CreateEmbeddingResponse.class);
                             if (res.getData().size() != part.size()) {
                                 throw new RuntimeException(new IOException("response data size is not " + part.size()));
                             }
@@ -275,10 +271,10 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     @NotNull
     private List<List<String>> doPartition(List<String> input) {
         List<String> partition;
-        var fixedTokenSizeList = new ArrayList<List<String>>();
+        List<List<String>> fixedTokenSizeList = new ArrayList<>();
         int totalToken = 0;
         fixedTokenSizeList.add((partition = new ArrayList<>()));
-        for (var seg : input) {
+        for (String seg : input) {
             int segTokens = tokenizer.applyAsInt(seg);
             if ((totalToken += segTokens) > requestMaxToken) {
                 fixedTokenSizeList.add((partition = new ArrayList<>()));
@@ -291,14 +287,6 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         return fixedTokenSizeList.stream().flatMap(part -> CollectionUtils.partition(part, maxInputLength).stream()).collect(Collectors.toList());
     }
 
-    @Value
-    @NonNull
-    protected static class TokenizerInitResult {
-        ToIntFunction<String> tokenizerFuc;
-        @Nullable
-        Object tokenizer;
-    }
-
     @Override
     public List<Embedding> embedDocuments(List<String> documents) throws Exception {
         return doRequest(documents);
@@ -307,6 +295,23 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     @Override
     public List<Embedding> embedDocuments(String[] documents) throws Exception {
         return doRequest(Arrays.asList(documents));
+    }
+
+    @Override
+    public String toString() {
+        return "BigModelEmbeddingFunction(" +
+                "modelName='" + modelName + '\'' +
+                ", baseUrl='" + baseUrl + '\'' +
+                ", dimension=" + dimension +
+                ')';
+    }
+
+    @Value
+    @NonNull
+    protected static class TokenizerInitResult {
+        ToIntFunction<String> tokenizerFuc;
+        @Nullable
+        Object tokenizer;
     }
 
     @Value
@@ -354,14 +359,5 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                     total_tokens + other.total_tokens
             );
         }
-    }
-
-    @Override
-    public String toString() {
-        return "BigModelEmbeddingFunction(" +
-                "modelName='" + modelName + '\'' +
-                ", baseUrl='" + baseUrl + '\'' +
-                ", dimension=" + dimension +
-                ')';
     }
 }

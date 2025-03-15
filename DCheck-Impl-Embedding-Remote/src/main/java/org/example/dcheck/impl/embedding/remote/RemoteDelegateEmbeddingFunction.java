@@ -1,7 +1,7 @@
 package org.example.dcheck.impl.embedding.remote;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
+import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.ConfigProvider;
@@ -30,10 +30,10 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
         synchronized (this) {
             if (init) return;
 
-            var apiConfig = ConfigProvider.getInstance().getApiConfig();
-            var type = apiConfig.getProperty(REMOTE_TYPE);
-            var baseUrl = apiConfig.getProperty(EMBEDDING_REMOTE_BASE_URL);
-            var modelName = apiConfig.getProperty(EMBEDDING_REMOTE_MODEL_NAME);
+            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+            String type = apiConfig.getProperty(REMOTE_TYPE);
+            String baseUrl = apiConfig.getProperty(EMBEDDING_REMOTE_BASE_URL);
+            String modelName = apiConfig.getProperty(EMBEDDING_REMOTE_MODEL_NAME);
 
             target = determineFunc(type, baseUrl, modelName);
             target.init();

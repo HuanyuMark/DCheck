@@ -2,7 +2,6 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 
@@ -22,10 +21,9 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class EngineAdaptedDocumentCollection implements DocumentCollection {
 
+    protected final Semaphore normalOperationLock = new Semaphore(Integer.MAX_VALUE);
     private final String id;
     private final ParagraphRelevancyEngine engine;
-
-    protected final Semaphore normalOperationLock = new Semaphore(Integer.MAX_VALUE);
     @Getter
     private volatile boolean exists = true;
 
@@ -46,9 +44,9 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
 
     @Override
     public void addDocument(List<Document> documents) {
-        var added = hasDocument(documents.stream().map(Document::getId).collect(Collectors.toList()));
+        List<Boolean> added = hasDocument(documents.stream().map(Document::getId).collect(Collectors.toList()));
 
-        var batch = IntStream.range(0, documents.size())
+        List<UniversalParagraph> batch = IntStream.range(0, documents.size())
                 .filter(i -> !added.get(i))
                 .mapToObj(documents::get)
                 .flatMap(document -> DocumentProcessorProvider

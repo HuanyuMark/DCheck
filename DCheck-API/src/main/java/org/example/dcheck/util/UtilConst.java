@@ -14,13 +14,12 @@ import java.util.concurrent.CompletableFuture;
 public class UtilConst {
     @SuppressWarnings("all")
     public static final CompletableFuture[] EMPTY_FUTURE_ARRAY = new CompletableFuture[0];
+    public static final Type MAP_TYPE = new ParameterizedTypeReference<Map<String, Object>>() {
+    }.getType();
     private static final CompletableFuture<?> emptyFuture = CompletableFuture.completedFuture(null);
 
     @SuppressWarnings("unchecked")
     public static <T> CompletableFuture<T> emptyFuture() {
         return (CompletableFuture<T>) emptyFuture;
     }
-
-    public static final Type MAP_TYPE = new ParameterizedTypeReference<Map<String, Object>>() {
-    }.getType();
 }

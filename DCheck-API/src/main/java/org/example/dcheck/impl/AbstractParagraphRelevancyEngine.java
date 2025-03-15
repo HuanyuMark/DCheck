@@ -1,7 +1,6 @@
 package org.example.dcheck.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.DocumentCollection;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
 import org.example.dcheck.api.TempDocumentCollection;
@@ -68,7 +67,7 @@ public abstract class AbstractParagraphRelevancyEngine implements ParagraphRelev
     public TempDocumentCollection newTempDocumentCollection() {
         init();
         DocumentCollection realCo = doNewTempDocumentCollection();
-        var co = new TempDocumentCollectionAdaptor(realCo) {
+        TempDocumentCollection co = new TempDocumentCollectionAdaptor(realCo) {
             @Override
             public void drop() {
                 super.drop();

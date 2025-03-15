@@ -17,6 +17,27 @@ import org.junit.jupiter.api.Test;
 @SuppressWarnings("all")
 public class TestApp {
 
+    @Test
+    public void test() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        objectMapper.addMixIn(Point.class, PointMixin.class);
+        String json = objectMapper.writeValueAsString(new ZPoint(1, 2, 3));
+        System.out.println(json);
+        Point point = objectMapper.readValue(json, Point.class);
+        System.out.println(point);
+    }
+
+    @Test
+    public void testCodec() throws Exception {
+        JacksonCodec codec = new JacksonCodec();
+        for (int i = 0; i < 5; i++) {
+            String json = codec.serialize(new Obj("a", "b", "c"), String.class);
+            System.out.println(json);
+            System.out.println((Object) codec.deserialize(json, Obj.class));
+        }
+    }
+
     @Data
     @RequiredArgsConstructor
     public static class Point {
@@ -49,27 +70,6 @@ public class TestApp {
         public ZPoint(int x, int y, int z) {
             super(x, y);
             this.z = z;
-        }
-    }
-
-    @Test
-    public void test() throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        objectMapper.addMixIn(Point.class, PointMixin.class);
-        String json = objectMapper.writeValueAsString(new ZPoint(1, 2, 3));
-        System.out.println(json);
-        Point point = objectMapper.readValue(json, Point.class);
-        System.out.println(point);
-    }
-
-    @Test
-    public void testCodec() throws Exception {
-        JacksonCodec codec = new JacksonCodec();
-        for (int i = 0; i < 5; i++) {
-            String json = codec.serialize(new Obj("a", "b", "c"), String.class);
-            System.out.println(json);
-            System.out.println((Object) codec.deserialize(json, Obj.class));
         }
     }
 }

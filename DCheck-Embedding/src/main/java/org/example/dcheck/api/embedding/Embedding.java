@@ -9,9 +9,8 @@ import java.util.stream.IntStream;
 
 @Getter
 public class Embedding {
-    private final float[] embedding;
-
     protected static final int TRUNCATE_COUNT = 30;
+    private final float[] embedding;
 
     public Embedding(float[] embeddings) {
         this.embedding = embeddings;
@@ -25,6 +24,13 @@ public class Embedding {
         }
     }
 
+    public static Embedding from(List<Float> embedding) {
+        return new Embedding(embedding);
+    }
+
+    public static Embedding from(float[] embedding) {
+        return new Embedding(embedding);
+    }
 
     public List<Float> asList() {
         return IntStream.range(0, embedding.length)
@@ -39,14 +45,6 @@ public class Embedding {
 
     public float[] asArray() {
         return embedding;
-    }
-
-    public static Embedding from(List<Float> embedding) {
-        return new Embedding(embedding);
-    }
-
-    public static Embedding from(float[] embedding) {
-        return new Embedding(embedding);
     }
 
     @Override

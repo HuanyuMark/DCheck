@@ -1,6 +1,5 @@
 package org.example.dcheck.impl;
 
-import lombok.var;
 import org.example.dcheck.api.MetadataMatchCondition;
 
 import java.util.AbstractMap;
@@ -21,16 +20,16 @@ public class ChromaDSLFactory {
     @SuppressWarnings("unchecked")
     public static Map<String, Object> where(MetadataMatchCondition condition, Function<Map.Entry<String, Object>, Object> valueMapper) {
         condition.validate();
-        var eqs = condition.getEqs().entrySet().stream()
+        Map<String, Object> eqs = condition.getEqs().entrySet().stream()
                 .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$eq", valueMapper.apply((Map.Entry<String, Object>) ((Object) e)))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        var ins = condition.getIns().entrySet().stream()
+        Map<String, Object> ins = condition.getIns().entrySet().stream()
                 .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$in", valueMapper.apply((Map.Entry<String, Object>) ((Object) e)))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        var nes = condition.getNes().entrySet().stream()
+        Map<String, Object> nes = condition.getNes().entrySet().stream()
                 .map(e -> new AbstractMap.SimpleEntry<String, Object>(e.getKey(), Collections.singletonMap("$ne", valueMapper.apply((Map.Entry<String, Object>) ((Object) e)))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        var where = new HashMap<>(eqs);
+        Map<String, Object> where = new HashMap<>(eqs);
         where.putAll(ins);
         where.putAll(nes);
         return where;

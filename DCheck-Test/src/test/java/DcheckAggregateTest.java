@@ -27,43 +27,6 @@ import java.util.stream.Stream;
 @SuppressWarnings("all")
 public class DcheckAggregateTest {
 
-    @Test
-    public void quickStartDurable() throws Exception {
-        // 获取查重入口类实例（spi机制）
-        DuplicateChecking checking = getDuplicateChecking();
-
-        List<Document> diffCollection = getDocuments();
-
-        // 选择第一个文档（可以不存在于集合中）
-        // 如果你需要互相对比集合中各个文档。建议把这些文档都加入到该集合，节省性能
-        Document diffTarget = diffCollection.get(0);
-
-        // 在这里使用一个 collectionId 复用一个集合，该集合是持久化的
-        DocumentCollection collection = checking.getRelevancyEngine().getOrCreateDocumentCollection("test");
-        collection.addDocument(diffCollection);
-
-        // 你可以在
-
-        CheckResult checkResult;
-        try {
-            checkResult = checking.check(
-                    Check.builder()
-                            .document(diffTarget)
-                            .topKOfDocument(2)
-                            .topKOfEachParagraph(5)
-                            .build(),
-                    collection);
-        } catch (Exception e) {
-//            collection.drop();
-            throw e;
-        }
-
-        print(checkResult);
-
-        checking.close();
-    }
-
-
     private static void print(CheckResult checkResult) {
         checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
         for (DuplicatePart duplicatePart : checkResult.getDuplicateParts()) {
@@ -71,7 +34,6 @@ public class DcheckAggregateTest {
             System.out.println("duplicate paragraphs: \n" + duplicatePart.getDuplicates().stream().map(Objects::toString).collect(Collectors.toList()).stream().collect(Collectors.joining("\n")));
         }
     }
-
 
     @NotNull
     private static List<Document> getDocuments() throws IOException {
@@ -111,6 +73,42 @@ public class DcheckAggregateTest {
         // 但是要注意该方法较为耗时。如果不提前初始化，会在第一次调用其他api时耗时很多
         checking.init();
         return checking;
+    }
+
+    @Test
+    public void quickStartDurable() throws Exception {
+        // 获取查重入口类实例（spi机制）
+        DuplicateChecking checking = getDuplicateChecking();
+
+        List<Document> diffCollection = getDocuments();
+
+        // 选择第一个文档（可以不存在于集合中）
+        // 如果你需要互相对比集合中各个文档。建议把这些文档都加入到该集合，节省性能
+        Document diffTarget = diffCollection.get(0);
+
+        // 在这里使用一个 collectionId 复用一个集合，该集合是持久化的
+        DocumentCollection collection = checking.getRelevancyEngine().getOrCreateDocumentCollection("test");
+        collection.addDocument(diffCollection);
+
+        // 你可以在
+
+        CheckResult checkResult;
+        try {
+            checkResult = checking.check(
+                    Check.builder()
+                            .document(diffTarget)
+                            .topKOfDocument(2)
+                            .topKOfEachParagraph(5)
+                            .build(),
+                    collection);
+        } catch (Exception e) {
+//            collection.drop();
+            throw e;
+        }
+
+        print(checkResult);
+
+        checking.close();
     }
 
     @Test

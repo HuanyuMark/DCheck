@@ -35,6 +35,14 @@ public class Neo4jDbms {
         }
     }
 
+    private final Path rootPath;
+    private final Map<String, DatabaseManagementService> databasesServices = new ConcurrentSkipListMap<>();
+    private final Map<String, ManageableGraphDatabaseService> databases = new ConcurrentSkipListMap<>();
+
+    public Neo4jDbms(Path rootPath) {
+        this.rootPath = rootPath;
+    }
+
     private static boolean determineSupportedJDK21VectorAPI() {
         try {
             Class.forName("jdk.incubator.vector.Vector");
@@ -43,18 +51,6 @@ public class Neo4jDbms {
             return false;
         }
     }
-
-
-    private final Path rootPath;
-
-
-    public Neo4jDbms(Path rootPath) {
-        this.rootPath = rootPath;
-    }
-
-    private final Map<String, DatabaseManagementService> databasesServices = new ConcurrentSkipListMap<>();
-
-    private final Map<String, ManageableGraphDatabaseService> databases = new ConcurrentSkipListMap<>();
 
     public ManageableGraphDatabaseService getOrCreateDatabase(String dbName) {
         return databases.computeIfAbsent(dbName, dbName1 -> {

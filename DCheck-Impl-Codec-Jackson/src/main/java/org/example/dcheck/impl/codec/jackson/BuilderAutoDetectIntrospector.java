@@ -6,7 +6,10 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
-import lombok.*;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationAttributes;
@@ -60,10 +63,10 @@ public class BuilderAutoDetectIntrospector extends AnnotationIntrospector {
         Class<?> pojo = ac.getRawType();
         JsonSerialize jsonSerialize = AnnotationUtils.findAnnotation(pojo, JsonSerialize.class);
         if (jsonSerialize != null) return (A) jsonSerialize;
-        var builderType = findBuilder(ac);
+        Class<?> builderType = findBuilder(ac);
         if (builderType == null) return null;
 
-        var attributes = new AnnotationAttributes(2);
+        AnnotationAttributes attributes = new AnnotationAttributes(2);
         attributes.put("builder", builderType);
         return (A) AnnotationUtils.synthesizeAnnotation(attributes, JsonSerialize.class, pojo);
     }
@@ -83,7 +86,7 @@ public class BuilderAutoDetectIntrospector extends AnnotationIntrospector {
             return null;
         }
 
-        var candidateBuilderType = builderMethod.getReturnType();
+        Class<?> candidateBuilderType = builderMethod.getReturnType();
         Class<?>[] innerTypes;
         try {
             innerTypes = builtTarget.getDeclaredClasses();

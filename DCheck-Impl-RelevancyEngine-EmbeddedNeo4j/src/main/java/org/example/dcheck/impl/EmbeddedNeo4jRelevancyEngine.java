@@ -45,16 +45,8 @@ import java.util.stream.StreamSupport;
 @Slf4j
 @SuppressWarnings("unused")
 public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngine {
-    /////
-    //@see https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/vector-indexes/
-    // here are builtin api config
-    public static final String DB_ROOT = "relevancy-engine.embedded-neo4j.data-path";
-    public static final String SIMILARITY_FUNCTION = "relevancy-engine.embedded-neo4j.config.similarity_function";
-    public static final String QUANTIZATION_ENABLE = "relevancy-engine.embedded-neo4j.config.quantization.enable";
-    public static final String HNSW_M = "relevancy-engine.embedded-neo4j.config.hnsw.m";
-    public static final String HNSW_EF_CONSTRUCTION = "relevancy-engine.embedded-neo4j.config.hnsw.ef_construction";
-    /////
-
+    public static final String DOCUMENT_ID_PROPERTY = "documentId";
+    public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 50;
     protected static final Label PARAGRAPH_LABEL = Label.label("Paragraph");
     protected static final String VECTOR_INDEX = "vector_index";
     protected static final String DOCUMENT_ID_INDEX = "document_id_index";
@@ -62,9 +54,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected static final String CONTENT_PROPERTY = "_$$_content_$$_";
     protected static final String EMBEDDING_FUC_PROPERTY = "_$$_embedding_func_$$_";
     protected static final Label COLLECTION_METADATA_LABEL = Label.label("CollectionMetadata");
-    public static final String DOCUMENT_ID_PROPERTY = "documentId";
-
-    public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 50;
     protected static final String EMBEDDING_FUC_DETAILS_PROPERTY = "_$$_embedding_func_details_$$_";
     protected static final String QueryEmbeddingCypher = MessageFormat.format(
             """
@@ -78,20 +67,45 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
             ));
     protected final Set<String> initedCollections = Collections.newSetFromMap(new ConcurrentSkipListMap<>());
+    protected final Map<String, DocumentCollection> collections = new ConcurrentSkipListMap<>();
+    protected final ConcurrentLruCache<Collection<String>, String> queryParagraphCypherCache = new ConcurrentLruCache<>(25, includeMetadata -> {
+        var includeProperties = includeMetadata.isEmpty() ? ".*" : includeMetadata.stream().map(field -> {
+            String property = field.trim();
+            if (property.isEmpty()) {
+                throw new IllegalArgumentException("field cannot be empty");
+            }
+            return "." + property;
+        }).collect(Collectors.joining(","));
+        var cypher = MessageFormat.format(
+                """
+                        MATCH (p: {PARAGRAPH_LABEL})
+                        WHERE p.{DOCUMENT_ID_PROPERTY} <> $selfDocumentId
+                        CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
+                        YIELD node,score
+                        RETURN node,score
+                        """,
+                Map.of(
+                        "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
+                        "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
+                        "includeProperties", includeProperties
+                ));
+        log.debug("QueryParagraphCypher:\n {}", cypher);
+        return cypher;
+    });
     @Nullable
     protected Map<IndexSetting, Object> vectorIndexSettings;
-
     protected Neo4jDbms dbms;
-
     protected Neo4jDbms tempDbms;
-
-    protected final Map<String, DocumentCollection> collections = new ConcurrentSkipListMap<>();
-
     @Getter
     protected EmbeddingFunction embeddingFunction;
-
     @Getter
     protected Codec codec;
+
+    @NotNull
+    private static String[] filterVectorPropertyKey(Node node) {
+        return StreamSupport.stream(node.getPropertyKeys().spliterator(), false)
+                .filter(k -> !VECTOR_PROPERTY.equals(k)).toArray(String[]::new);
+    }
 
     public void setCodec(@NonNull Codec codec) {
         this.codec = codec;
@@ -117,31 +131,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         return vectorIndexSettings == null ? (vectorIndexSettings = new HashMap<>()) : vectorIndexSettings;
     }
 
-    protected final ConcurrentLruCache<Collection<String>, String> queryParagraphCypherCache = new ConcurrentLruCache<>(25, includeMetadata -> {
-        var includeProperties = includeMetadata.isEmpty() ? ".*" : includeMetadata.stream().map(field -> {
-            String property = field.trim();
-            if (property.isEmpty()) {
-                throw new IllegalArgumentException("field cannot be empty");
-            }
-            return "." + property;
-        }).collect(Collectors.joining(","));
-        var cypher = MessageFormat.format(
-                """
-                        MATCH (p: {PARAGRAPH_LABEL})
-                        WHERE p.{DOCUMENT_ID_PROPERTY} <> $selfDocumentId
-                        CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
-                        YIELD node,score
-                        RETURN node,score
-                        """,
-                Map.of(
-                        "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
-                        "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
-                        "includeProperties", includeProperties
-                ));
-        log.debug("QueryParagraphCypher:\n {}", cypher);
-        return cypher;
-    });
-
     protected String getQueryParagraphCypher(Collection<String> includeMetadata) {
         return queryParagraphCypherCache.get(includeMetadata);
     }
@@ -163,28 +152,28 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         } catch (IOException e) {
             throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
         }
-        var dbRoot = apiConfig.getProperty(DB_ROOT);
+        var dbRoot = apiConfig.getProperty(EmbeddedNeo4jConfigKey.DB_ROOT);
         if (!StringUtils.hasText(dbRoot)) {
-            throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "'");
+            throw new IllegalStateException("invalid config '" + EmbeddedNeo4jConfigKey.DB_ROOT + "=" + dbRoot + "'");
         }
         Path dbRootPath;
         try {
             dbRootPath = Paths.get(dbRoot);
         } catch (Exception e) {
-            throw new IllegalStateException("invalid config '" + DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
+            throw new IllegalStateException("invalid config '" + EmbeddedNeo4jConfigKey.DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
         }
         dbms = new Neo4jDbms(dbRootPath);
 
-        String similarityFunc = apiConfig.getProperty(SIMILARITY_FUNCTION);
-        String quantizationEnable = apiConfig.getProperty(QUANTIZATION_ENABLE);
-        String hnswM = apiConfig.getProperty(HNSW_M);
-        String hnswEfConstruction = apiConfig.getProperty(HNSW_EF_CONSTRUCTION);
+        String similarityFunc = apiConfig.getProperty(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
+        String quantizationEnable = apiConfig.getProperty(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
+        String hnswM = apiConfig.getProperty(EmbeddedNeo4jConfigKey.HNSW_M);
+        String hnswEfConstruction = apiConfig.getProperty(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
         if (similarityFunc != null) {
             getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
         }
         if (quantizationEnable != null) {
             if (!"true".equalsIgnoreCase(quantizationEnable) && !"false".equalsIgnoreCase(quantizationEnable)) {
-                throw new IllegalArgumentException("invalid config '" + QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
+                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
             }
             getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, Boolean.parseBoolean(quantizationEnable));
         }
@@ -192,14 +181,14 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             try {
                 getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, Integer.parseInt(hnswM));
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
+                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
             }
         }
         if (hnswEfConstruction != null) {
             try {
                 getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, Integer.parseInt(hnswEfConstruction));
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
+                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
             }
         }
 
@@ -217,12 +206,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     public void inited() throws Exception {
         super.inited();
         embeddingFunction.inited();
-    }
-
-    @NotNull
-    private static String[] filterVectorPropertyKey(Node node) {
-        return StreamSupport.stream(node.getPropertyKeys().spliterator(), false)
-                .filter(k -> !VECTOR_PROPERTY.equals(k)).toArray(String[]::new);
     }
 
     @Override
@@ -466,36 +449,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         }
     }
 
-    protected class CypherArgument extends HashMap<String, Object> {
-
-        @Override
-        public Object put(String key, Object value) {
-            try {
-                return super.put(key.startsWith("$") ? key : "$" + key, codec.serialize(value, String.class));
-            } catch (IOException e) {
-                throw new IllegalStateException("serialize '" + key + "=" + value + "' fail: " + e.getMessage(), e);
-            }
-        }
-
-        public String addSingle(Object value) {
-            String argName = "$" + size();
-            put(argName, value);
-            return argName;
-        }
-
-        public String addList(Collection<?> values) {
-            String argName = "$" + size();
-            super.put(argName, values.stream().map(v -> {
-                try {
-                    return codec.serialize(v, String.class);
-                } catch (IOException e) {
-                    throw new IllegalStateException("serialize value '" + v + "' fail: " + e.getMessage(), e);
-                }
-            }));
-            return argName;
-        }
-    }
-
     @Override
     public DocumentCollection getOrCreateDocumentCollection(String collectionId) {
         return collections.computeIfAbsent(collectionId, id -> new EngineAdaptedDocumentCollection(getCollection(id).databaseName(), this));
@@ -561,7 +514,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         }
     }
 
-
     protected void initCollectionIfNeeded(String collectionId, ManageableGraphDatabaseService collection) {
         if (!initedCollections.add(collectionId)) {
             return;
@@ -625,6 +577,36 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             dbms.shutdown();
             tempDbms.destroy();
             init = false;
+        }
+    }
+
+    protected class CypherArgument extends HashMap<String, Object> {
+
+        @Override
+        public Object put(String key, Object value) {
+            try {
+                return super.put(key.startsWith("$") ? key : "$" + key, codec.serialize(value, String.class));
+            } catch (IOException e) {
+                throw new IllegalStateException("serialize '" + key + "=" + value + "' fail: " + e.getMessage(), e);
+            }
+        }
+
+        public String addSingle(Object value) {
+            String argName = "$" + size();
+            put(argName, value);
+            return argName;
+        }
+
+        public String addList(Collection<?> values) {
+            String argName = "$" + size();
+            super.put(argName, values.stream().map(v -> {
+                try {
+                    return codec.serialize(v, String.class);
+                } catch (IOException e) {
+                    throw new IllegalStateException("serialize value '" + v + "' fail: " + e.getMessage(), e);
+                }
+            }));
+            return argName;
         }
     }
 }

@@ -4,7 +4,6 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -15,6 +14,7 @@ import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.CodecProvider;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,27 +23,23 @@ import java.util.stream.Collectors;
 public class OllamaEmbeddingFunction implements EmbeddingFunction {
     public final static String DEFAULT_BASE_API = "http://localhost:11434/api/embed";
     public final static String DEFAULT_MODEL_NAME = "nomic-embed-text";
-    private OkHttpClient client;
     private final Codec codec;
+    private final String baseUrl;
+    private final String modelName;
+    @Getter
+    private final Map<String, Object> details;
+    private OkHttpClient client;
+    private volatile boolean initialized = false;
 
     {
         codec = CodecProvider.getInstance().getCodecs().stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException("No codec provider found"));
     }
 
-    private final String baseUrl;
-
-    private final String modelName;
-
-    @Getter
-    private final Map<String, Object> details;
-
-    private volatile boolean initialized = false;
-
     public OllamaEmbeddingFunction(String baseUrl, String modelName) {
         this.baseUrl = baseUrl == null ? DEFAULT_BASE_API : baseUrl;
         this.modelName = modelName == null ? DEFAULT_MODEL_NAME : modelName;
-        var details = new HashMap<String, Object>();
+        Map<String, Object> details = new HashMap<>();
         details.put("baseUrl", baseUrl);
         details.put("modelName", modelName);
         this.details = Collections.unmodifiableMap(details);
@@ -65,7 +61,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
             if (response.body() == null) {
                 throw new IOException("response body is null");
             }
-            try (var in = response.body().byteStream()) {
+            try (InputStream in = response.body().byteStream()) {
                 return codec.deserialize(in, CreateEmbeddingResponse.class);
             }
         }

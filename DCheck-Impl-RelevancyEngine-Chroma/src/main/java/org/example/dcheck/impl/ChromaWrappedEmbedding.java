@@ -12,15 +12,15 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class ChromaWrappedEmbedding extends Embedding {
 
-    public static ChromaWrappedEmbedding wrap(org.example.dcheck.api.embedding.Embedding target) {
-        return new ChromaWrappedEmbedding(target);
-    }
-
     protected final org.example.dcheck.api.embedding.Embedding target;
 
     public ChromaWrappedEmbedding(org.example.dcheck.api.embedding.Embedding target) {
         super(target.asArray());
         this.target = target;
+    }
+
+    public static ChromaWrappedEmbedding wrap(org.example.dcheck.api.embedding.Embedding target) {
+        return new ChromaWrappedEmbedding(target);
     }
 
     @Override

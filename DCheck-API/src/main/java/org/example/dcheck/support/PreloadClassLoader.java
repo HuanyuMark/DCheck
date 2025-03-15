@@ -4,7 +4,6 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.PreloadClass;
 import org.jetbrains.annotations.NotNull;
 import org.reflections.Reflections;
@@ -18,6 +17,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Date 2025/03/12
@@ -35,9 +35,9 @@ public class PreloadClassLoader {
     private final List<String> packages = new ArrayList<>(Collections.singleton("org.example.dcheck"));
 
     public void perform() {
-        var reflections = buildReflections();
+        Reflections reflections = buildReflections();
         try {
-            var preloaded = reflections.getSubTypesOf(PreloadClass.class);
+            Set<Class<? extends PreloadClass>> preloaded = reflections.getSubTypesOf(PreloadClass.class);
             preloaded.forEach(this::doPreload);
             log.info("preload PreloadClass success: {}", preloaded);
         } catch (Throwable e) {
@@ -60,8 +60,8 @@ public class PreloadClassLoader {
 
     @NotNull
     protected Reflections buildReflections() {
-        var classLoaders = this.classLoaders.toArray(new ClassLoader[0]);
-        var builder = new ConfigurationBuilder();
+        ClassLoader[] classLoaders = this.classLoaders.toArray(new ClassLoader[0]);
+        ConfigurationBuilder builder = new ConfigurationBuilder();
         for (String pkg : packages) {
             builder.addUrls(ClasspathHelper.forPackage(pkg, classLoaders));
         }

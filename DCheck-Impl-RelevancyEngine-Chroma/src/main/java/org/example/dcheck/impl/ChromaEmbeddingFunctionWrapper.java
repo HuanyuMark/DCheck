@@ -22,39 +22,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class ChromaEmbeddingFunctionWrapper implements EmbeddingFunction {
 
-    @RequiredArgsConstructor
-    protected static class WrapperProxyNamingPolicy extends DefaultNamingPolicy {
-        //@see DefaultNamingPolicy.STRESS_HASH_CODE
-        protected static final boolean STRESS_HASH_CODE = Boolean.getBoolean("org.springframework.cglib.test.stressHashCodes");
-
-        protected final org.example.dcheck.api.embedding.EmbeddingFunction target;
-
-        @Override
-        public String getClassName(String prefix, String source, Object key, Predicate names) {
-            int index = 0;
-            String attempt = target.getName() + "$Wrapper_" + index++;
-            while (names.evaluate(attempt)) {
-                attempt = target.getName() + "$Wrapper_" + index++;
-            }
-            return attempt;
-        }
-    }
-
-    protected static class Wrapper extends Enhancer {
-        public Wrapper(org.example.dcheck.api.embedding.EmbeddingFunction target) {
-            setNamingPolicy(new WrapperProxyNamingPolicy(target));
-            setCallback(NoOp.INSTANCE);
-            setAttemptLoad(true);
-            setSuperclass(ChromaEmbeddingFunctionWrapper.class);
-        }
-    }
+    protected final org.example.dcheck.api.embedding.EmbeddingFunction target;
 
     public static EmbeddingFunction wrap(@NonNull org.example.dcheck.api.embedding.EmbeddingFunction target) {
         return (EmbeddingFunction) new Wrapper(target).create(new Class[]{org.example.dcheck.api.embedding.EmbeddingFunction.class}, new Object[]{target});
     }
-
-
-    protected final org.example.dcheck.api.embedding.EmbeddingFunction target;
 
     @Override
     public Embedding embedQuery(String query) throws EFException {
@@ -90,5 +62,32 @@ public class ChromaEmbeddingFunctionWrapper implements EmbeddingFunction {
     @Override
     public String toString() {
         return target.toString();
+    }
+
+    @RequiredArgsConstructor
+    protected static class WrapperProxyNamingPolicy extends DefaultNamingPolicy {
+        //@see DefaultNamingPolicy.STRESS_HASH_CODE
+        protected static final boolean STRESS_HASH_CODE = Boolean.getBoolean("org.springframework.cglib.test.stressHashCodes");
+
+        protected final org.example.dcheck.api.embedding.EmbeddingFunction target;
+
+        @Override
+        public String getClassName(String prefix, String source, Object key, Predicate names) {
+            int index = 0;
+            String attempt = target.getName() + "$Wrapper_" + index++;
+            while (names.evaluate(attempt)) {
+                attempt = target.getName() + "$Wrapper_" + index++;
+            }
+            return attempt;
+        }
+    }
+
+    protected static class Wrapper extends Enhancer {
+        public Wrapper(org.example.dcheck.api.embedding.EmbeddingFunction target) {
+            setNamingPolicy(new WrapperProxyNamingPolicy(target));
+            setCallback(NoOp.INSTANCE);
+            setAttemptLoad(true);
+            setSuperclass(ChromaEmbeddingFunctionWrapper.class);
+        }
     }
 }

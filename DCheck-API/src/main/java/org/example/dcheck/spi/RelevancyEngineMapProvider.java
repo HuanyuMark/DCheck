@@ -1,10 +1,10 @@
 package org.example.dcheck.spi;
 
 import lombok.Getter;
-import lombok.var;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 
@@ -23,7 +23,7 @@ public class RelevancyEngineMapProvider implements DCheckProvider {
     {
         ins.set(new ConcurrentSkipListMap<>());
         DuplicateCheckingProvider.getInstance().getChecking().onClosing(() -> {
-            var map = ins.get();
+            Map<String, ParagraphRelevancyEngine> map = ins.get();
             if (map != null) {
                 map.clear();
             }
@@ -36,7 +36,7 @@ public class RelevancyEngineMapProvider implements DCheckProvider {
 
     @Nullable
     public ParagraphRelevancyEngine getCurrentDefaultEngine() {
-        var engines = ins.get().values();
+        Collection<ParagraphRelevancyEngine> engines = ins.get().values();
         if (engines.size() == 1) {
             return engines.iterator().next();
         }

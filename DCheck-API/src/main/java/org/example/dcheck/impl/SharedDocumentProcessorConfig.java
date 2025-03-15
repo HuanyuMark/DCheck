@@ -1,7 +1,7 @@
 package org.example.dcheck.impl;
 
 import lombok.Getter;
-import lombok.var;
+import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.spi.ConfigProvider;
 
 /**
@@ -11,13 +11,11 @@ import org.example.dcheck.spi.ConfigProvider;
  */
 public class SharedDocumentProcessorConfig {
 
+    public static final String MAX_PARAGRAPH_LENGTH = "file-processor.default.docx.max-paragraph-length";
     @Getter(lazy = true)
     private static final SharedDocumentProcessorConfig instance = new SharedDocumentProcessorConfig() {{
         init();
     }};
-
-    public static final String MAX_PARAGRAPH_LENGTH = "file-processor.default.docx.max-paragraph-length";
-
     @Getter
     private int maxParagraphLength;
 
@@ -32,7 +30,7 @@ public class SharedDocumentProcessorConfig {
             if (init) {
                 return;
             }
-            var apiConfig = ConfigProvider.getInstance().getApiConfig();
+            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
             //TODO read config init
             try {
                 maxParagraphLength = Integer.parseInt(apiConfig.getProperty(MAX_PARAGRAPH_LENGTH));

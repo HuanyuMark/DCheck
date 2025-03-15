@@ -3,7 +3,6 @@ package org.example.dcheck.impl;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
@@ -29,10 +28,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DefaultDuplicateChecking implements DuplicateChecking {
 
-    private ParagraphRelevancyEngine relevancyEngine;
-
-    private volatile boolean init;
-
     private final IEventEmitter eventEmitter = new ClassHierarchyEventEmitter() {
         @Override
         protected Map<Class<?>, Set<Function<?, CompletableFuture<?>>>> initBus() {
@@ -44,6 +39,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             return ConcurrentHashMap.newKeySet();
         }
     };
+    private ParagraphRelevancyEngine relevancyEngine;
+    private volatile boolean init;
 
     public ParagraphRelevancyEngine getRelevancyEngine() {
         init();
@@ -57,7 +54,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             new PreloadClassLoader().perform();
 
             if (init) return;
-            var apiConfig = ConfigProvider.getInstance().getApiConfig();
+            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
             relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(apiConfig.getProperty(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
 
             try {
@@ -101,7 +98,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     @Override
     public CheckResult check(Check check, DocumentCollection collection) {
         init();
-        var queryBuilder = ParagraphRelevancyQuery.builder()
+        ParagraphRelevancyQuery.ParagraphRelevancyQueryBuilder queryBuilder = ParagraphRelevancyQuery.builder()
                 .documentId(check.getDocument().getId())
                 .collectionId(collection.getId())
                 .minRelevancy(check.getMinParagraphRelevancy())
@@ -111,7 +108,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             queryBuilder
                     .paragraphs(DocumentProcessorProvider.getInstance().splitToParagraphs(check.getDocument()).collect(Collectors.toList()));
         }
-        var queryResult = relevancyEngine.queryParagraph(queryBuilder.build());
+        ParagraphRelevancyQueryResult queryResult = relevancyEngine.queryParagraph(queryBuilder.build());
 
         @Getter
         @RequiredArgsConstructor
@@ -162,9 +159,6 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
         }
     }
 
-    protected static class CloseEvent {
-    }
-
     @Override
     public <E> void addListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
         eventEmitter.addListener(event, listener);
@@ -198,5 +192,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     @Override
     public <T> CompletableFuture<?> emitEvent(Class<T> evnetClass, T event) {
         return eventEmitter.emitEvent(evnetClass, event);
+    }
+
+    protected static class CloseEvent {
     }
 }

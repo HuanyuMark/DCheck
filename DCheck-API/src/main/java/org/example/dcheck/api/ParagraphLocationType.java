@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Date: 2025/2/28
  * supply type info to {@link Codec}. support {@link ParagraphLocation} conversion
+ *
  * @author 三石而立Sunsy
  */
 public interface ParagraphLocationType {

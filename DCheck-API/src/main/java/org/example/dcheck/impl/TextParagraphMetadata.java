@@ -1,7 +1,6 @@
 package org.example.dcheck.impl;
 
 import lombok.experimental.SuperBuilder;
-import lombok.var;
 import org.example.dcheck.api.BuiltinParagraphType;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphType;
@@ -24,9 +23,13 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
         super(documentId, location);
     }
 
+    public static MapBuilder mapBuilder() {
+        return new MapBuilder();
+    }
+
     @Override
     public AbstractParagraphMetadata withOthers(Map<String, ?> rawMetadata) {
-        var cur = new TextParagraphMetadata(getDocumentId(), getLocation());
+        TextParagraphMetadata cur = new TextParagraphMetadata(getDocumentId(), getLocation());
         if (rawMetadata != null) {
             cur.raw.putAll(raw);
             cur.raw.putAll(rawMetadata);
@@ -39,11 +42,6 @@ public class TextParagraphMetadata extends AbstractParagraphMetadata {
     public @NotNull ParagraphType getParagraphType() {
         return BuiltinParagraphType.TEXT;
     }
-
-    public static MapBuilder mapBuilder() {
-        return new MapBuilder();
-    }
-
 
     public static class MapBuilder {
         private final TextParagraphMetadataBuilder<?, ?> builder = TextParagraphMetadata.builder();
