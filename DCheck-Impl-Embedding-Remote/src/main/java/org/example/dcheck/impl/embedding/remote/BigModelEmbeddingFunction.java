@@ -13,6 +13,7 @@ import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
+import org.example.dcheck.util.OnceRunner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,7 +55,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     @Getter
     private int requestMaxToken;
 
-    private volatile boolean initialized;
+    private final OnceRunner initRunner = OnceRunner.of();
     private ToIntFunction<String> tokenizer;
 
     {
@@ -96,13 +97,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
     @Override
     public void init() {
-        if (initialized) {
-            return;
-        }
-        synchronized (this) {
-            if (initialized) {
-                return;
-            }
+        initRunner.run(() -> {
             if (getClient() == null) {
                 setClient(OkHttpClientFactory.getInstance().create());
             }
@@ -158,10 +153,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
             //emit event to inject tokenizer
             tokenizerToInject = tokenizerInitResult.getTokenizer();
-
-
-            initialized = true;
-        }
+        });
     }
 
 
@@ -346,7 +338,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
 
     @Value
     @RequiredArgsConstructor
-    protected static class CallUsage {
+    public static class CallUsage {
         long completion_tokens;
         long prompt_tokens;
         long total_tokens;
