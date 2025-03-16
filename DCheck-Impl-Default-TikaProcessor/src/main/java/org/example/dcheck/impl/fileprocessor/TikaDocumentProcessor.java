@@ -7,6 +7,9 @@ import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import lombok.Data;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Setter;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
@@ -25,7 +28,9 @@ import java.util.stream.Stream;
  */
 @Data
 public class TikaDocumentProcessor implements DocumentProcessor {
-
+    @Getter
+    @Setter
+    @NonNull
     private DCheckDocumentSplitter splitter;
 
     private DocumentParser documentParser;

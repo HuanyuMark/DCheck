@@ -6,6 +6,9 @@ import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.parser.apache.poi.ApachePoiDocumentParser;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Setter;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
@@ -24,6 +27,9 @@ import java.util.stream.Stream;
 @SuppressWarnings("unused")
 public class PoiDocumentProcessor implements DocumentProcessor {
 
+    @Getter
+    @Setter
+    @NonNull
     private DCheckDocumentSplitter splitter;
 
 
