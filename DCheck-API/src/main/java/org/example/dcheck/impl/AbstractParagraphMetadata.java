@@ -4,13 +4,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.experimental.SuperBuilder;
-import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
-import org.example.dcheck.spi.CodecProvider;
-import org.example.dcheck.util.UtilConst;
+import org.springframework.cglib.beans.BeanMap;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,12 +19,6 @@ import java.util.Map;
 @SuperBuilder
 @EqualsAndHashCode
 public abstract class AbstractParagraphMetadata implements ParagraphMetadata {
-    private static final Codec codec;
-
-    static {
-        codec = CodecProvider.getInstance().getCodecs().stream().findFirst().orElseThrow(() -> new IllegalStateException("not found available codec form CodecProvider. please list a Codec Implementation in classpath"));
-    }
-
     @NonNull
     protected final Map<String, Object> raw = new HashMap<>(getRawInitialCapacity());
     @Getter
@@ -57,13 +48,12 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata {
         forceSyncFieldMap();
     }
 
+    @SuppressWarnings("unchecked")
     protected void forceSyncFieldMap() {
-        try {
-            Map<String, Object> all = codec.convertTo(this, UtilConst.MAP_TYPE);
-            raw.putAll(all);
-        } catch (IOException e) {
-            throw new IllegalArgumentException("convert to Map<String,Object> fail: " + e.getMessage(), e);
-        }
+        BeanMap.Generator gen = new BeanMap.Generator();
+        gen.setBean(this);
+        gen.setRequire(BeanMap.REQUIRE_GETTER);
+        raw.putAll(gen.create());
     }
 
     @Override

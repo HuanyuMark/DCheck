@@ -35,7 +35,9 @@ public class DraftTest {
     @Test
     public void seeBeanMap() throws IOException {
         Codec codec = CodecProvider.getInstance().getCodecs().get(0);
-        System.out.println((String) codec.serialize(new TextParagraphMetadata("asd", new TextParagraphLocation(1)), String.class));
+        for (int i = 0; i < 5; i++) {
+            System.out.println((String) codec.serialize(new TextParagraphMetadata("asd", new TextParagraphLocation(1)), String.class));
+        }
     }
 
     @Test

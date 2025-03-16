@@ -17,7 +17,7 @@
         <module>DCheck-Impl-Embedding-Remote</module>
         <module>DCheck-Impl-Default-Embedding</module>
         <module>DCheck-Impl-RelevancyEngine-Chroma</module>
-        <module>DCheck-Impl-RelevancyEngine-JVector</module>
+        <module>DCheck-Impl-RelevancyEngine-ES</module>
         <module>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</module>
         <module>DCheck-Impl-Codec-Gson</module>
         <module>DCheck-Impl-Codec-Jackson</module>
@@ -61,6 +61,11 @@
             <dependency>
                 <groupId>org.example.dcheck</groupId>
                 <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
+                <version>0.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example.dcheck</groupId>
+                <artifactId>DCheck-Impl-RelevancyEngine-ES</artifactId>
                 <version>0.0.1</version>
             </dependency>
 

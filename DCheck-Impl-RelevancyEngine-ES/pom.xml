@@ -6,13 +6,19 @@
         <artifactId>DCheck</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>DCheck-Impl-RelevancyEngine-JVector</artifactId>
+    <artifactId>DCheck-Impl-RelevancyEngine-ES</artifactId>
     <dependencies>
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-API</artifactId>
+            <version>0.0.1</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/io.github.jbellis/jvector -->
         <dependency>
-            <groupId>io.github.jbellis</groupId>
-            <artifactId>jvector</artifactId>
-            <version>4.0.0-beta.1</version>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-elasticsearch</artifactId>
+            <version>${langchain4j.version}</version>
         </dependency>
 
         <dependency>
