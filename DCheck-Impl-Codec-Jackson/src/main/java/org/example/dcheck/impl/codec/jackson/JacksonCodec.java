@@ -88,13 +88,14 @@ public class JacksonCodec implements Codec {
                         return ins;
                     }
                 })
-                .addSerializer(ParagraphMetadata.class, new JsonSerializer<ParagraphMetadata>() {
-                    @Override
-                    public void serialize(ParagraphMetadata value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-                        JsonSerializer<Object> serializer = serializers.findValueSerializer(serializers.getTypeFactory().constructType(UtilConst.MAP_TYPE));
-                        serializer.serialize(value, gen, serializers);
-                    }
-                })
+//                .addSerializer(ParagraphMetadata.class, new JsonSerializer<ParagraphMetadata>() {
+//                    @Override
+//                    public void serialize(ParagraphMetadata value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+//                        JsonSerializer<Object> serializer = serializers.findValueSerializer(serializers.getTypeFactory().constructType(UtilConst.MAP_TYPE));
+//                        gen.writeObject(value);
+//                        serializer.serialize(value, gen, serializers);
+//                    }
+//                })
                 .setMixInAnnotation(ParagraphType.class, NameIdentityMixin.class)
                 .addDeserializer(ParagraphType.class, new JsonDeserializer<ParagraphType>() {
                     @Override

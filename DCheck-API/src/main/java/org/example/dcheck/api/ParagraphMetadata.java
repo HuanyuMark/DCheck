@@ -15,7 +15,7 @@ import java.util.function.Function;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-public interface ParagraphMetadata extends Map<String, Object> {
+public interface ParagraphMetadata {
     @NonNull
     String getDocumentId();
 
@@ -24,6 +24,8 @@ public interface ParagraphMetadata extends Map<String, Object> {
 
     @NonNull
     ParagraphLocation getLocation();
+
+    Map<String, Object> all();
 
     default Map<String, String> toFlatMap(Function<Object, String> jsonSerializer) {
         BeanMap beanMap = BeanMap.create(this);

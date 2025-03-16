@@ -1,9 +1,20 @@
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
+import lombok.experimental.FieldDefaults;
+import org.example.dcheck.api.Codec;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.TextParagraphLocation;
 import org.example.dcheck.impl.TextParagraphMetadata;
 import org.example.dcheck.impl.codec.jackson.JacksonCodec;
+import org.example.dcheck.spi.CodecProvider;
+import org.example.dcheck.util.UtilConst;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Date 2025/03/13
@@ -22,10 +33,34 @@ public class DraftTest {
     }
 
     @Test
+    public void seeBeanMap() throws IOException {
+        Codec codec = CodecProvider.getInstance().getCodecs().get(0);
+        System.out.println((String) codec.serialize(new TextParagraphMetadata("asd", new TextParagraphLocation(1)), String.class));
+    }
+
+    @Test
     public void testMetadataSync() throws Exception {
         TextParagraphMetadata metadata = new TextParagraphMetadata("asd", new TextParagraphLocation(1));
-        System.out.println(metadata.size());
+        System.out.println(metadata.all().size());
         System.out.println(metadata);
+    }
+
+    @Getter
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class Pojo {
+        String name;
+        Integer age;
+
+        public Set<Map.Entry<String, Object>> entrySet() {
+            Codec codec = CodecProvider.getInstance().getCodecs().get(0);
+            try {
+                Map<String, Object> ins = codec.convertTo(this, UtilConst.MAP_TYPE);
+                return ins.entrySet();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
 

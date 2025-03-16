@@ -343,7 +343,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     node.setProperty(CONTENT_PROPERTY, ContentConvert.castToText(record.getContent()));
                     // flat metadata would be great for neo4j match performance
                     // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
-                    for (Map.Entry<String, Object> kv : record.getMetadata().entrySet()) {
+                    for (Map.Entry<String, Object> kv : record.getMetadata().all().entrySet()) {
                         if (kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(CONTENT_PROPERTY)) {
                             throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
                         }

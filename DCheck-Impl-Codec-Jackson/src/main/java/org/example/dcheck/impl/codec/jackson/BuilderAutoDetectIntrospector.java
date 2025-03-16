@@ -73,8 +73,11 @@ public class BuilderAutoDetectIntrospector extends AnnotationIntrospector {
 
     @Nullable
     protected Class<?> findBuilder(AnnotatedClass ac) {
-        Class<?> builtTarget = ac.getRawType();
+        return findBuilder(ac.getRawType());
+    }
 
+    @Nullable
+    protected Class<?> findBuilder(Class<?> builtTarget) {
         Method builderMethod;
         try {
             builderMethod = builtTarget.getDeclaredMethod(builderGenerateMethodName);
@@ -104,6 +107,7 @@ public class BuilderAutoDetectIntrospector extends AnnotationIntrospector {
                     return null;
                 });
     }
+
 
     @Override
     public Class<?> findPOJOBuilder(AnnotatedClass ac) {

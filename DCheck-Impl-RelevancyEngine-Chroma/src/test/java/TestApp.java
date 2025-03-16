@@ -1,4 +1,3 @@
-import lombok.var;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.impl.ChromaEmbeddingFunctionWrapper;
@@ -20,7 +19,7 @@ public class TestApp {
 
     @Test
     public void testChromaWrapper() throws EFException {
-        var obj = ChromaEmbeddingFunctionWrapper.wrap(new MyFunc());
+        Object obj = ChromaEmbeddingFunctionWrapper.wrap(new MyFunc());
         System.out.println(obj);
     }
 

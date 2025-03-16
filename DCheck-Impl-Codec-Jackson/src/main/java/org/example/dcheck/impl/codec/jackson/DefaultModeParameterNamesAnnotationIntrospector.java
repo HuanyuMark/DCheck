@@ -4,13 +4,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.cfg.MapperConfig;
-import com.fasterxml.jackson.databind.introspect.Annotated;
-import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
-import com.fasterxml.jackson.databind.introspect.AnnotatedParameter;
-import com.fasterxml.jackson.databind.introspect.AnnotatedWithParams;
+import com.fasterxml.jackson.databind.introspect.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationUtils;
 
 import java.beans.ConstructorProperties;
@@ -84,13 +82,7 @@ public class DefaultModeParameterNamesAnnotationIntrospector extends AnnotationI
     public JsonCreator.Mode findCreatorAnnotation(MapperConfig<?> config, Annotated a) {
         JsonCreator ann = _findAnnotation(a, JsonCreator.class);
         if (ann == null) {
-            if (a.getRawType().getDeclaredConstructors().length == 1) {
-                return creatorBinding;
-            }
-            if (Arrays.stream(a.getRawType().getDeclaredConstructors()).noneMatch(c -> AnnotationUtils.findAnnotation(c, ConstructorProperties.class) != null)) {
-                log.warn("multiple constructor found. fail to bind single constructor as JsonCreator: " + a);
-            }
-            return null;
+            return injectMode(config, a);
         }
         JsonCreator.Mode mode = ann.mode();
         // but keep in mind that there may be explicit default for this module
@@ -99,5 +91,25 @@ public class DefaultModeParameterNamesAnnotationIntrospector extends AnnotationI
             mode = creatorBinding;
         }
         return mode;
+    }
+
+    @Nullable
+    protected JsonCreator.Mode injectMode(MapperConfig<?> config, Annotated a) {
+        if (a.getRawType().getDeclaredConstructors().length == 1) {
+            return creatorBinding;
+        }
+
+        if (Arrays.stream(a.getRawType().getDeclaredConstructors()).anyMatch(c -> AnnotationUtils.findAnnotation(c, ConstructorProperties.class) != null)) {
+            return null;
+        }
+
+        AnnotatedClass ac = config.introspectClassAnnotations(a.getType()).getClassInfo();
+
+        if (config.getAnnotationIntrospector().allIntrospectors().stream().anyMatch(intro -> intro.findPOJOBuilder(ac) != null)) {
+            return null;
+        }
+
+        log.warn("multiple constructor found. fail to bind single constructor as JsonCreator: " + a);
+        return null;
     }
 }

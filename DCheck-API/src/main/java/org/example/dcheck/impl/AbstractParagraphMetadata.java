@@ -8,11 +8,11 @@ import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.ParagraphLocation;
 import org.example.dcheck.api.ParagraphMetadata;
 import org.example.dcheck.spi.CodecProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.example.dcheck.util.UtilConst;
 
-import java.util.*;
-import java.util.function.BiConsumer;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Date 2025/02/28
@@ -21,7 +21,7 @@ import java.util.function.BiConsumer;
  */
 @SuperBuilder
 @EqualsAndHashCode
-public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Map<String, Object> {
+public abstract class AbstractParagraphMetadata implements ParagraphMetadata {
     private static final Codec codec;
 
     static {
@@ -58,97 +58,17 @@ public abstract class AbstractParagraphMetadata implements ParagraphMetadata, Ma
     }
 
     protected void forceSyncFieldMap() {
-        raw.put("paragraphType", getParagraphType());
-        raw.put("documentId", getDocumentId());
-        raw.put("location", getLocation());
+        try {
+            Map<String, Object> all = codec.convertTo(this, UtilConst.MAP_TYPE);
+            raw.putAll(all);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("convert to Map<String,Object> fail: " + e.getMessage(), e);
+        }
     }
 
     @Override
-    public int size() {
+    public Map<String, Object> all() {
         syncFieldMap();
-        return raw.size();
-    }
-
-    @Override
-    public boolean isEmpty() {
-        syncFieldMap();
-        return raw.isEmpty();
-    }
-
-    @Override
-    public Object get(Object key) {
-        syncFieldMap();
-        return raw.get(key);
-    }
-
-    @Override
-    public boolean containsKey(Object key) {
-        syncFieldMap();
-        return raw.containsKey(key);
-    }
-
-    @Nullable
-    @Override
-    public Object put(String key, Object value) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void putAll(@NotNull Map<? extends String, ?> m) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Object remove(Object key) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void clear() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean containsValue(Object value) {
-        syncFieldMap();
-        return raw.containsValue(value);
-    }
-
-    @NotNull
-    @Override
-    public Set<String> keySet() {
-        syncFieldMap();
-        return Collections.unmodifiableSet(raw.keySet());
-    }
-
-    @NotNull
-    @Override
-    public Collection<Object> values() {
-        syncFieldMap();
-        return Collections.unmodifiableCollection(raw.values());
-    }
-
-    @NotNull
-    @Override
-    public Set<Entry<String, Object>> entrySet() {
-        syncFieldMap();
-        return Collections.unmodifiableSet(raw.entrySet());
-    }
-
-    @Override
-    public Object getOrDefault(Object key, Object defaultValue) {
-        syncFieldMap();
-        return raw.getOrDefault(key, defaultValue);
-    }
-
-    @Override
-    public void forEach(BiConsumer<? super String, ? super Object> action) {
-        syncFieldMap();
-        raw.forEach(action);
-    }
-
-    @Override
-    public Object clone() {
-        throw new UnsupportedOperationException();
+        return raw;
     }
 }
