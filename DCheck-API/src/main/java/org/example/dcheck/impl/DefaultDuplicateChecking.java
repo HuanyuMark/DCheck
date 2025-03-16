@@ -48,6 +48,11 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     @Override
+    public WhiteListManager getWhiteListManager() {
+        throw new UnsupportedOperationException("TODO impl...");
+    }
+
+    @Override
     public void init() {
         if (init) return;
         synchronized (this) {

@@ -2,8 +2,11 @@ package org.example.dcheck.api;
 
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.Singular;
 import lombok.Value;
 import lombok.experimental.NonFinal;
+
+import java.util.Set;
 
 /**
  * Date: 2025/2/25
@@ -42,6 +45,9 @@ public class Check {
      * 如果相关性分数小于minDocumentRelevancy，则该文档会被忽略，不会参与后续的相似度计算
      */
     double minDocumentRelevancy;
+
+    @Singular
+    Set<WhiteList> whiteLists;
 
     public static CheckBuilder builder() {
         return new ValidatedCheckBuilder();

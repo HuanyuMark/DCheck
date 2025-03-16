@@ -31,6 +31,11 @@ public interface DuplicateChecking extends AutoCloseable, IEventEmitter {
     ParagraphRelevancyEngine getRelevancyEngine();
 
     /**
+     * 获取白名单管理器
+     */
+    WhiteListManager getWhiteListManager();
+
+    /**
      * 根据配置的检查，在指定集合里查重
      */
     CheckResult check(Check check, DocumentCollection collection);
