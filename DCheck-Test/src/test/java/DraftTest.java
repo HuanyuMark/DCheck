@@ -11,6 +11,7 @@ import org.example.dcheck.impl.codec.jackson.JacksonCodec;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.util.UtilConst;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.util.ReflectionUtils;
 
 import java.io.IOException;
 import java.util.Map;
@@ -33,10 +34,12 @@ public class DraftTest {
     }
 
     @Test
-    public void seeBeanMap() throws IOException {
-        Codec codec = CodecProvider.getInstance().getCodecs().get(0);
-        for (int i = 0; i < 5; i++) {
-            System.out.println((String) codec.serialize(new TextParagraphMetadata("asd", new TextParagraphLocation(1)), String.class));
+    public void seeBeanMap() throws Exception {
+        System.out.println(ReflectionUtils.findMethod(MyClass.class, "method", String.class));
+    }
+
+    public static class MyClass {
+        public void method(CharSequence seq) {
         }
     }
 

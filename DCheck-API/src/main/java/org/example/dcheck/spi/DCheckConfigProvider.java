@@ -3,9 +3,8 @@ package org.example.dcheck.spi;
 import lombok.Getter;
 import lombok.NonNull;
 import org.example.dcheck.api.DCheckConfig;
-import org.example.dcheck.support.DurationConverter;
+import org.example.dcheck.support.ConvertMethodDelegateConvertor;
 import org.example.dcheck.support.PathConverter;
-import org.example.dcheck.support.URIConvertor;
 import org.example.dcheck.support.URLConvertor;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.ConfigurableConversionService;
@@ -41,9 +40,8 @@ public class DCheckConfigProvider {
         this.conversionService = conversionService;
         if (conversionService instanceof ConfigurableConversionService) {
             ConfigurableConversionService service = (ConfigurableConversionService) conversionService;
-            service.addConverter(new URIConvertor());
+            service.addConverter(new ConvertMethodDelegateConvertor());
             service.addConverter(new URLConvertor());
-            service.addConverter(new DurationConverter());
             service.addConverter(new PathConverter());
         }
     }

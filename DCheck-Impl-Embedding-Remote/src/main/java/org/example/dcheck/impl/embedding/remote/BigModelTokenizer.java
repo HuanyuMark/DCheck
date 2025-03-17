@@ -25,6 +25,9 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Date 2025/03/11
@@ -68,6 +71,15 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     private ConcurrentLruCache<String, Integer> estimateCache;
 
+    //TODO 缓存清理
+    private long estimateCacheExpireTimeMillis;
+
+    @Getter
+    @Setter
+    @NonNull
+    private ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
+
+    private AtomicInteger cacheClearVersion = new AtomicInteger(Integer.MIN_VALUE);
 
     public BigModelTokenizer(@NonNull OkHttpClient client, @NonNull Headers requestHeaders) {
         this.client = client;
@@ -84,15 +96,15 @@ public class BigModelTokenizer implements DCheckTokenizer {
     }
 
     private void doInit() {
-        DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
-        URL uncheckedBaseUrl = DCheckConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
+        DCheckConfig apiConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+        URL uncheckedBaseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
         HttpUrl baseUrl = HttpUrl.get(BASE_URL);
         if (baseUrl == null) {
             throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "'");
         }
         requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
 
-        modelName = DCheckConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
+        modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
 //        if (modelName == null) {
 //            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
 //        }
@@ -105,10 +117,11 @@ public class BigModelTokenizer implements DCheckTokenizer {
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
 
-        Integer estimateCacheSize = DCheckConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
+        Integer estimateCacheSize = apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
 
         estimateCache = new ConcurrentLruCache<>(2000, this::doRequest);
 
+        estimateCacheExpireTimeMillis = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME, Long.class);
     }
 
     protected Integer doRequest(String text) {
