@@ -1,12 +1,17 @@
 package org.example.dcheck.impl;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -42,17 +47,23 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
         }
     }
 
+    @Getter
+    @Setter
+    @NonNull
+    protected Executor executor = Runnable::run;
+
     @Override
     public void addDocument(List<Document> documents) {
         List<Boolean> added = hasDocument(documents.stream().map(Document::getId).collect(Collectors.toList()));
 
-        List<UniversalParagraph> batch = IntStream.range(0, documents.size())
+        List<CompletableFuture<List<UniversalParagraph>>> fus = IntStream.range(0, documents.size())
                 .filter(i -> !added.get(i))
                 .mapToObj(documents::get)
-                .flatMap(document -> DocumentProcessorProvider
+                .map(document -> CompletableFuture.supplyAsync(() -> DocumentProcessorProvider
                         .getInstance()
-                        .splitToParagraphs(document)
-                ).collect(Collectors.toList());
+                        .splitToParagraphs(document).collect(Collectors.toList()), executor)).collect(Collectors.toList());
+
+        List<UniversalParagraph> batch = fus.stream().map(CompletableFuture::join).flatMap(Collection::stream).collect(Collectors.toList());
 
         if (batch.isEmpty()) {
             return;

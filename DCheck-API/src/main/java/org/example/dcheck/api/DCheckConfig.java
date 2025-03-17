@@ -29,10 +29,10 @@ public class DCheckConfig {
 
     private final ConversionService conversionService;
 
-    private final Properties values = new Properties();
+    private final Properties values;
 
     public DCheckConfig(Properties defaults, ConversionService conversionService) {
-        values.putAll(defaults);
+        values = defaults;
         this.conversionService = conversionService;
     }
 
