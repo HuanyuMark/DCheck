@@ -2,7 +2,7 @@ package org.example.dcheck.spi;
 
 import lombok.Getter;
 import lombok.NonNull;
-import org.example.dcheck.api.ApiConfig;
+import org.example.dcheck.api.DCheckConfig;
 import org.example.dcheck.support.DurationConverter;
 import org.example.dcheck.support.PathConverter;
 import org.example.dcheck.support.URIConvertor;
@@ -22,16 +22,16 @@ import java.util.WeakHashMap;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-public class ConfigProvider {
+public class DCheckConfigProvider {
     @Getter(lazy = true)
-    private static final ConfigProvider instance = new ConfigProvider();
+    private static final DCheckConfigProvider instance = new DCheckConfigProvider();
     @Getter
     protected Set<Resource> injectedConfig = Collections.newSetFromMap(new WeakHashMap<>());
 
     @Getter
     protected ConversionService conversionService;
     @Getter(lazy = true)
-    private final ApiConfig apiConfig = new ApiConfig(Providers.loadConfig("api-config", injectedConfig.toArray(new Resource[0])), conversionService);
+    private final DCheckConfig DCheckConfig = new DCheckConfig(Providers.loadConfig("api-config", injectedConfig.toArray(new Resource[0])), conversionService);
 
     {
         setConversionService(new DefaultConversionService());

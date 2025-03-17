@@ -8,7 +8,7 @@ import okhttp3.*;
 import org.example.dcheck.api.*;
 import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.CodecProvider;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.jetbrains.annotations.NotNull;
 
@@ -236,9 +236,9 @@ public class DefaultReranker implements Reranker {
         public void updateRequest() {
             // base config
             request = request.newBuilder().header("User-Agent", "DCheck Java/0.0.x").build();
-            HttpUrl url = HttpUrl.get(ConfigProvider.getInstance().getApiConfig().required(ApiConfig.RERANKING_MODEL_URL, URL.class));
+            HttpUrl url = HttpUrl.get(DCheckConfigProvider.getInstance().getDCheckConfig().required(DCheckConfig.RERANKING_MODEL_URL, URL.class));
             if (url == null) {
-                throw new IllegalArgumentException("invalid config '" + ApiConfig.RERANKING_MODEL_URL + "=" + null + "' ");
+                throw new IllegalArgumentException("invalid config '" + DCheckConfig.RERANKING_MODEL_URL + "=" + null + "' ");
             }
             request = request.newBuilder().url(request.url().newBuilder().host(url.host()).port(url.port()).build()).build();
             builder = request.newBuilder();

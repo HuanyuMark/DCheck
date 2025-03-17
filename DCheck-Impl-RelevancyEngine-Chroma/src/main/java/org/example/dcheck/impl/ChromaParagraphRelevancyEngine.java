@@ -13,7 +13,7 @@ import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.CodecProvider;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
 import org.jetbrains.annotations.NotNull;
@@ -95,10 +95,10 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
 
-        String embeddingModel = ConfigProvider.getInstance().getApiConfig().required(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        String embeddingModel = DCheckConfigProvider.getInstance().getDCheckConfig().required(DCheckConfig.EMBEDDING_MODEL_KEY, DCheckConfig.DEFAULT_VALUE);
         setEmbeddingFunction(EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel));
 
-        URL url = ConfigProvider.getInstance().getApiConfig().required(ApiConfig.DB_VECTOR_URL, URL.class);
+        URL url = DCheckConfigProvider.getInstance().getDCheckConfig().required(DCheckConfig.DB_VECTOR_URL, URL.class);
 
 
         CompletableFuture.allOf(
@@ -146,7 +146,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
                 // init reranker
                 CompletableFuture.runAsync(() -> {
-                    String rerankModel = ConfigProvider.getInstance().getApiConfig().nullable(ApiConfig.RERANKING_MODEL_KEY);
+                    String rerankModel = DCheckConfigProvider.getInstance().getDCheckConfig().nullable(DCheckConfig.RERANKING_MODEL_KEY);
                     if (rerankModel == null) return;
                     reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
                     log.info("Starting init Reranker '{}'", rerankModel.getClass().getCanonicalName());

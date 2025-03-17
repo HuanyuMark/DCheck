@@ -1,6 +1,6 @@
 package org.example.dcheck.api;
 
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.core.convert.ConversionException;
@@ -11,14 +11,14 @@ import java.util.Properties;
 /**
  * Date 2025/02/26
  * common interface to access all config in dcheck.
- * you can access the config instance by {@link ConfigProvider#getApiConfig()}
+ * you can access the config instance by {@link DCheckConfigProvider#getDCheckConfig()}
  * there are some loading mechanism to load config. see in the provider...
  *
  * @author 三石而立Sunsy
- * @see ConfigProvider
+ * @see DCheckConfigProvider
  */
 @SuppressWarnings("unused")
-public class ApiConfig {
+public class DCheckConfig {
     public static final String EMBEDDING_MODEL_KEY = "relevancy-engine.model.embedding.name";
 
     public static final String DEFAULT_VALUE = "default";
@@ -31,7 +31,7 @@ public class ApiConfig {
 
     private final Properties values = new Properties();
 
-    public ApiConfig(Properties defaults, ConversionService conversionService) {
+    public DCheckConfig(Properties defaults, ConversionService conversionService) {
         values.putAll(defaults);
         this.conversionService = conversionService;
     }

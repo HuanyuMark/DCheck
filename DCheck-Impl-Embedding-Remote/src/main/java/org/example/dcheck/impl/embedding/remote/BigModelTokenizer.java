@@ -9,11 +9,11 @@ import dev.langchain4j.data.message.ChatMessage;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
-import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.api.Codec;
+import org.example.dcheck.api.DCheckConfig;
 import org.example.dcheck.api.DCheckTokenizer;
 import org.example.dcheck.spi.CodecProvider;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.util.OnceRunner;
 import org.springframework.util.ConcurrentLruCache;
 import org.springframework.util.StringUtils;
@@ -84,15 +84,15 @@ public class BigModelTokenizer implements DCheckTokenizer {
     }
 
     private void doInit() {
-        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-        URL uncheckedBaseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
+        DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+        URL uncheckedBaseUrl = DCheckConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
         HttpUrl baseUrl = HttpUrl.get(BASE_URL);
         if (baseUrl == null) {
             throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "'");
         }
         requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
 
-        modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
+        modelName = DCheckConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
 //        if (modelName == null) {
 //            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
 //        }
@@ -105,7 +105,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
 
-        Integer estimateCacheSize = apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
+        Integer estimateCacheSize = DCheckConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
 
         estimateCache = new ConcurrentLruCache<>(2000, this::doRequest);
 

@@ -2,8 +2,8 @@ package org.example.dcheck.impl.embedding.remote;
 
 import lombok.Getter;
 import okhttp3.OkHttpClient;
-import org.example.dcheck.api.ApiConfig;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.api.DCheckConfig;
+import org.example.dcheck.spi.DCheckConfigProvider;
 
 import java.time.Duration;
 
@@ -19,9 +19,9 @@ public class OkHttpClientFactory {
     private static final OkHttpClientFactory instance = new OkHttpClientFactory();
 
     public OkHttpClient create() {
-        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+        DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
         return new OkHttpClient.Builder()
-                .readTimeout(apiConfig.required(READ_TIME_OUT, Duration.class))
+                .readTimeout(DCheckConfig.required(READ_TIME_OUT, Duration.class))
                 .build();
     }
 }

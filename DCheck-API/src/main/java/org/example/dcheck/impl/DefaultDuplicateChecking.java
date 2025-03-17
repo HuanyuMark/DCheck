@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.example.dcheck.support.PreloadClassLoader;
@@ -59,8 +59,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             new PreloadClassLoader().perform();
 
             if (init) return;
-            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-            relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(apiConfig.required(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
+            DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+            relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(DCheckConfig.required(DCheckConfig.DB_VECTOR_TYPE, DCheckConfig.DEFAULT_VALUE));
 
             try {
                 log.info("Starting init Relevancy Engine '{}'", relevancyEngine.getClass().getCanonicalName());

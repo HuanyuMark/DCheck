@@ -12,7 +12,7 @@ import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.spi.CodecProvider;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.util.UtilConst;
 import org.jetbrains.annotations.NotNull;
@@ -124,20 +124,20 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
         }
 
-        ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+        DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
 
         try {
             tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + (int) (System.currentTimeMillis() / Math.random())));
         } catch (IOException e) {
             throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
         }
-        var dbRootPath = apiConfig.required(EmbeddedNeo4jConfigKey.DB_ROOT, Path.class);
+        var dbRootPath = DCheckConfig.required(EmbeddedNeo4jConfigKey.DB_ROOT, Path.class);
         dbms = new Neo4jDbms(dbRootPath);
 
-        String similarityFunc = apiConfig.nullable(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
-        Boolean quantizationEnable = apiConfig.nullableEnable(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
-        Integer hnswM = apiConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_M);
-        Integer hnswEfConstruction = apiConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
+        String similarityFunc = DCheckConfig.nullable(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
+        Boolean quantizationEnable = DCheckConfig.nullableEnable(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
+        Integer hnswM = DCheckConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_M);
+        Integer hnswEfConstruction = DCheckConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
         if (similarityFunc != null) {
             getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
         }
@@ -155,7 +155,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             }
         }
 
-        var embeddingModel = apiConfig.required(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        var embeddingModel = DCheckConfig.required(DCheckConfig.EMBEDDING_MODEL_KEY, DCheckConfig.DEFAULT_VALUE);
         embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
 
         try {

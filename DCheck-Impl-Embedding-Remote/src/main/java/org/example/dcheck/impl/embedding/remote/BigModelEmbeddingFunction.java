@@ -3,15 +3,15 @@ package org.example.dcheck.impl.embedding.remote;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
-import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.DCheckComponent;
+import org.example.dcheck.api.DCheckConfig;
 import org.example.dcheck.api.IEventEmitter;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.spi.CodecProvider;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.example.dcheck.util.OnceRunner;
 import org.jetbrains.annotations.NotNull;
@@ -102,8 +102,8 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
             if (url == null) {
                 throw new IllegalArgumentException("invalid base url '" + baseUrl + "'");
             }
-            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-            String apiKey = apiConfig.required(API_KEY_CONFIG);
+            DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+            String apiKey = DCheckConfig.required(API_KEY_CONFIG);
             Headers requestHeaders = Headers.of(new HashMap<String, String>() {{
                 put("Accept", "application/json");
                 put("Content-Type", "application/json");
@@ -116,9 +116,9 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                     .headers(requestHeaders)
                     .build();
 
-            dimension = apiConfig.nullablePositiveInt(DIMENSION_CONFIG);
+            dimension = DCheckConfig.nullablePositiveInt(DIMENSION_CONFIG);
 
-            Integer requestMaxToken = apiConfig.nullablePositiveInt(ConfigPropertyKey.EMBEDDING_REMOTE_MAX_TOKEN);
+            Integer requestMaxToken = DCheckConfig.nullablePositiveInt(ConfigPropertyKey.EMBEDDING_REMOTE_MAX_TOKEN);
             if (requestMaxToken != null) {
                 this.requestMaxToken = requestMaxToken;
             } else {

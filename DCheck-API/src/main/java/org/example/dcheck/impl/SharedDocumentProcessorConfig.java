@@ -1,8 +1,8 @@
 package org.example.dcheck.impl;
 
 import lombok.Getter;
-import org.example.dcheck.api.ApiConfig;
-import org.example.dcheck.spi.ConfigProvider;
+import org.example.dcheck.api.DCheckConfig;
+import org.example.dcheck.spi.DCheckConfigProvider;
 
 /**
  * Date: 2025/2/28
@@ -30,9 +30,9 @@ public class SharedDocumentProcessorConfig {
             if (init) {
                 return;
             }
-            ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
+            DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
             //TODO read config init
-            maxParagraphLength = apiConfig.requiredPositiveInt(MAX_PARAGRAPH_LENGTH);
+            maxParagraphLength = DCheckConfig.requiredPositiveInt(MAX_PARAGRAPH_LENGTH);
             init = true;
         }
     }
