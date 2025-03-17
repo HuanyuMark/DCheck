@@ -21,6 +21,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexSetting;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
+import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.kernel.impl.core.NodeEntity;
 import org.springframework.util.ConcurrentLruCache;
 import org.springframework.util.StringUtils;
@@ -31,6 +32,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -79,7 +81,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         var cypher = MessageFormat.format(
                 """
                         MATCH (p: {PARAGRAPH_LABEL})
-                        WHERE p.{DOCUMENT_ID_PROPERTY} <> $selfDocumentId
                         CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
                         YIELD node,score
                         RETURN node,score
@@ -208,6 +209,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         embeddingFunction.inited();
     }
 
+
     @Override
     public ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery _query) {
 
@@ -220,7 +222,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
         var collection = getCollection(query.getCollectionId());
         DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
-        try (var tx = collection.beginTx()) {
+        var tx = collection.beginTx();
+        try {
             var embeddingFunctionName = ((String) tx.findNodes(COLLECTION_METADATA_LABEL).stream().findFirst().orElseThrow()
                     .getProperty(EMBEDDING_FUC_PROPERTY));
 
@@ -246,7 +249,24 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 });
             }
 
+            // exclude self
+            var selfParagraphs = tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, query.getDocumentId())
+                    .stream().map(n -> {
+                        Map<String, Object> properties = n.getAllProperties();
+                        n.delete();
+                        return properties;
+                    }).toList();
+
+            // await vector index online after delete self paragraphs
+            if (tx.schema().getIndexState(tx.schema().getIndexByName(VECTOR_INDEX)) != Schema.IndexState.ONLINE) {
+                tx.schema().awaitIndexOnline(VECTOR_INDEX, 5, TimeUnit.SECONDS);
+            }
+            tx.commit();
+            tx = collection.beginTx();
+
+
             String cypher = getQueryParagraphCypher(query.getIncludeMetadata());
+            Transaction finalTx = tx;
             var duplicateParts = embeddingArguments.map(entry -> {
                 Paragraph diffTarget;
 
@@ -257,7 +277,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     throw new UnsupportedOperationException("unsupported paragraph type: " + entry.getKey().getParagraphType());
                 }
 
-                var duplicates = tx.execute(cypher,
+
+                var duplicates = finalTx.execute(cypher,
                                 Map.of(
                                         "embedding", entry.getValue().asArray(),
                                         "selfDocumentId", query.getDocumentId(),
@@ -275,12 +296,29 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
                             return new DuplicatePart.DuplicateParagraph(mapToParagraph(nodeProperties), (double) result.get("score"));
                         }).toList();
-
+                Map<String, Integer> statistic = duplicates.stream().collect(Collectors.groupingBy(e -> e.getMetadata().getDocumentId()))
+                        .entrySet()
+                        .stream()
+                        .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().size()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                log.info("target： {}", diffTarget);
+                log.info("duplicates: \n{}", statistic);
                 return new DuplicatePart(diffTarget, duplicates);
             }).toList();
 
+            // restore self
+            for (var selfParagraph : selfParagraphs) {
+                Node node = tx.createNode(PARAGRAPH_LABEL);
+                for (var kv : selfParagraph.entrySet()) {
+                    node.setProperty(kv.getKey(), kv.getValue());
+                }
+            }
+
             tx.commit();
             return new ParagraphRelevancyQueryResult(duplicateParts);
+        } catch (Throwable e) {
+            tx.rollback();
+            throw e;
         }
     }
 
@@ -304,7 +342,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             throw new IllegalStateException("convert flatProperties to ParagraphMetadata fail: " + e.getMessage(), e);
         }
 
-        var paragraphContent = ContentConvert.castToContent(flatProperties.get(CONTENT_PROPERTY));
+        var paragraphContent = ContentConvert.castToContent(nodeProperties.get(CONTENT_PROPERTY));
 
         if (metadata.getParagraphType() != BuiltinParagraphType.TEXT) {
             throw new UnsupportedOperationException("unsupported paragraph type: " + metadata.getParagraphType());
@@ -343,16 +381,22 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     node.setProperty(CONTENT_PROPERTY, ContentConvert.castToText(record.getContent()));
                     // flat metadata would be great for neo4j match performance
                     // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
-                    for (Map.Entry<String, Object> kv : record.getMetadata().all().entrySet()) {
+                    for (Map.Entry<String, String> kv : record.getMetadata().toFlatMap(obj -> {
+                        try {
+                            return codec.serialize(obj, String.class);
+                        } catch (IOException e) {
+                            throw new IllegalArgumentException("serialize '" + obj + "' fail: " + e.getMessage(), e);
+                        }
+                    }).entrySet()) {
                         if (kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(CONTENT_PROPERTY)) {
                             throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
                         }
-                        node.setProperty(kv.getKey(), codec.serialize(kv.getValue(), String.class));
+                        node.setProperty(kv.getKey(), kv.getValue());
                     }
                 }
+                tx.commit();
             }
-            tx.commit();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new IllegalStateException("add paragraph fail: " + e.getMessage(), e);
         }
     }

@@ -1,6 +1,7 @@
 package org.example.dcheck.api;
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -12,33 +13,34 @@ import java.util.Set;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-@Data
 @With
+@Value
 @Builder
+@NonFinal
 @AllArgsConstructor
 public class ParagraphRelevancyQuery {
     @NonNull
-    private final String collectionId;
+    String collectionId;
     @NonNull
-    private final String documentId;
+    String documentId;
     //TODO 优化这种document本身就在collection中的场景
     /**
      * 仅当documentId指代的document存在于collectionId指代的collection中时，才允许为null
      */
     @Nullable
-    private final List<UniversalParagraph> paragraphs;
+    List<UniversalParagraph> paragraphs;
     @Builder.Default
-    private final int topK = 5;
+    int topK = 5;
 
     /**
      * 如果相关性分数小于minRelevancy，则该段落会被忽略，不会参与后续的相似度计算
      */
     //TODO skip <= minRelevancy
-    private final double minRelevancy;
+    double minRelevancy;
 
     /**
      * return all metadata if empty
      */
     @Singular("includeMetadataField")
-    private final Set<String> includeMetadata;
+    Set<String> includeMetadata;
 }
