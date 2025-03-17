@@ -106,7 +106,7 @@ public class DcheckAggregateTest {
             throw e;
         }
 
-//        print(checkResult);
+        print(checkResult);
 
         checking.close();
     }

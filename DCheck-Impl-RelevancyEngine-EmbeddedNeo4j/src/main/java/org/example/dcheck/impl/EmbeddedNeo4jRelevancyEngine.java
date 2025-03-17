@@ -2,6 +2,8 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Value;
+import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
@@ -21,15 +23,11 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexSetting;
 import org.neo4j.graphdb.schema.IndexSettingImpl;
 import org.neo4j.graphdb.schema.IndexType;
-import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.kernel.impl.core.NodeEntity;
-import org.springframework.util.ConcurrentLruCache;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
@@ -70,29 +68,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             ));
     protected final Set<String> initedCollections = Collections.newSetFromMap(new ConcurrentSkipListMap<>());
     protected final Map<String, DocumentCollection> collections = new ConcurrentSkipListMap<>();
-    protected final ConcurrentLruCache<Collection<String>, String> queryParagraphCypherCache = new ConcurrentLruCache<>(25, includeMetadata -> {
-        var includeProperties = includeMetadata.isEmpty() ? ".*" : includeMetadata.stream().map(field -> {
-            String property = field.trim();
-            if (property.isEmpty()) {
-                throw new IllegalArgumentException("field cannot be empty");
-            }
-            return "." + property;
-        }).collect(Collectors.joining(","));
-        var cypher = MessageFormat.format(
-                """
-                        MATCH (p: {PARAGRAPH_LABEL})
-                        CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
-                        YIELD node,score
-                        RETURN node,score
-                        """,
-                Map.of(
-                        "PARAGRAPH_LABEL", PARAGRAPH_LABEL.name(),
-                        "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY,
-                        "includeProperties", includeProperties
-                ));
-        log.debug("QueryParagraphCypher:\n {}", cypher);
-        return cypher;
-    });
+    protected static final String QUERY_PARAGRAPH_CYPHER =
+            """
+                    CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
+                    YIELD node,score
+                    RETURN node,score
+                    """;
     @Nullable
     protected Map<IndexSetting, Object> vectorIndexSettings;
     protected Neo4jDbms dbms;
@@ -132,9 +113,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         return vectorIndexSettings == null ? (vectorIndexSettings = new HashMap<>()) : vectorIndexSettings;
     }
 
-    protected String getQueryParagraphCypher(Collection<String> includeMetadata) {
-        return queryParagraphCypherCache.get(includeMetadata);
-    }
 
     @Override
     public void doInit() {
@@ -153,47 +131,31 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         } catch (IOException e) {
             throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
         }
-        var dbRoot = apiConfig.getProperty(EmbeddedNeo4jConfigKey.DB_ROOT);
-        if (!StringUtils.hasText(dbRoot)) {
-            throw new IllegalStateException("invalid config '" + EmbeddedNeo4jConfigKey.DB_ROOT + "=" + dbRoot + "'");
-        }
-        Path dbRootPath;
-        try {
-            dbRootPath = Paths.get(dbRoot);
-        } catch (Exception e) {
-            throw new IllegalStateException("invalid config '" + EmbeddedNeo4jConfigKey.DB_ROOT + "=" + dbRoot + "': " + e.getMessage(), e);
-        }
+        var dbRootPath = apiConfig.required(EmbeddedNeo4jConfigKey.DB_ROOT, Path.class);
         dbms = new Neo4jDbms(dbRootPath);
 
-        String similarityFunc = apiConfig.getProperty(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
-        String quantizationEnable = apiConfig.getProperty(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
-        String hnswM = apiConfig.getProperty(EmbeddedNeo4jConfigKey.HNSW_M);
-        String hnswEfConstruction = apiConfig.getProperty(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
+        String similarityFunc = apiConfig.nullable(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
+        Boolean quantizationEnable = apiConfig.nullableEnable(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
+        Integer hnswM = apiConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_M);
+        Integer hnswEfConstruction = apiConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
         if (similarityFunc != null) {
             getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
         }
         if (quantizationEnable != null) {
-            if (!"true".equalsIgnoreCase(quantizationEnable) && !"false".equalsIgnoreCase(quantizationEnable)) {
-                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE + "=" + quantizationEnable + "' require type 'Boolean'");
-            }
-            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, Boolean.parseBoolean(quantizationEnable));
+            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, quantizationEnable);
         }
         if (hnswM != null) {
-            try {
-                getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, Integer.parseInt(hnswM));
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_M + "=" + hnswM + "' require type 'Integer'", e);
-            }
+            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, hnswM);
         }
         if (hnswEfConstruction != null) {
             try {
-                getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, Integer.parseInt(hnswEfConstruction));
+                getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, hnswEfConstruction);
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
             }
         }
 
-        var embeddingModel = apiConfig.getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        var embeddingModel = apiConfig.required(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
         embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
 
         try {
@@ -222,52 +184,24 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
         var collection = getCollection(query.getCollectionId());
         DocumentCollection documentCollection = getOrCreateDocumentCollection(query.getCollectionId());
-        var tx = collection.beginTx();
-        try {
-            var embeddingFunctionName = ((String) tx.findNodes(COLLECTION_METADATA_LABEL).stream().findFirst().orElseThrow()
-                    .getProperty(EMBEDDING_FUC_PROPERTY));
+        var preparedEmbeddingArguments = prepareEmbeddingArguments(query, collection);
+        List<? extends Map.Entry<UniversalParagraph, Embedding>> embeddingArguments = preparedEmbeddingArguments.getArguments();
+        List<Map<String, Object>> selfParagraphs;
 
-
-            Stream<Map.Entry<UniversalParagraph, Embedding>> embeddingArguments;
-            if (query.getParagraphs() == null) {
-                embeddingArguments = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
-                        .stream()
-                        .map(result -> {
-                            Map<String, Object> properties = ((NodeEntity) result.get("p")).getAllProperties();
-                            Paragraph paragraph = mapToParagraph(properties);
-                            return new AbstractMap.SimpleEntry<>(new UniversalParagraph(new SimpleParagraph(paragraph::getContent, paragraph.getMetadata().getParagraphType(), paragraph.getMetadata().getLocation()),
-                                    paragraph.getMetadata()),
-                                    Embedding.from((float[]) properties.get(VECTOR_PROPERTY)));
-                        });
-            } else {
-                // do partition for batch
-                var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
-                embeddingArguments = partitions.stream().flatMap(partition -> {
-                    var embeddings = embed(partition.stream().map(UniversalParagraph::getContent));
-                    return IntStream.range(0, partition.size())
-                            .mapToObj(i -> new AbstractMap.SimpleEntry<>(partition.get(i), embeddings.get(i)));
-                });
-            }
-
-            // exclude self
-            var selfParagraphs = tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, query.getDocumentId())
+        try (var tx = preparedEmbeddingArguments.getTx() == null ? collection.beginTx() : preparedEmbeddingArguments.getTx()) {
+            // exclude self: delete self paragraphs in the graph: current neo4j did`t support pre-filtering KNN
+            selfParagraphs = tx.findNodes(PARAGRAPH_LABEL, DOCUMENT_ID_PROPERTY, query.getDocumentId())
                     .stream().map(n -> {
                         Map<String, Object> properties = n.getAllProperties();
                         n.delete();
                         return properties;
                     }).toList();
 
-            // await vector index online after delete self paragraphs
-            if (tx.schema().getIndexState(tx.schema().getIndexByName(VECTOR_INDEX)) != Schema.IndexState.ONLINE) {
-                tx.schema().awaitIndexOnline(VECTOR_INDEX, 5, TimeUnit.SECONDS);
-            }
-            tx.commit();
-            tx = collection.beginTx();
+            // await vector index online after delete self paragraphs(we mutate the indexed data before)
+            System.out.println(tx.schema().getIndexState(tx.schema().getIndexByName(VECTOR_INDEX)));
+            tx.schema().awaitIndexOnline(VECTOR_INDEX, 5, TimeUnit.SECONDS);
 
-
-            String cypher = getQueryParagraphCypher(query.getIncludeMetadata());
-            Transaction finalTx = tx;
-            var duplicateParts = embeddingArguments.map(entry -> {
+            var duplicateParts = embeddingArguments.stream().map(entry -> {
                 Paragraph diffTarget;
 
                 UniversalParagraph universalParagraph = entry.getKey();
@@ -278,13 +212,11 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                 }
 
 
-                var duplicates = finalTx.execute(cypher,
+                var duplicates = tx.execute(QUERY_PARAGRAPH_CYPHER,
                                 Map.of(
                                         "embedding", entry.getValue().asArray(),
-                                        "selfDocumentId", query.getDocumentId(),
                                         "VECTOR_INDEX", VECTOR_INDEX,
-                                        "topK", query.getTopK(),
-                                        "VECTOR_PROPERTY", VECTOR_PROPERTY
+                                        "topK", query.getTopK()
                                 ))
                         .stream()
                         .map(result -> {
@@ -296,13 +228,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
                             return new DuplicatePart.DuplicateParagraph(mapToParagraph(nodeProperties), (double) result.get("score"));
                         }).toList();
-                Map<String, Integer> statistic = duplicates.stream().collect(Collectors.groupingBy(e -> e.getMetadata().getDocumentId()))
-                        .entrySet()
-                        .stream()
-                        .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().size()))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                log.info("target： {}", diffTarget);
-                log.info("duplicates: \n{}", statistic);
+
                 return new DuplicatePart(diffTarget, duplicates);
             }).toList();
 
@@ -313,12 +239,77 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     node.setProperty(kv.getKey(), kv.getValue());
                 }
             }
-
             tx.commit();
             return new ParagraphRelevancyQueryResult(duplicateParts);
+        }
+    }
+
+    @NotNull
+    protected EmbeddingArguments prepareEmbeddingArguments(ParagraphRelevancyQuery query, ManageableGraphDatabaseService collection) {
+        List<? extends Map.Entry<UniversalParagraph, Embedding>> embeddingArguments;
+        if (query.getParagraphs() == null) {
+            var tx = collection.beginTx();
+            try {
+                embeddingArguments = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
+                        .stream()
+                        .map(result -> {
+                            Map<String, Object> properties = ((NodeEntity) result.get("p")).getAllProperties();
+                            Paragraph paragraph = mapToParagraph(properties);
+                            return new AbstractMap.SimpleEntry<>(new UniversalParagraph(new SimpleParagraph(paragraph::getContent, paragraph.getMetadata().getParagraphType(), paragraph.getMetadata().getLocation()),
+                                    paragraph.getMetadata()),
+                                    Embedding.from((float[]) properties.get(VECTOR_PROPERTY)));
+                        }).toList();
+                return new EmbeddingArguments(embeddingArguments, tx);
+            } catch (Throwable e) {
+                tx.rollback();
+                throw e;
+            }
+        }
+        // do partition for batch
+        var partitions = CollectionUtils.partition(query.getParagraphs(), PARAGRAPH_HANDLE_CHUNK_SIZE);
+        embeddingArguments = partitions.stream().flatMap(partition -> {
+            var embeddings = embed(partition.stream().map(UniversalParagraph::getContent));
+            return IntStream.range(0, partition.size())
+                    .mapToObj(i -> new AbstractMap.SimpleEntry<>(partition.get(i), embeddings.get(i)));
+        }).toList();
+        return new EmbeddingArguments(embeddingArguments, null);
+    }
+
+    @Override
+    public void addParagraph(ParagraphRelevancyCreation creation) {
+        var collection = getCollection(creation.getCollectionId());
+
+        // do partition for batch
+        var partitions = CollectionUtils.partition(creation.getBatch(), PARAGRAPH_HANDLE_CHUNK_SIZE);
+
+        try (var tx = collection.beginTx()) {
+            for (var partition : partitions) {
+                var embeddings = embed(partition.stream().map(UniversalParagraph::getContent));
+
+                for (int i = 0; i < partition.size(); i++) {
+                    var record = partition.get(i);
+                    Node node = tx.createNode(PARAGRAPH_LABEL);
+                    node.setProperty(VECTOR_PROPERTY, embeddings.get(i).asArray());
+                    node.setProperty(CONTENT_PROPERTY, ContentConvert.castToText(record.getContent()));
+                    // flat metadata would be great for neo4j match performance
+                    // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
+                    for (Map.Entry<String, String> kv : record.getMetadata().toFlatMap(obj -> {
+                        try {
+                            return codec.serialize(obj, String.class);
+                        } catch (IOException e) {
+                            throw new IllegalArgumentException("serialize '" + obj + "' fail: " + e.getMessage(), e);
+                        }
+                    }).entrySet()) {
+                        if (kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(CONTENT_PROPERTY)) {
+                            throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
+                        }
+                        node.setProperty(kv.getKey(), kv.getValue());
+                    }
+                }
+            }
+            tx.commit();
         } catch (Throwable e) {
-            tx.rollback();
-            throw e;
+            throw new IllegalStateException("add paragraph fail: " + e.getMessage(), e);
         }
     }
 
@@ -363,42 +354,12 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         }
     }
 
-    @Override
-    public void addParagraph(ParagraphRelevancyCreation creation) {
-        var collection = getCollection(creation.getCollectionId());
-
-        // do partition for batch
-        var partitions = CollectionUtils.partition(creation.getBatch(), PARAGRAPH_HANDLE_CHUNK_SIZE);
-
-        try (var tx = collection.beginTx()) {
-            for (var partition : partitions) {
-                var embeddings = embed(partition.stream().map(UniversalParagraph::getContent));
-
-                for (int i = 0; i < partition.size(); i++) {
-                    var record = partition.get(i);
-                    Node node = tx.createNode(PARAGRAPH_LABEL);
-                    node.setProperty(VECTOR_PROPERTY, embeddings.get(i).asArray());
-                    node.setProperty(CONTENT_PROPERTY, ContentConvert.castToText(record.getContent()));
-                    // flat metadata would be great for neo4j match performance
-                    // 不将metadata单独序列化存储到一个property中是为了留有使用neo4j查询功能查找metadata的余地
-                    for (Map.Entry<String, String> kv : record.getMetadata().toFlatMap(obj -> {
-                        try {
-                            return codec.serialize(obj, String.class);
-                        } catch (IOException e) {
-                            throw new IllegalArgumentException("serialize '" + obj + "' fail: " + e.getMessage(), e);
-                        }
-                    }).entrySet()) {
-                        if (kv.getKey().equals(VECTOR_PROPERTY) || kv.getKey().equals(CONTENT_PROPERTY)) {
-                            throw new IllegalArgumentException("metadata key '" + kv.getKey() + "' is reserved");
-                        }
-                        node.setProperty(kv.getKey(), kv.getValue());
-                    }
-                }
-                tx.commit();
-            }
-        } catch (Throwable e) {
-            throw new IllegalStateException("add paragraph fail: " + e.getMessage(), e);
-        }
+    @Value
+    @NonFinal
+    protected static class EmbeddingArguments {
+        List<? extends Map.Entry<UniversalParagraph, Embedding>> arguments;
+        @Nullable
+        Transaction tx;
     }
 
     @Override

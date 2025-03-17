@@ -13,6 +13,7 @@ import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -235,14 +236,9 @@ public class DefaultReranker implements Reranker {
         public void updateRequest() {
             // base config
             request = request.newBuilder().header("User-Agent", "DCheck Java/0.0.x").build();
-
-            String urlStr = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_URL);
-            if (urlStr == null) return;
-            HttpUrl url;
-            try {
-                url = HttpUrl.get(urlStr);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("invalid config '" + ApiConfig.RERANKING_MODEL_URL + "=" + urlStr + "'", e);
+            HttpUrl url = HttpUrl.get(ConfigProvider.getInstance().getApiConfig().required(ApiConfig.RERANKING_MODEL_URL, URL.class));
+            if (url == null) {
+                throw new IllegalArgumentException("invalid config '" + ApiConfig.RERANKING_MODEL_URL + "=" + null + "' ");
             }
             request = request.newBuilder().url(request.url().newBuilder().host(url.host()).port(url.port()).build()).build();
             builder = request.newBuilder();

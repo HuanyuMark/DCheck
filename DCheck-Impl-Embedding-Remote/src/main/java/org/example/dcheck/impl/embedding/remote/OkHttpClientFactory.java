@@ -6,7 +6,6 @@ import org.example.dcheck.api.ApiConfig;
 import org.example.dcheck.spi.ConfigProvider;
 
 import java.time.Duration;
-import java.time.format.DateTimeParseException;
 
 import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.READ_TIME_OUT;
 
@@ -21,15 +20,8 @@ public class OkHttpClientFactory {
 
     public OkHttpClient create() {
         ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-        String timeout = apiConfig.getProperty(READ_TIME_OUT);
-        Duration timeoutDuration;
-        try {
-            timeoutDuration = Duration.parse(timeout);
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("invalid config '" + READ_TIME_OUT + "=" + timeout + "': " + e.getMessage(), e);
-        }
         return new OkHttpClient.Builder()
-                .readTimeout(timeoutDuration)
+                .readTimeout(apiConfig.required(READ_TIME_OUT, Duration.class))
                 .build();
     }
 }

@@ -20,6 +20,8 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -33,7 +35,15 @@ import java.util.List;
 @AllArgsConstructor
 @SuppressWarnings("unused")
 public class BigModelTokenizer implements DCheckTokenizer {
-    protected static final String BASE_URL = "https://open.bigmodel.cn/api/paas/v4/tokenizer";
+    protected static final URL BASE_URL;
+
+    static {
+        try {
+            BASE_URL = new URL("https://open.bigmodel.cn/api/paas/v4/tokenizer");
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     protected static final String DEFAULT_MODEL_NAME = "glm-4-flash";
     private final OnceRunner runner = OnceRunner.of();
@@ -56,7 +66,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
             .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
             .build();
 
-    private final ConcurrentLruCache<String, Integer> estimateCache = new ConcurrentLruCache<>(2000, this::doRequest);
+    private ConcurrentLruCache<String, Integer> estimateCache;
 
 
     public BigModelTokenizer(@NonNull OkHttpClient client, @NonNull Headers requestHeaders) {
@@ -75,21 +85,14 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     private void doInit() {
         ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-        String uncheckedBaseUrl = apiConfig.getProperty(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL);
-        HttpUrl baseUrl;
-        if (uncheckedBaseUrl == null) {
-            baseUrl = HttpUrl.get(BASE_URL);
-        } else {
-            try {
-                baseUrl = HttpUrl.get(uncheckedBaseUrl);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "': " + e.getMessage(), e);
-            }
+        URL uncheckedBaseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
+        HttpUrl baseUrl = HttpUrl.get(BASE_URL);
+        if (baseUrl == null) {
+            throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "'");
         }
-
         requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
 
-        modelName = apiConfig.getProperty(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
+        modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
 //        if (modelName == null) {
 //            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
 //        }
@@ -101,6 +104,11 @@ public class BigModelTokenizer implements DCheckTokenizer {
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
+
+        Integer estimateCacheSize = apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
+
+        estimateCache = new ConcurrentLruCache<>(2000, this::doRequest);
+
     }
 
     protected Integer doRequest(String text) {

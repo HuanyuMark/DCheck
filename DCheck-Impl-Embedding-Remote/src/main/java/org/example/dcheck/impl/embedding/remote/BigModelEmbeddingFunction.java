@@ -103,10 +103,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                 throw new IllegalArgumentException("invalid base url '" + baseUrl + "'");
             }
             ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-            String apiKey = apiConfig.getProperty(API_KEY_CONFIG);
-            if (apiKey == null) {
-                throw new IllegalArgumentException("missing required config '" + API_KEY_CONFIG + "'");
-            }
+            String apiKey = apiConfig.required(API_KEY_CONFIG);
             Headers requestHeaders = Headers.of(new HashMap<String, String>() {{
                 put("Accept", "application/json");
                 put("Content-Type", "application/json");
@@ -119,28 +116,13 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                     .headers(requestHeaders)
                     .build();
 
-            String dimensionValueStr = apiConfig.getProperty(DIMENSION_CONFIG);
-            if (dimensionValueStr != null) {
-                try {
-                    dimension = Integer.parseInt(dimensionValueStr);
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("invalid config '" + DIMENSION_CONFIG + "=" + dimensionValueStr + "': " + e.getMessage(), e);
-                }
-            }
+            dimension = apiConfig.nullablePositiveInt(DIMENSION_CONFIG);
 
-            String maxTokenStr = apiConfig.getProperty(ConfigPropertyKey.EMBEDDING_REMOTE_MAX_TOKEN);
-            if (maxTokenStr != null) {
-                try {
-                    int maxToken = Integer.parseInt(maxTokenStr);
-                    if (maxToken <= 0) {
-                        throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.EMBEDDING_REMOTE_MAX_TOKEN + "=" + maxTokenStr + "': " + maxToken + " < 0");
-                    }
-                    requestMaxToken = maxToken;
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.EMBEDDING_REMOTE_MAX_TOKEN + "=" + maxTokenStr + "': " + e.getMessage(), e);
-                }
+            Integer requestMaxToken = apiConfig.nullablePositiveInt(ConfigPropertyKey.EMBEDDING_REMOTE_MAX_TOKEN);
+            if (requestMaxToken != null) {
+                this.requestMaxToken = requestMaxToken;
             } else {
-                requestMaxToken = DEFAULT_REQUEST_MAX_TOKEN;
+                this.requestMaxToken = DEFAULT_REQUEST_MAX_TOKEN;
             }
 
             TokenizerInitResult tokenizerInitResult = createAndInitTokenizer(requestHeaders);

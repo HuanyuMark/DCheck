@@ -108,7 +108,7 @@ class Providers {
         }
     }
 
-    static Properties loadConfig(String configName) {
+    static Properties loadConfig(String configName, Resource... injects) {
         try {
             Properties base = new Properties(ENVIRONMENT_VARIABLES);
             base.putAll(System.getProperties());
@@ -135,6 +135,13 @@ class Providers {
             Resource[] localResources = resolver.getResources("file:" + AGGREGATE_CONFIG_NAME);
             for (Resource resource : localResources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
+            }
+            for (Resource inject : injects) {
+                PropertiesLoaderUtils.fillProperties(config, inject);
+            }
+
+            if (injects.length != 0) {
+                log.info("load config '{}' with injected resources: {}", configName, Arrays.asList(injects));
             }
 
             return config;

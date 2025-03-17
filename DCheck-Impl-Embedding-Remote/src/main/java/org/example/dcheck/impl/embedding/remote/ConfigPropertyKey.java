@@ -13,10 +13,13 @@ public class ConfigPropertyKey {
     public static final String EMBEDDING_REMOTE_BASE_URL = "relevancy-engine.model.embedding.remote.base-url";
     public static final String TOKENIZER_REMOTE_BASE_URL = "relevancy-engine.model.tokenizer.remote.base-url";
     public static final String TOKENIZER_REMOTE_MODEL_NAME = "relevancy-engine.model.tokenizer.remote.model-name";
+    public static final String TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE = "relevancy-engine.model.tokenizer.remote.estimate-cache-size";
+
     public static final String EMBEDDING_REMOTE_MAX_TOKEN = "relevancy-engine.model.embedding.remote.max-token";
     public static final String EMBEDDING_REMOTE_MODEL_NAME = "relevancy-engine.model.embedding.remote.model-name";
 
     public static final String DIMENSION_CONFIG = "relevancy-engine.model.embedding.remote.dimension";
     public static final String API_KEY_CONFIG = "relevancy-engine.model.embedding.remote.api-key";
+
 
 }

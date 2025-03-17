@@ -41,6 +41,22 @@ public class DraftTest {
     }
 
     @Test
+    public void testClose() {
+        try (C c = new C()) {
+            throw new RuntimeException();
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static class C implements AutoCloseable {
+        @Override
+        public void close() {
+            System.out.println("close");
+        }
+    }
+
+    @Test
     public void testMetadataSync() throws Exception {
         TextParagraphMetadata metadata = new TextParagraphMetadata("asd", new TextParagraphLocation(1));
         System.out.println(metadata.all().size());

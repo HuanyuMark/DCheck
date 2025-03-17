@@ -11,7 +11,7 @@ import org.example.dcheck.spi.ConfigProvider;
  */
 public class SharedDocumentProcessorConfig {
 
-    public static final String MAX_PARAGRAPH_LENGTH = "file-processor.default.docx.max-paragraph-length";
+    public static final String MAX_PARAGRAPH_LENGTH = "file-processor.split.text.max-paragraph-length";
     @Getter(lazy = true)
     private static final SharedDocumentProcessorConfig instance = new SharedDocumentProcessorConfig() {{
         init();
@@ -32,11 +32,7 @@ public class SharedDocumentProcessorConfig {
             }
             ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
             //TODO read config init
-            try {
-                maxParagraphLength = Integer.parseInt(apiConfig.getProperty(MAX_PARAGRAPH_LENGTH));
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + MAX_PARAGRAPH_LENGTH + "=" + apiConfig.getProperty(MAX_PARAGRAPH_LENGTH) + "'", e);
-            }
+            maxParagraphLength = apiConfig.requiredPositiveInt(MAX_PARAGRAPH_LENGTH);
             init = true;
         }
     }

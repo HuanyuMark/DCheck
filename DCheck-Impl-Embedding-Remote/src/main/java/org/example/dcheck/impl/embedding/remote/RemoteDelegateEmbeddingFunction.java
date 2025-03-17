@@ -31,9 +31,9 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
             if (init) return;
 
             ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-            String type = apiConfig.getProperty(REMOTE_TYPE);
-            String baseUrl = apiConfig.getProperty(EMBEDDING_REMOTE_BASE_URL);
-            String modelName = apiConfig.getProperty(EMBEDDING_REMOTE_MODEL_NAME);
+            String type = apiConfig.required(REMOTE_TYPE);
+            String baseUrl = apiConfig.nullable(EMBEDDING_REMOTE_BASE_URL);
+            String modelName = apiConfig.nullable(EMBEDDING_REMOTE_MODEL_NAME);
 
             target = determineFunc(type, baseUrl, modelName);
             target.init();

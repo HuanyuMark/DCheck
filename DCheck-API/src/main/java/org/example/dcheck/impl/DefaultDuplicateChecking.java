@@ -60,7 +60,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
             if (init) return;
             ApiConfig apiConfig = ConfigProvider.getInstance().getApiConfig();
-            relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(apiConfig.getProperty(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
+            relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(apiConfig.required(ApiConfig.DB_VECTOR_TYPE, ApiConfig.DEFAULT_VALUE));
 
             try {
                 log.info("Starting init Relevancy Engine '{}'", relevancyEngine.getClass().getCanonicalName());

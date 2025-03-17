@@ -17,7 +17,6 @@ import org.example.dcheck.spi.ConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.util.StringUtils;
 import tech.amikos.chromadb.Collection;
 import tech.amikos.chromadb.*;
 import tech.amikos.chromadb.handler.ApiException;
@@ -26,6 +25,7 @@ import tech.amikos.chromadb.model.GetEmbedding;
 import tech.amikos.chromadb.model.QueryEmbedding;
 
 import java.io.IOException;
+import java.net.URL;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -95,13 +95,11 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
 
-        String embeddingModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
+        String embeddingModel = ConfigProvider.getInstance().getApiConfig().required(ApiConfig.EMBEDDING_MODEL_KEY, ApiConfig.DEFAULT_VALUE);
         setEmbeddingFunction(EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel));
 
-        String url = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.DB_VECTOR_URL);
-        if (!StringUtils.hasText(url)) {
-            throw new IllegalStateException("invalid config '" + ApiConfig.DB_VECTOR_URL + "=" + url + "'");
-        }
+        URL url = ConfigProvider.getInstance().getApiConfig().required(ApiConfig.DB_VECTOR_URL, URL.class);
+
 
         CompletableFuture.allOf(
                 // init embedding function
@@ -117,7 +115,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
                 // init chroma client
                 CompletableFuture.runAsync(() -> {
-                    client = new Client(url);
+                    client = new Client(url.getProtocol() + "://" + url.getHost() + ":" + url.getPort());
                     RetryPolicy<Object> policy = RetryPolicy.builder()
                             .handle(ApiException.class)
                             .withMaxRetries(3)
@@ -148,7 +146,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
                 // init reranker
                 CompletableFuture.runAsync(() -> {
-                    String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
+                    String rerankModel = ConfigProvider.getInstance().getApiConfig().nullable(ApiConfig.RERANKING_MODEL_KEY);
                     if (rerankModel == null) return;
                     reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
                     log.info("Starting init Reranker '{}'", rerankModel.getClass().getCanonicalName());
@@ -173,10 +171,8 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
             throw new IllegalStateException("init embedding function fail:", e);
         }
 
-        String rerankModel = ConfigProvider.getInstance().getApiConfig().getProperty(ApiConfig.RERANKING_MODEL_KEY);
-        if (rerankModel != null) {
-            reranker = RerankerMapProvider.getInstance().getReranker(rerankModel);
-            log.info("Call init Reranker hock 'inited()' '{}'", rerankModel.getClass().getCanonicalName());
+        if (reranker != Reranker.NOP) {
+            log.info("Call init Reranker hock 'inited()' '{}'", reranker.getClass().getCanonicalName());
             try {
                 reranker.inited();
                 log.info("Finished init Reranker");
