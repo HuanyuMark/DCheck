@@ -2,10 +2,11 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.DocumentProcessorProvider;
+import org.example.dcheck.util.DefaultExecutorProvider;
 
 import java.util.Collection;
 import java.util.List;
@@ -22,15 +23,25 @@ import java.util.stream.IntStream;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
+@Slf4j
 @Getter
-@RequiredArgsConstructor
 public class EngineAdaptedDocumentCollection implements DocumentCollection {
 
     protected final Semaphore normalOperationLock = new Semaphore(Integer.MAX_VALUE);
     private final String id;
     private final ParagraphRelevancyEngine engine;
+
+    @Getter
+    @Setter
+    @NonNull
+    protected Executor executor = DefaultExecutorProvider.getInstance().getExecutor();
     @Getter
     private volatile boolean exists = true;
+
+    public EngineAdaptedDocumentCollection(String id, ParagraphRelevancyEngine engine) {
+        this.id = id;
+        this.engine = engine;
+    }
 
     protected void doWithNormalOperationLock(Runnable runnable) {
         ensureOps();
@@ -46,11 +57,6 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
             normalOperationLock.release();
         }
     }
-
-    @Getter
-    @Setter
-    @NonNull
-    protected Executor executor = Runnable::run;
 
     @Override
     public void addDocument(List<Document> documents) {
