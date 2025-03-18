@@ -1,3 +1,5 @@
+import org.junit.jupiter.api.Test;
+
 /**
  * Date: 2025/3/14
  *
@@ -5,4 +7,8 @@
  */
 @SuppressWarnings("all")
 public class TestApp {
+    @Test
+    public void test() {
+
+    }
 }

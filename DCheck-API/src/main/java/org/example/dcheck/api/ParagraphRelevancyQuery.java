@@ -23,7 +23,6 @@ public class ParagraphRelevancyQuery {
     String collectionId;
     @NonNull
     String documentId;
-    //TODO 优化这种document本身就在collection中的场景
     /**
      * 仅当documentId指代的document存在于collectionId指代的collection中时，才允许为null
      */

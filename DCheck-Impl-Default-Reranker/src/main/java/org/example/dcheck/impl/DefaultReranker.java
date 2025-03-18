@@ -6,10 +6,10 @@ import dev.failsafe.RetryPolicy;
 import lombok.*;
 import okhttp3.*;
 import org.example.dcheck.api.*;
-import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
+import org.example.dcheck.util.ContentConvert;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;

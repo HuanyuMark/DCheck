@@ -2,6 +2,7 @@ package org.example.dcheck.impl;
 
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
@@ -9,11 +10,12 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
-import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
+import org.example.dcheck.util.ContentConvert;
+import org.example.dcheck.util.DCheckExecutorService;
 import org.example.dcheck.util.UtilConst;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,7 +31,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -82,6 +86,10 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected EmbeddingFunction embeddingFunction;
     @Getter
     protected Codec codec;
+    @Getter
+    @Setter
+    @NonNull
+    protected ExecutorService executor = new DCheckExecutorService();
 
     @NotNull
     private static String[] filterVectorPropertyKey(Node node) {
@@ -124,45 +132,61 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
         }
 
-        DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+        DCheckConfig config = DCheckConfigProvider.getInstance().getDCheckConfig();
 
-        try {
-            tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + (int) (System.currentTimeMillis() / Math.random())));
-        } catch (IOException e) {
-            throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
-        }
-        var dbRootPath = DCheckConfig.required(EmbeddedNeo4jConfigKey.DB_ROOT, Path.class);
-        dbms = new Neo4jDbms(dbRootPath);
+        CompletableFuture.allOf(new CompletableFuture[]{
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        tempDbms = new Neo4jDbms(Files.createTempDirectory("tmp_neo4j_dbms_" + (int) (System.currentTimeMillis() / Math.random())));
+                    } catch (IOException e) {
+                        throw new IllegalStateException("create temp dir fail: " + e.getMessage(), e);
+                    }
+                    var dbRootPath = config.required(EmbeddedNeo4jConfigKey.DB_ROOT, Path.class);
+                    dbms = new Neo4jDbms(dbRootPath);
 
-        String similarityFunc = DCheckConfig.nullable(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
-        Boolean quantizationEnable = DCheckConfig.nullableEnable(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
-        Integer hnswM = DCheckConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_M);
-        Integer hnswEfConstruction = DCheckConfig.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
-        if (similarityFunc != null) {
-            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
-        }
-        if (quantizationEnable != null) {
-            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, quantizationEnable);
-        }
-        if (hnswM != null) {
-            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, hnswM);
-        }
-        if (hnswEfConstruction != null) {
-            try {
-                getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, hnswEfConstruction);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
-            }
-        }
+                    String similarityFunc = config.nullable(EmbeddedNeo4jConfigKey.SIMILARITY_FUNCTION);
+                    Boolean quantizationEnable = config.nullableEnable(EmbeddedNeo4jConfigKey.QUANTIZATION_ENABLE);
+                    Integer hnswM = config.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_M);
+                    Integer hnswEfConstruction = config.nullablePositiveInt(EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION);
+                    if (similarityFunc != null) {
+                        getVectorIndexSettings().put(IndexSettingImpl.VECTOR_SIMILARITY_FUNCTION, similarityFunc);
+                    }
+                    if (quantizationEnable != null) {
+                        getVectorIndexSettings().put(IndexSettingImpl.VECTOR_QUANTIZATION_ENABLED, quantizationEnable);
+                    }
+                    if (hnswM != null) {
+                        getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_M, hnswM);
+                    }
+                    if (hnswEfConstruction != null) {
+                        try {
+                            getVectorIndexSettings().put(IndexSettingImpl.VECTOR_HNSW_EF_CONSTRUCTION, hnswEfConstruction);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("invalid config '" + EmbeddedNeo4jConfigKey.HNSW_EF_CONSTRUCTION + "=" + hnswEfConstruction + "' require type 'Integer'", e);
+                        }
+                    }
+                }),
 
-        var embeddingModel = DCheckConfig.required(DCheckConfig.EMBEDDING_MODEL_KEY, DCheckConfig.DEFAULT_VALUE);
-        embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
+                CompletableFuture.runAsync(() -> {
+                    var embeddingModel = config.required(DCheckConfig.EMBEDDING_MODEL_KEY, DCheckConfig.DEFAULT_VALUE);
+                    embeddingFunction = EmbeddingFuncMapProvider.getInstance().getFunc(embeddingModel);
 
-        try {
-            embeddingFunction.init();
-        } catch (Exception e) {
-            throw new IllegalStateException("init embedding function fail: " + e.getMessage(), e);
-        }
+                    try {
+                        embeddingFunction.init();
+                    } catch (Exception e) {
+                        throw new IllegalStateException("init embedding function fail: " + e.getMessage(), e);
+                    }
+                }),
+
+                CompletableFuture.runAsync(() -> {
+                    if (executor instanceof DCheckComponent) {
+                        try {
+                            ((DCheckComponent) executor).init();
+                        } catch (Exception e) {
+                            throw new IllegalStateException("init executor '" + executor.getClass() + "' fail: " + e.getMessage(), e);
+                        }
+                    }
+                })
+        }).join();
     }
 
     @Override
@@ -456,7 +480,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
     @Override
     public DocumentCollection getOrCreateDocumentCollection(String collectionId) {
-        return collections.computeIfAbsent(collectionId, id -> new EngineAdaptedDocumentCollection(getCollection(id).databaseName(), this));
+        return collections.computeIfAbsent(collectionId, id -> new EngineAdaptedDocumentCollection(getCollection(id).databaseName(), this, executor));
     }
 
     @Override
@@ -560,7 +584,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         String collectionId = generateTempDocumentCollectionId();
         var collection = tempDbms.getOrCreateDatabase(collectionId);
         initCollectionIfNeeded(collectionId, collection);
-        return new EngineAdaptedDocumentCollection(collectionId, this);
+        return new EngineAdaptedDocumentCollection(collectionId, this, executor);
     }
 
     protected void ensureOpen() {
@@ -568,7 +592,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     }
 
     @Override
-    public void close() {
+    public void close() throws InterruptedException {
         if (!init) return;
         synchronized (this) {
             if (!init) return;
@@ -579,6 +603,9 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     log.warn("encounter some problem in closing '" + getClass().getSimpleName() + "': close temp collection fail: {}", e.getMessage(), e);
                 }
             }
+
+            DCheckExecutorService.defaultShutdown(log, executor);
+
             dbms.shutdown();
             tempDbms.destroy();
             init = false;

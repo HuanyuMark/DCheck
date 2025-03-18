@@ -6,7 +6,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.DocumentProcessorProvider;
-import org.example.dcheck.util.DefaultExecutorProvider;
 
 import java.util.Collection;
 import java.util.List;
@@ -34,13 +33,14 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
     @Getter
     @Setter
     @NonNull
-    protected Executor executor = DefaultExecutorProvider.getInstance().getExecutor();
+    protected Executor executor;
     @Getter
     private volatile boolean exists = true;
 
-    public EngineAdaptedDocumentCollection(String id, ParagraphRelevancyEngine engine) {
+    public EngineAdaptedDocumentCollection(String id, ParagraphRelevancyEngine engine, Executor executor) {
         this.id = id;
         this.engine = engine;
+        setExecutor(executor);
     }
 
     protected void doWithNormalOperationLock(Runnable runnable) {

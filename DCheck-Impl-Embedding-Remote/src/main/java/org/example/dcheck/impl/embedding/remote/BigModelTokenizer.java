@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -71,15 +72,13 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     private ConcurrentLruCache<String, Integer> estimateCache;
 
-    //TODO 缓存清理
-    private long estimateCacheExpireTimeMillis;
+    private final AtomicInteger cacheClearVersion = new AtomicInteger(Integer.MIN_VALUE);
 
     @Getter
     @Setter
     @NonNull
     private ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
-
-    private AtomicInteger cacheClearVersion = new AtomicInteger(Integer.MIN_VALUE);
+    protected ConcurrentLruCache<String, Integer> shortSentenceCache;
 
     public BigModelTokenizer(@NonNull OkHttpClient client, @NonNull Headers requestHeaders) {
         this.client = client;
@@ -95,34 +94,9 @@ public class BigModelTokenizer implements DCheckTokenizer {
         runner.run(this::doInit);
     }
 
-    private void doInit() {
-        DCheckConfig apiConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
-        URL uncheckedBaseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
-        HttpUrl baseUrl = HttpUrl.get(BASE_URL);
-        if (baseUrl == null) {
-            throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "'");
-        }
-        requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
-
-        modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
-//        if (modelName == null) {
-//            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
-//        }
-
-        if (codec == null) {
-            codec = CodecProvider.getInstance()
-                    .getCodecs()
-                    .stream()
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
-        }
-
-        Integer estimateCacheSize = apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
-
-        estimateCache = new ConcurrentLruCache<>(2000, this::doRequest);
-
-        estimateCacheExpireTimeMillis = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME, Long.class);
-    }
+    @Getter
+    @Setter
+    private long estimateCacheExpireTimeMillis;
 
     protected Integer doRequest(String text) {
         String body;
@@ -160,14 +134,60 @@ public class BigModelTokenizer implements DCheckTokenizer {
         }
     }
 
+    private void doInit() {
+        DCheckConfig apiConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+        URL uncheckedBaseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
+        HttpUrl baseUrl = HttpUrl.get(BASE_URL);
+        if (baseUrl == null) {
+            throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "'");
+        }
+        requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
+
+        modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
+//        if (modelName == null) {
+//            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
+//        }
+
+        if (codec == null) {
+            codec = CodecProvider.getInstance()
+                    .getCodecs()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
+        }
+
+        Integer estimateCacheSize = apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
+
+        estimateCache = new ConcurrentLruCache<>(estimateCacheSize, this::doRequest);
+        shortSentenceCache = new ConcurrentLruCache<>(estimateCacheSize * 30, this::doRequest);
+        estimateCacheExpireTimeMillis = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME, Long.class);
+    }
 
     @Override
     public int estimateTokenCountInText(String text) {
         init();
-        if (StringUtils.hasText(text)) {
-            return estimateCache.get(text);
+        if (!StringUtils.hasText(text)) {
+            return 0;
         }
-        return 0;
+
+        accessCache();
+
+        if (text.length() < 5) {
+            return shortSentenceCache.get(text);
+        }
+
+        return estimateCache.get(text);
+    }
+
+    protected void accessCache() {
+        int version = cacheClearVersion.getAndIncrement();
+        scheduler.schedule(() -> {
+            if (version < cacheClearVersion.get()) {
+                return;
+            }
+            estimateCache.clear();
+            shortSentenceCache.clear();
+        }, estimateCacheExpireTimeMillis, TimeUnit.MILLISECONDS);
     }
 
     @Override

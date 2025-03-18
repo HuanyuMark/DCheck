@@ -1,4 +1,4 @@
-package org.example.dcheck.common.util;
+package org.example.dcheck.util;
 
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.TextContent;

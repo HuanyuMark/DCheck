@@ -1,6 +1,7 @@
 import org.example.dcheck.api.Check;
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.Document;
+import org.example.dcheck.util.DCheckExecutorService;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("all")
 public class TestApp {
     @Test
     public void test() {
@@ -24,5 +26,26 @@ public class TestApp {
         }).minParagraphRelevancy(1).build();
         System.out.println("ok");
 //        System.out.println(ParagraphRelevancyQueryResult.Record.builder().document("ok?").build().getMetadata());
+    }
+
+    @Test
+    public void testScript() throws Exception {
+        DCheckExecutorService exe = new DCheckExecutorService() {
+            {
+                init();
+            }
+        };
+
+        for (int i = 0; i < 10; i++) {
+//            System.out.println(exe.getThreadFactory().newThread(() -> {
+//            }));
+            exe.submit(() -> {
+                System.out.println(Thread.currentThread());
+            });
+        }
+
+//        ScriptEngineManager engineManager = new ScriptEngineManager(getClass().getClassLoader());
+//        ScriptEngine engine = engineManager.getEngineByExtension("groovy");
+//        System.out.println(engine.eval("Thread.ofVirtual().name(\"v-\").factory()"));
     }
 }

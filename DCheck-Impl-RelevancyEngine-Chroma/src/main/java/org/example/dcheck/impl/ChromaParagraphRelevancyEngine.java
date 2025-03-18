@@ -11,14 +11,15 @@ import org.example.dcheck.api.*;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
-import org.example.dcheck.common.util.ContentConvert;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.EmbeddingFuncMapProvider;
 import org.example.dcheck.spi.RerankerMapProvider;
+import org.example.dcheck.util.ContentConvert;
+import org.example.dcheck.util.DCheckExecutorService;
 import org.jetbrains.annotations.NotNull;
-import tech.amikos.chromadb.Collection;
 import tech.amikos.chromadb.*;
+import tech.amikos.chromadb.Collection;
 import tech.amikos.chromadb.handler.ApiException;
 import tech.amikos.chromadb.model.AnyOfGetEmbeddingIncludeItems;
 import tech.amikos.chromadb.model.GetEmbedding;
@@ -30,6 +31,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -67,6 +69,10 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     private Codec codec;
     @Getter
     private Client client;
+    @Getter
+    @Setter
+    @NonNull
+    private ExecutorService executor = new DCheckExecutorService();
 
     public ChromaParagraphRelevancyEngine() {
 
@@ -155,6 +161,16 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                         log.info("Finished init Reranker");
                     } catch (Exception e) {
                         throw new IllegalStateException("init reranker fail: " + e.getMessage(), e);
+                    }
+                }),
+
+                CompletableFuture.runAsync(() -> {
+                    if (executor instanceof DCheckComponent) {
+                        try {
+                            ((DCheckComponent) executor).init();
+                        } catch (Exception e) {
+                            throw new IllegalStateException("init executor '" + executor.getClass() + "' fail: " + e.getMessage(), e);
+                        }
                     }
                 })
         ).join();
@@ -443,7 +459,7 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     @NotNull
     private EngineAdaptedDocumentCollection getEngineAdaptedDocumentCollection(String collectionId) {
         init();
-        return documentCollections.computeIfAbsent(collectionId, key -> new EngineAdaptedDocumentCollection(getCollection(key).getName(), this));
+        return documentCollections.computeIfAbsent(collectionId, key -> new EngineAdaptedDocumentCollection(getCollection(key).getName(), this, executor));
     }
 
     @Override
@@ -496,7 +512,9 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
     }
 
     @Override
-    public void close() {
-
+    public void close() throws Exception {
+        embeddingFunction.close();
+        reranker.close();
+        DCheckExecutorService.defaultShutdown(log, executor);
     }
 }
