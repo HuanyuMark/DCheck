@@ -37,7 +37,7 @@ public class OnceRunner implements Runnable {
         return new OnceRunner();
     }
 
-    public void rerunable() {
+    public void reset() {
         ran = false;
     }
 

@@ -1,6 +1,8 @@
 package org.example.dcheck.util;
 
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -17,6 +19,7 @@ public class UtilConst {
     public static final Type MAP_TYPE = new ParameterizedTypeReference<Map<String, Object>>() {
     }.getType();
     private static final CompletableFuture<?> emptyFuture = CompletableFuture.completedFuture(null);
+    public final static ResourcePatternResolver RESOLVER = new PathMatchingResourcePatternResolver();
 
     @SuppressWarnings("unchecked")
     public static <T> CompletableFuture<T> emptyFuture() {

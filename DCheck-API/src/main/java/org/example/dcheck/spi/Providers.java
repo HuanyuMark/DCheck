@@ -4,13 +4,14 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.ParagraphRelevancyEngine;
+import org.example.dcheck.util.UtilConst;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.util.ResourceUtils;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -29,8 +30,7 @@ import java.util.stream.Collectors;
 @SuppressWarnings("unused")
 class Providers {
     static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
-    static final Properties ENVIRONMENT_VARIABLES = System.getenv().entrySet().stream().collect(Properties::new, (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
-    private final static ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+    static final Properties BASE_VARIABLES = System.getenv().entrySet().stream().collect(() -> new Properties(System.getProperties()), (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
 
     /**
      * load all impl at startup. maybe lead to performance problem.
@@ -110,12 +110,11 @@ class Providers {
 
     static Properties loadConfig(String configName, Resource... injects) {
         try {
-            Properties base = new Properties(ENVIRONMENT_VARIABLES);
-            base.putAll(System.getProperties());
+            Properties base = new Properties(BASE_VARIABLES);
             Properties config = new Properties(base);
 
             // 读取类路径中最匹配的配置
-            Resource[] resources = resolver.getResources("classpath*:org/example/dcheck/config/" + configName + ".properties");
+            Resource[] resources = UtilConst.RESOLVER.getResources(ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + "org/example/dcheck/config/" + configName + ".properties");
             for (Resource resource : resources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }
@@ -125,14 +124,14 @@ class Providers {
             }
 
             // 读取在jar包中的 aggregate 配置
-            for (Resource resource : resolver.getResources("classpath*:org/example/dcheck/config/" + AGGREGATE_CONFIG_NAME)) {
+            for (Resource resource : UtilConst.RESOLVER.getResources(ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + "org/example/dcheck/config/" + AGGREGATE_CONFIG_NAME)) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }
 
             // 读取在工作目录下的 aggregate 配置
             if (!Files.exists(Paths.get(AGGREGATE_CONFIG_NAME))) return config;
 
-            Resource[] localResources = resolver.getResources("file:" + AGGREGATE_CONFIG_NAME);
+            Resource[] localResources = UtilConst.RESOLVER.getResources(ResourceUtils.FILE_URL_PREFIX + AGGREGATE_CONFIG_NAME);
             for (Resource resource : localResources) {
                 PropertiesLoaderUtils.fillProperties(config, resource);
             }

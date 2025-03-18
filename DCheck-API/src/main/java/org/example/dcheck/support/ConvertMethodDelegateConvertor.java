@@ -12,21 +12,24 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Date: 2025/3/18
  *
  * @author 三石而立Sunsy
  */
-@Getter
 public class ConvertMethodDelegateConvertor implements GenericConverter {
+    @Getter
     private final Set<ConvertiblePair> convertibleTypes = Collections.singleton(new ConvertiblePair(Object.class, Object.class));
 
     private final ConcurrentReferenceHashMap<CacheKey, Method> parseMethods = new ConcurrentReferenceHashMap<>(32);
 
     @Getter
-    private final List<String> delegateMethodNames = new ArrayList<>(Arrays.asList("parse", "of", "from", "valueOf", "create"));
+    private final Set<String> delegateMethodNames = new HashSet<>(Arrays.asList("parse", "of", "from", "valueOf", "create"));
 
     protected Method getParseMethod(Class<?> sourceClass, Class<?> targetClass) {
         Method method = parseMethods.get(new CacheKey(sourceClass, targetClass));
@@ -34,6 +37,7 @@ public class ConvertMethodDelegateConvertor implements GenericConverter {
         Method parseMethod = getDelegate(sourceClass, targetClass);
         if (parseMethod != null) {
             parseMethods.put(new CacheKey(sourceClass, targetClass), parseMethod);
+            ReflectionUtils.makeAccessible(parseMethod);
         }
         return parseMethod;
     }

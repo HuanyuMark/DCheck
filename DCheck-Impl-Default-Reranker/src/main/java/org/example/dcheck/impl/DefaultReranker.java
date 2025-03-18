@@ -8,7 +8,7 @@ import okhttp3.*;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.DCheckConfigProvider;
-import org.example.dcheck.spi.RelevancyEngineMapProvider;
+import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.example.dcheck.util.ContentConvert;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +17,6 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -101,8 +100,7 @@ public class DefaultReranker implements Reranker {
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath")));
         }
 
-        engine = Objects.requireNonNull(RelevancyEngineMapProvider.getInstance().getCurrentDefaultEngine(),
-                "illegal state: require relevancy engine supported");
+        engine = DuplicateCheckingProvider.getInstance().getChecking().getRelevancyEngine();
 
         RequestTemplate.init();
 

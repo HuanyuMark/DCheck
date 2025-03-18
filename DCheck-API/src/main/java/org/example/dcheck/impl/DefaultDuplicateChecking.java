@@ -59,8 +59,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             new PreloadClassLoader().perform();
 
             if (init) return;
-            DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
-            relevancyEngine = RelevancyEngineMapProvider.getInstance().getRelevancyEngine(DCheckConfig.required(DCheckConfig.DB_VECTOR_TYPE, DCheckConfig.DEFAULT_VALUE));
+            DCheckConfig config = DCheckConfigProvider.getInstance().getDCheckConfig();
+            relevancyEngine = RelevancyEngineMapProvider.getInstance().createRelevancyEngine(config.required(DCheckConfig.DB_VECTOR_TYPE, DCheckConfig.DEFAULT_VALUE));
 
             try {
                 log.info("Starting init Relevancy Engine '{}'", relevancyEngine.getClass().getCanonicalName());

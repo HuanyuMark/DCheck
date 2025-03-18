@@ -17,6 +17,8 @@ import java.util.function.Supplier;
 
 /**
  * Date: 2025/3/18
+ * An executor service wrapped by {@link ThreadPoolExecutor}.
+ * it would run nicely in jdk21 and do the same work in legacy.
  *
  * @author 三石而立Sunsy
  */
@@ -25,14 +27,22 @@ import java.util.function.Supplier;
 public class DCheckExecutorService implements ExecutorService, DCheckComponent {
 
     @Nullable
-    protected static volatile ThreadFactory defaultThreadFactory;
+    protected static final ThreadFactory defaultVirtualThreadFactory = initVirtualThreadFactory();
+
+    static {
+        if (defaultVirtualThreadFactory != null) {
+            log.info("VirtualThread Is Available: set two system properties to customize: \n -Djdk.virtualThreadScheduler.parallelism=<default is core count> \n-Djdk.virtualThreadScheduler.maxPoolSize=<default is 256>");
+        }
+    }
+
+    protected volatile BlockingQueue<Runnable> blockingQueue;
+
     @Getter
     protected int concurrency = Runtime.getRuntime().availableProcessors() - 1;
-
-    protected BlockingQueue<Runnable> blockingQueue;
-    protected volatile ThreadPoolExecutor executor;
     @Getter
     protected boolean useVirtualThread;
+    protected volatile ThreadPoolExecutor executor;
+
 
     public DCheckExecutorService() {
         this(true);
@@ -75,46 +85,45 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
         return executor;
     }
 
+    @Nullable
+    @SneakyThrows
+    @SuppressWarnings("unchecked")
+    private static ThreadFactory initVirtualThreadFactory() {
+        try {
+            Class.forName("java.lang.VirtualThread");
+            Class<?> providerClass = loadProviderClass();
+            return Objects.requireNonNull(((Supplier<ThreadFactory>) providerClass.getConstructor().newInstance()).get());
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
     public synchronized void setBlockingQueue(BlockingQueue<Runnable> queue) {
         blockingQueue = queue;
         ThreadPoolExecutor old = executor;
         executor = new ThreadPoolExecutor(old.getCorePoolSize(), old.getMaximumPoolSize(), old.getKeepAliveTime(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS, queue);
+        old.shutdown();
+    }
+
+    protected void initPlatform() {
+        AtomicInteger idx = new AtomicInteger();
+        ThreadFactory threadFactory = (r) -> {
+            Thread thread = new Thread(r);
+            thread.setName("dc-" + idx.getAndIncrement());
+            return thread;
+        };
+        executor = new ThreadPoolExecutor(Math.max(concurrency / 2, 1), concurrency, 10, TimeUnit.SECONDS, getBlockingQueue(), threadFactory);
     }
 
     @Override
-    @SneakyThrows
-    @SuppressWarnings("unchecked")
     public void init() {
-        if (useVirtualThread) {
-            try {
-                Class.forName("java.lang.VirtualThread");
-            } catch (ClassNotFoundException e) {
-                useVirtualThread = false;
-                AtomicInteger idx = new AtomicInteger();
-                ThreadFactory threadFactory = (r) -> {
-                    Thread thread = new Thread(r);
-                    thread.setName("dc-" + idx.getAndIncrement());
-                    return thread;
-                };
-                executor = new ThreadPoolExecutor(Math.max(concurrency / 2, 1), concurrency, 10, TimeUnit.SECONDS, getBlockingQueue(), threadFactory);
-                return;
-            }
-        } else {
+        if (!useVirtualThread || defaultVirtualThreadFactory == null) {
+            initPlatform();
+            useVirtualThread = false;
             return;
         }
 
-        if (defaultThreadFactory == null) {
-            synchronized (DCheckExecutorService.class) {
-                if (defaultThreadFactory == null) {
-                    Class<?> providerClass = loadProviderClass();
-                    defaultThreadFactory = Objects.requireNonNull(((Supplier<ThreadFactory>) providerClass.getConstructor().newInstance()).get());
-                }
-            }
-        }
-
-        ThreadFactory threadFactory = Objects.requireNonNull(defaultThreadFactory);
-
-        executor = new ThreadPoolExecutor(concurrency, concurrency, 100, TimeUnit.MILLISECONDS, getBlockingQueue(), threadFactory);
+        executor = new ThreadPoolExecutor(concurrency, Integer.MAX_VALUE, 100, TimeUnit.MILLISECONDS, getBlockingQueue(), Objects.requireNonNull(defaultVirtualThreadFactory));
         executor.allowCoreThreadTimeOut(true);
     }
 
@@ -123,7 +132,7 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
             throw new IllegalArgumentException("concurrency must be > 0");
         }
         this.concurrency = concurrency;
-        executor.setMaximumPoolSize(concurrency);
+        executor.setCorePoolSize(concurrency);
     }
 
     @Override
