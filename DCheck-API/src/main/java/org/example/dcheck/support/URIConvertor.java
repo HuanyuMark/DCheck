@@ -13,6 +13,7 @@ import java.net.URI;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 public class URIConvertor implements Converter<String, URI> {
 
     private final TypeDescriptor target = new TypeDescriptor(ResolvableType.forClass(URI.class), null, null);
