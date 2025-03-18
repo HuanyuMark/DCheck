@@ -1,8 +1,9 @@
 package org.example.dcheck.api;
 
 import lombok.Builder;
-import lombok.Data;
 import lombok.Singular;
+import lombok.Value;
+import lombok.experimental.NonFinal;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -13,22 +14,38 @@ import java.util.Set;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
+@NonFinal
 @Builder(toBuilder = true)
 public class MetadataMatchCondition {
-    // equal
-    @Singular
-    private final Map<String, String> eqs;
-    // in
-    @Singular
-    private final Map<String, Set<String>> ins;
-    // not equal
-    @Singular
-    private final Map<String, String> nes;
-    // not in
-    @Singular
-    private final Map<String, Set<String>> nins;
 
+    /**
+     * equal
+     */
+    @Singular
+    Map<String, String> eqs;
+
+    /**
+     * in
+     */
+    @Singular
+    Map<String, Set<String>> ins;
+
+    /**
+     * not equal
+     */
+    @Singular
+    Map<String, String> nes;
+
+    /**
+     * not in
+     */
+    @Singular
+    Map<String, Set<String>> nins;
+
+    /**
+     * before apply the condition call this method
+     */
     public void validate() throws IllegalArgumentException {
         Set<String> uniqueFields = new HashSet<>(eqs.keySet());
         for (String field : ins.keySet()) {

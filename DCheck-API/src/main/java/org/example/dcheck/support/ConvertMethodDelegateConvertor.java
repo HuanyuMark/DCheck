@@ -23,6 +23,7 @@ import java.util.Set;
  * @author 三石而立Sunsy
  */
 public class ConvertMethodDelegateConvertor implements GenericConverter {
+
     @Getter
     private final Set<ConvertiblePair> convertibleTypes = Collections.singleton(new ConvertiblePair(Object.class, Object.class));
 

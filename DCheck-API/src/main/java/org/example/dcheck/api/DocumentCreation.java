@@ -1,8 +1,9 @@
 package org.example.dcheck.api;
 
 import lombok.Builder;
-import lombok.Data;
 import lombok.NonNull;
+import lombok.Value;
+import lombok.experimental.NonFinal;
 
 import java.io.InputStream;
 import java.util.function.Supplier;
@@ -12,16 +13,20 @@ import java.util.function.Supplier;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
 @Builder
+@NonFinal
 @SuppressWarnings("unused")
 public class DocumentCreation {
+
     @NonNull
-    private final String documentId;
+    String documentId;
+
     @NonNull
-    private final DocumentType documentType;
+    DocumentType documentType;
+
     @NonNull
-    private final Supplier<InputStream> content;
+    Supplier<InputStream> content;
 
     public InputStream getContent() {
         return content.get();

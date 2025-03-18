@@ -8,6 +8,7 @@ package org.example.dcheck.api;
  */
 @SuppressWarnings("unused")
 public interface Document {
+
     String getId();
 
     default DocumentType getDocumentType() {

@@ -6,6 +6,8 @@ package org.example.dcheck;
  * @author 三石而立Sunsy
  */
 public class Demo {
+
+
     public static void main(String[] args) {
         System.out.println(System.getProperty("java.version"));
     }

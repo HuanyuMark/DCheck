@@ -12,6 +12,7 @@ import java.util.Set;
  */
 @SuppressWarnings("unused")
 public interface DocumentCollection {
+
     String getId();
 
     void addDocument(List<Document> creations);

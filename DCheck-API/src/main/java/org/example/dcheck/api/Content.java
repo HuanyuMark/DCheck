@@ -10,6 +10,7 @@ import java.io.InputStream;
  */
 @SuppressWarnings("unused")
 public interface Content {
+
     InputStream getInputStream();
 
     default void resetRead() {

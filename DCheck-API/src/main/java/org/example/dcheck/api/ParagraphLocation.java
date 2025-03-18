@@ -8,5 +8,7 @@ package org.example.dcheck.api;
  */
 @SuppressWarnings("unused")
 public interface ParagraphLocation {
+
     ParagraphLocationType getType();
+
 }

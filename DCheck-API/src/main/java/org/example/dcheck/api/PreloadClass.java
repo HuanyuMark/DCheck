@@ -4,6 +4,7 @@ import java.lang.annotation.*;
 
 /**
  * Date 2025/03/12
+ * mark this class should be loaded before access the class
  * 标记该类的类加载需要被提前
  *
  * @author 三石而立Sunsy
@@ -11,7 +12,9 @@ import java.lang.annotation.*;
 @SuppressWarnings("unused")
 public interface PreloadClass {
 
-    // 标记某个该类的某个静态方法会在预加载完成后（类加载完成后）被运行
+    /**
+     * mark the method should be call after class loaded
+     */
     @Inherited
     @Documented
     @Target(ElementType.METHOD)

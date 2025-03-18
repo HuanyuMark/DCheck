@@ -14,9 +14,12 @@ import lombok.Setter;
 public class OnceRunner implements Runnable {
 
     private final Runnable initTask;
+
     private volatile boolean ran;
+
     @Setter
     private boolean successIsRan = true;
+
     @Setter
     private boolean failIsRan;
 

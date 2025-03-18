@@ -14,11 +14,15 @@ import java.util.concurrent.CompletableFuture;
  * @author 三石而立Sunsy
  */
 public class UtilConst {
+
     @SuppressWarnings("all")
     public static final CompletableFuture[] EMPTY_FUTURE_ARRAY = new CompletableFuture[0];
+
     public static final Type MAP_TYPE = new ParameterizedTypeReference<Map<String, Object>>() {
     }.getType();
+
     private static final CompletableFuture<?> emptyFuture = CompletableFuture.completedFuture(null);
+
     public final static ResourcePatternResolver RESOLVER = new PathMatchingResourcePatternResolver();
 
     @SuppressWarnings("unchecked")

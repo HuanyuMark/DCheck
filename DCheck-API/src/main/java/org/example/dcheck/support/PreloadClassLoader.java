@@ -3,6 +3,7 @@ package org.example.dcheck.support;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.PreloadClass;
 import org.jetbrains.annotations.NotNull;
@@ -28,11 +29,14 @@ import java.util.Set;
 @Slf4j
 @Builder
 @NoArgsConstructor
+@FieldDefaults(makeFinal = true)
 public class PreloadClassLoader {
+
     @Singular
-    private final List<ClassLoader> classLoaders = new ArrayList<>(Collections.singleton(getClass().getClassLoader()));
+    List<ClassLoader> classLoaders = new ArrayList<>(Collections.singleton(getClass().getClassLoader()));
+
     @Singular
-    private final List<String> packages = new ArrayList<>(Collections.singleton("org.example.dcheck"));
+    List<String> packages = new ArrayList<>(Collections.singleton("org.example.dcheck"));
 
     public void perform() {
         Reflections reflections = buildReflections();

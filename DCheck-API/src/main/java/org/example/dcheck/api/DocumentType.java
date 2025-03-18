@@ -9,4 +9,5 @@ package org.example.dcheck.api;
 @SuppressWarnings("unused")
 public interface DocumentType {
     String name();
+
 }

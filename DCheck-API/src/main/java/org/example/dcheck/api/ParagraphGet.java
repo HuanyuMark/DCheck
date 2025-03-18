@@ -1,8 +1,9 @@
 package org.example.dcheck.api;
 
 import lombok.Builder;
-import lombok.Data;
 import lombok.NonNull;
+import lombok.Value;
+import lombok.experimental.NonFinal;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -10,13 +11,17 @@ import org.jetbrains.annotations.Nullable;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
 @Builder
+@NonFinal
 public class ParagraphGet {
+
     @NonNull
-    private final String collectionId;
+    String collectionId;
+
     @Nullable
-    private final Integer maxCount;
+    Integer maxCount;
+
     @Nullable
-    private final MetadataMatchCondition condition;
+    MetadataMatchCondition condition;
 }

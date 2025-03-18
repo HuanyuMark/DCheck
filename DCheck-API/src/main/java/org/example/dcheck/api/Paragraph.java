@@ -8,6 +8,7 @@ package org.example.dcheck.api;
  */
 @SuppressWarnings("unused")
 public interface Paragraph {
+
     Content getContent();
 
     ParagraphMetadata getMetadata();

@@ -13,6 +13,7 @@ import java.util.function.Function;
  */
 @SuppressWarnings("unused")
 public interface IEventEmitter extends AutoCloseable {
+
     <E> void addListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener);
 
     <E> void addOnceListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener);

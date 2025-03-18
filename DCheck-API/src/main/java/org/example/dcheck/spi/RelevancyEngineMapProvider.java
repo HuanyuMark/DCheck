@@ -10,6 +10,7 @@ import org.example.dcheck.api.ParagraphRelevancyEngine;
  * @author 三石而立Sunsy
  */
 public class RelevancyEngineMapProvider implements DCheckProvider {
+
     @Getter
     private static final RelevancyEngineMapProvider instance = new RelevancyEngineMapProvider();
 

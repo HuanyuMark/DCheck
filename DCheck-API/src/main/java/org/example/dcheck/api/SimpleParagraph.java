@@ -2,8 +2,9 @@ package org.example.dcheck.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
 import lombok.NonNull;
+import lombok.Value;
+import lombok.experimental.NonFinal;
 
 import java.util.function.Supplier;
 
@@ -12,17 +13,18 @@ import java.util.function.Supplier;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
 @Builder
+@NonFinal
 @AllArgsConstructor
 @SuppressWarnings("unused")
 public class SimpleParagraph {
     @NonNull
-    private final Supplier<Content> content;
+    Supplier<Content> content;
     @NonNull
-    private final ParagraphType paragraphType;
+    ParagraphType paragraphType;
     @NonNull
-    private final ParagraphLocation location;
+    ParagraphLocation location;
 
     public Content getContent() {
         return content.get();

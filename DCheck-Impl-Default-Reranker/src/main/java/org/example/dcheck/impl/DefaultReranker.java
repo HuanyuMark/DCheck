@@ -251,7 +251,7 @@ public class DefaultReranker implements Reranker {
     }
 
     @Data
-    @EqualsAndHashCode(callSuper = true)
+    @EqualsAndHashCode
     protected static class RerankResponse extends BaseResponse {
         private float[][] scores;
     }

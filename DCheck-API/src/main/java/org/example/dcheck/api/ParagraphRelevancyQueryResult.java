@@ -1,6 +1,7 @@
 package org.example.dcheck.api;
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 
 import java.util.List;
 
@@ -9,12 +10,14 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
 @Builder
+@NonFinal
 @SuppressWarnings("unused")
 @AllArgsConstructor
 public class ParagraphRelevancyQueryResult {
+
     @With
     @Singular
-    private final List<DuplicatePart> duplicateParts;
+    List<DuplicatePart> duplicateParts;
 }

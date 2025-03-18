@@ -15,6 +15,7 @@ import java.lang.reflect.Type;
  */
 @SuppressWarnings("unused")
 public interface Codec {
+
     /**
      * info about this codec
      */

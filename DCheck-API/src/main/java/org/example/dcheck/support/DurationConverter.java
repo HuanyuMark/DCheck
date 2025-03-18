@@ -13,7 +13,9 @@ import java.time.Duration;
  *
  * @author 三石而立Sunsy
  */
+@SuppressWarnings("unused")
 public class DurationConverter implements Converter<CharSequence, Duration> {
+
     private final TypeDescriptor target = new TypeDescriptor(ResolvableType.forClass(Duration.class), null, null);
 
     @Override

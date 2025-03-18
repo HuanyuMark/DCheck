@@ -2,6 +2,7 @@ package org.example.dcheck.api;
 
 import lombok.*;
 import lombok.experimental.Delegate;
+import lombok.experimental.NonFinal;
 
 import java.util.List;
 
@@ -10,23 +11,42 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
+@NonFinal
 public class DuplicatePart {
+
+    /**
+     * the paragraph be compared(need to find duplicates)
+     */
     @NonNull
-    private final Paragraph paragraph;
+    Paragraph paragraph;
+
+    /**
+     * all duplicate paragraphs comparison with the current paragraph {@link #paragraph}
+     */
     @With
     @NonNull
-    private final List<DuplicateParagraph> duplicates;
+    List<DuplicateParagraph> duplicates;
 
-    @Data
+    @Value
     @Builder
+    @NonFinal
     @AllArgsConstructor
     public static class DuplicateParagraph {
+
+        /**
+         * the duplicated paragraph
+         */
         @NonNull
         @Delegate
-        private final Paragraph paragraph;
+        Paragraph paragraph;
+
+        /**
+         * relevancy score [0,1]
+         * 相似度分数
+         */
         @With
         @Getter
-        private final double relevancy;
+        double relevancy;
     }
 }

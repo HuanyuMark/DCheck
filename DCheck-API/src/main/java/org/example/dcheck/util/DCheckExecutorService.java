@@ -63,7 +63,7 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
     }
 
     private static Class<?> loadProviderClass() throws ClassNotFoundException {
-        return DCheckResourceClassLoader.getInstance().loadClass("org.example.dcheck.util.VirtualThreadProvider");
+        return DCheckResourceClassLoader.getShared().loadClass("org.example.dcheck.util.VirtualThreadProvider");
     }
 
     public BlockingQueue<Runnable> getBlockingQueue() {

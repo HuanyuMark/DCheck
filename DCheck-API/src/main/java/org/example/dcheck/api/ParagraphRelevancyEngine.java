@@ -12,6 +12,7 @@ import java.util.List;
  */
 @SuppressWarnings("unused")
 public interface ParagraphRelevancyEngine extends AutoCloseable, DCheckComponent {
+
     ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query);
 
     void addParagraph(ParagraphRelevancyCreation creation);

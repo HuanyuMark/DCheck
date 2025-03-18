@@ -15,10 +15,16 @@ import java.util.List;
 @Builder
 @SuppressWarnings("unused")
 public class CheckResult {
+
+    /**
+     * 对于每一个段落，前 topKOfDocument 个最相似的文档
+     */
     @Singular("paragraph")
-    // 对于每一个段落，前 topKOfDocument 个最相似的文档
     List<DuplicatePart> duplicateParts;
-    // 前 topKOfDocument 个最相似的文档
+
+    /**
+     * 前 topKOfDocument 个最相似的文档
+     */
     @Singular("document")
     List<RelevantDocument> relevantDocuments;
 

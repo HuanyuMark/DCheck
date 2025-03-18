@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 @Slf4j
 @SuppressWarnings("unused")
 public class DocumentProcessorProvider implements DCheckProvider, DocumentProcessor {
+
     @Getter(lazy = true)
     private final static DocumentProcessorProvider instance = new DocumentProcessorProvider();
 

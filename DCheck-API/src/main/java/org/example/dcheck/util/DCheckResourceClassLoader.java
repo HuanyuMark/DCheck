@@ -20,8 +20,9 @@ import java.util.Enumeration;
 @SuppressWarnings("unused")
 @Slf4j
 public class DCheckResourceClassLoader extends ClassLoader {
+
     @Getter
-    protected static DCheckResourceClassLoader instance = new DCheckResourceClassLoader();
+    protected static DCheckResourceClassLoader shared = new DCheckResourceClassLoader();
 
     protected final URLClassLoader target;
 

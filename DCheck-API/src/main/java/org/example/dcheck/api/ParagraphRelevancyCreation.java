@@ -2,6 +2,7 @@ package org.example.dcheck.api;
 
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 
 import java.util.List;
 
@@ -11,13 +12,16 @@ import java.util.List;
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("unused")
-@Data
 @With
+@Value
 @Builder
+@NonFinal
 @AllArgsConstructor
 public class ParagraphRelevancyCreation {
+
     @NonNull
-    private final String collectionId;
+    String collectionId;
+
     @Singular("add")
-    private final List<UniversalParagraph> batch;
+    List<UniversalParagraph> batch;
 }

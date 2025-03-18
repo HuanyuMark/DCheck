@@ -1,20 +1,22 @@
 package org.example.dcheck.api;
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 
 /**
  * Date 2025/02/25
  *
  * @author 三石而立Sunsy
  */
-@Data
 @With
+@Value
 @Builder
+@NonFinal
 @AllArgsConstructor
 public class DocumentDelete {
     @NonNull
-    private final String collectionId;
+    String collectionId;
 
     @NonNull
-    private final MetadataMatchCondition metadataMatchCondition;
+    MetadataMatchCondition metadataMatchCondition;
 }

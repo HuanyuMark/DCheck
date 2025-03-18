@@ -1,6 +1,7 @@
 package org.example.dcheck.api;
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 
 import java.util.List;
 
@@ -9,13 +10,14 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
-@Data
+@Value
 @Builder
+@NonFinal
 @AllArgsConstructor
 public class DocumentIdQuery {
     @NonNull
-    private final String collectionId;
+    String collectionId;
     @NonNull
     @Singular
-    private final List<String> documentIds;
+    List<String> documentIds;
 }

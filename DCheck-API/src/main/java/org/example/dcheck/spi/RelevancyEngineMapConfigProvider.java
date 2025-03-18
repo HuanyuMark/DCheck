@@ -10,6 +10,7 @@ import java.util.Properties;
  * @author 三石而立Sunsy
  */
 public class RelevancyEngineMapConfigProvider implements DCheckProvider {
+
     @Getter(lazy = true)
     private static final RelevancyEngineMapConfigProvider instance = new RelevancyEngineMapConfigProvider();
 

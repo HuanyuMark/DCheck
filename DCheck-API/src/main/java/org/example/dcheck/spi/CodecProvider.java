@@ -11,6 +11,7 @@ import java.util.List;
  * @author 三石而立Sunsy
  */
 public class CodecProvider implements DCheckProvider {
+
     @Getter
     private static final CodecProvider instance = new CodecProvider();
 

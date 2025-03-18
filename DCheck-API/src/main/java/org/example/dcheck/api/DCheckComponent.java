@@ -7,6 +7,7 @@ package org.example.dcheck.api;
  */
 @SuppressWarnings("unused")
 public interface DCheckComponent extends AutoCloseable {
+
     /**
      * 组件初始化。准备依赖、注册事件监听器
      */

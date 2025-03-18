@@ -19,10 +19,13 @@ import java.util.Set;
 @NonFinal
 @AllArgsConstructor
 public class ParagraphRelevancyQuery {
+
     @NonNull
     String collectionId;
+
     @NonNull
     String documentId;
+
     /**
      * 仅当documentId指代的document存在于collectionId指代的collection中时，才允许为null
      */

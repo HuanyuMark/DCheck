@@ -22,13 +22,16 @@ import java.util.WeakHashMap;
  */
 @SuppressWarnings("unused")
 public class DCheckConfigProvider {
+
     @Getter(lazy = true)
     private static final DCheckConfigProvider instance = new DCheckConfigProvider();
+
     @Getter
     protected Set<Resource> injectedConfig = Collections.newSetFromMap(new WeakHashMap<>());
 
     @Getter
     protected ConversionService conversionService;
+
     @Getter(lazy = true)
     private final DCheckConfig DCheckConfig = new DCheckConfig(Providers.loadConfig("api-config", injectedConfig.toArray(new Resource[0])), conversionService);
 
