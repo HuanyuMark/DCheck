@@ -19,7 +19,9 @@ import java.util.function.Supplier;
  * Date: 2025/3/18
  * An executor service wrapped by {@link ThreadPoolExecutor}.
  * it would run nicely in jdk21 and do the same work in legacy.
- *
+ * TODO use PerTask ExecutorService. pool es would lead to loose thread (dead blocked)
+ *  so use virtual per task executor service and impl a purpose associated concurrency control
+ *  is better
  * @author 三石而立Sunsy
  */
 @Slf4j
