@@ -72,6 +72,12 @@ public class DCheckConfig {
         throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': value should be > 0");
     }
 
+    public Long requiredPositiveLong(String key) {
+        Long value = required(key, Long.class);
+        if (value > 0) return value;
+        throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': value should be > 0");
+    }
+
     @NotNull
     public <T> T required(String key, @NotNull T defaultValue, Class<T> clazz) {
         String value = values.getProperty(key);

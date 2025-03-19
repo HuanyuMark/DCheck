@@ -1,18 +1,17 @@
 package org.example.dcheck.impl.embedding.remote;
 
 import lombok.*;
+import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.example.dcheck.api.Codec;
 import org.example.dcheck.api.DCheckComponent;
 import org.example.dcheck.api.DCheckConfig;
-import org.example.dcheck.api.IEventEmitter;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.common.util.CollectionUtils;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.DCheckConfigProvider;
-import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.example.dcheck.util.OnceRunner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -153,8 +152,8 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     @SneakyThrows
     protected void publishInjectTokenizerEvent(Object tokenizer) {
         Class<?> eventClass = Class.forName("org.example.dcheck.api.FileProcessorTokenizerInjectionEvent");
-        Method publisher = eventClass.getDeclaredMethod("publish", IEventEmitter.class, Object.class);
-        publisher.invoke(null, DuplicateCheckingProvider.getInstance().getChecking(), tokenizer);
+        Method publisher = eventClass.getDeclaredMethod("publish", Object.class);
+        publisher.invoke(null, tokenizer);
         log.info("tokenizer injected: {}", tokenizer.getClass());
     }
 
@@ -163,7 +162,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
         try {
             tokenizerClass = Class.forName("org.example.dcheck.impl.embedding.remote.BigModelTokenizer");
         } catch (Throwable e) {
-            log.warn("tokenizer load fail. maybe miss some dependencies or you don not want to use that class: " + e.getMessage());
+            log.warn("tokenizer load fail. maybe miss some dependencies or you don not want to use that class: {}", e.getMessage());
             return new TokenizerInitResult(text -> 0, null);
         }
 
@@ -289,7 +288,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Value
-    @NonNull
+    @NonFinal
     protected static class TokenizerInitResult {
         ToIntFunction<String> tokenizerFuc;
         @Nullable
@@ -297,7 +296,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Value
-    @NonNull
+    @NonFinal
     protected static class CreateEmbeddingRequest {
         @NonNull
         String model;
@@ -307,7 +306,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Value
-    @NonNull
+    @NonFinal
     protected static class CreateEmbeddingResponse {
         @NonNull
         String model;
@@ -317,7 +316,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Value
-    @NonNull
+    @NonFinal
     protected static class IndexEmbeddingRecord {
         int index;
         float @NonNull [] embedding;

@@ -134,7 +134,7 @@ maven编译条件：
 
 ##### 1.3 运行用例 (持续更新)
 
-参照该类中的[测试用例](DCheck-Test/src/test/java/DcheckAggregateTest.java)
+参照该类中的[测试用例](DCheck-Test/RunInJdk21/src/test/java/DcheckAggregateTest.java)
 
 ## Q&A 常见问题
 
@@ -146,3 +146,10 @@ maven编译条件：
    在IntelliJ IDEA中，可以在该界面下配置
 
      <img src="README/IntelliJ-IDEA-maven-jre.png" alt="IntelliJ-IDEA-maven-jre.png" height="300">
+
+2. 有哪些配置项可以自定义？
+
+   你可以参照以下源码的中罗列的配置项
+    1. [DCheckConfig](DCheck-API/src/main/java/org/example/dcheck/api/DCheckConfig.java)
+    2. [EmbeddedNeo4jConfigKey](DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/java/org/example/dcheck/impl/EmbeddedNeo4jConfigKey.java)
+    3. [remote/ConfigPropertyKey](DCheck-Impl-Embedding-Remote/src/main/java/org/example/dcheck/impl/embedding/remote/ConfigPropertyKey.java) 

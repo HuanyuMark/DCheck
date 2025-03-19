@@ -1,27 +1,32 @@
 package org.example.dcheck.util;
 
 import lombok.Getter;
-import lombok.SneakyThrows;
+import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.DCheckComponent;
+import org.example.dcheck.spi.VirtualThreadProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /**
  * Date: 2025/3/18
- * An executor service wrapped by {@link ThreadPoolExecutor}.
+ * An executor service wrapped by {@link ExecutorService}.
  * it would run nicely in jdk21 and do the same work in legacy.
- * TODO use PerTask ExecutorService. pool es would lead to loose thread (dead blocked)
- *  so use virtual per task executor service and impl a purpose associated concurrency control
- *  is better
+ * if virtual thread is available, the parallelism control of these class is difficult
+ * (due to virtual thread use a jvm-shared scheduler to control application parallelism and user can
+ * not control the scheduler directly)
+ * <p>
+ * so if you use virtual thread, you should control parallelism by yourself (by other mechanism such as set okhttp.Dispatcher in http call).
+ *
  * @author 三石而立Sunsy
  */
 @Slf4j
@@ -29,32 +34,71 @@ import java.util.function.Supplier;
 public class DCheckExecutorService implements ExecutorService, DCheckComponent {
 
     @Nullable
-    protected static final ThreadFactory defaultVirtualThreadFactory = initVirtualThreadFactory();
+    protected static final ExecutorService defaultVirtualThreadExecutor;
+    @Nullable
+    protected static final ThreadFactory defaultVirtualThreadFactory;
+
+    @Getter
+    private static final DCheckExecutorService sharedExecutor = new DCheckExecutorService();
 
     static {
-        if (defaultVirtualThreadFactory != null) {
-            log.info("VirtualThread Is Available: set two system properties to customize: \n -Djdk.virtualThreadScheduler.parallelism=<default is core count> \n-Djdk.virtualThreadScheduler.maxPoolSize=<default is 256>");
+        ExecutorService candidateEs;
+        ThreadFactory candidateThreadFactory;
+        try {
+            Class.forName("java.lang.VirtualThread");
+            VirtualThreadProvider provider = loadProvider();
+            candidateEs = provider.getExecutorService();
+            candidateThreadFactory = provider.getThreadFactory();
+        } catch (ClassNotFoundException e) {
+            candidateEs = null;
+            candidateThreadFactory = null;
         }
+
+        defaultVirtualThreadExecutor = candidateEs;
+        defaultVirtualThreadFactory = candidateThreadFactory;
+
+        if (defaultVirtualThreadExecutor != null) {
+            log.info("VirtualThread Is Available: set two system properties to customize: \n " +
+                    "-Djdk.virtualThreadScheduler.parallelism=<default is core count> \n " +
+                    "-Djdk.virtualThreadScheduler.maxPoolSize=<default is 256>");
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(sharedExecutor::close));
     }
 
-    protected volatile BlockingQueue<Runnable> blockingQueue;
+    @Getter
+    @Setter
+    @NonNull
+    private static ThreadFactory sharedThreadFactory = defaultVirtualThreadFactory == null ? Thread::new : defaultVirtualThreadFactory;
 
     @Getter
     protected int concurrency = Runtime.getRuntime().availableProcessors() - 1;
-    @Getter
-    protected boolean useVirtualThread;
-    protected volatile ThreadPoolExecutor executor;
 
+    @Getter
+    protected final boolean useVirtualThread;
+
+    protected volatile ExecutorService executor;
 
     public DCheckExecutorService() {
         this(true);
     }
 
     public DCheckExecutorService(boolean useVirtualThreadIfAvailable) {
-        useVirtualThread = useVirtualThreadIfAvailable;
+        useVirtualThread = useVirtualThreadIfAvailable && defaultVirtualThreadExecutor != null;
     }
 
     public static void defaultShutdown(Logger log, ExecutorService executor) throws InterruptedException {
+        if (executor instanceof DCheckExecutorService) {
+            if (((DCheckExecutorService) executor).executor == null) {
+                return;
+            }
+        }
+
+        if (executor == null) {
+            log.warn("Executor Service Is Null. Ignore Shutdown Operation");
+            return;
+        }
+
         executor.shutdown();
         long start = System.currentTimeMillis();
         if (executor.awaitTermination(1, TimeUnit.MINUTES)) {
@@ -64,20 +108,14 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
         }
     }
 
-    private static Class<?> loadProviderClass() throws ClassNotFoundException {
-        return DCheckResourceClassLoader.getShared().loadClass("org.example.dcheck.util.VirtualThreadProvider");
+    private static VirtualThreadProvider loadProvider() {
+        return StreamSupport.stream(ServiceLoader.load(VirtualThreadProvider.class, DCheckResourceClassLoader.getShared()).spliterator(), false)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("no provider found"));
     }
 
-    public BlockingQueue<Runnable> getBlockingQueue() {
-        if (blockingQueue != null) return blockingQueue;
-        synchronized (this) {
-            if (blockingQueue != null) return blockingQueue;
-            blockingQueue = new ArrayBlockingQueue<>(1024);
-        }
-        return blockingQueue;
-    }
 
-    public ThreadPoolExecutor getExecutor() {
+    public ExecutorService getExecutor() {
         if (executor == null) {
             synchronized (this) {
                 if (executor != null) return executor;
@@ -87,24 +125,8 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
         return executor;
     }
 
-    @Nullable
-    @SneakyThrows
-    @SuppressWarnings("unchecked")
-    private static ThreadFactory initVirtualThreadFactory() {
-        try {
-            Class.forName("java.lang.VirtualThread");
-            Class<?> providerClass = loadProviderClass();
-            return Objects.requireNonNull(((Supplier<ThreadFactory>) providerClass.getConstructor().newInstance()).get());
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }
-
-    public synchronized void setBlockingQueue(BlockingQueue<Runnable> queue) {
-        blockingQueue = queue;
-        ThreadPoolExecutor old = executor;
-        executor = new ThreadPoolExecutor(old.getCorePoolSize(), old.getMaximumPoolSize(), old.getKeepAliveTime(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS, queue);
-        old.shutdown();
+    public void setExecutor(@NonNull ExecutorService executor) {
+        this.executor = executor;
     }
 
     protected void initPlatform() {
@@ -114,135 +136,28 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
             thread.setName("dc-" + idx.getAndIncrement());
             return thread;
         };
-        executor = new ThreadPoolExecutor(Math.max(concurrency / 2, 1), concurrency, 10, TimeUnit.SECONDS, getBlockingQueue(), threadFactory);
+        executor = new ThreadPoolExecutor(Math.max(concurrency / 2, 1), concurrency, 10, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1024), threadFactory);
     }
 
     @Override
     public void init() {
-        if (!useVirtualThread || defaultVirtualThreadFactory == null) {
+        if (!useVirtualThread) {
             initPlatform();
-            useVirtualThread = false;
             return;
         }
 
-        executor = new ThreadPoolExecutor(concurrency, Integer.MAX_VALUE, 100, TimeUnit.MILLISECONDS, getBlockingQueue(), Objects.requireNonNull(defaultVirtualThreadFactory));
-        executor.allowCoreThreadTimeOut(true);
-    }
-
-    public synchronized void setConcurrency(int concurrency) {
-        if (concurrency <= 0) {
-            throw new IllegalArgumentException("concurrency must be > 0");
-        }
-        this.concurrency = concurrency;
-        executor.setCorePoolSize(concurrency);
+        executor = defaultVirtualThreadExecutor;
     }
 
     @Override
     public void close() {
         log.info("Closing Executor Service. shutdown manually is grateful");
         long start = System.currentTimeMillis();
-        executor.shutdown();
         try {
-            if (executor.awaitTermination(1, TimeUnit.MINUTES)) {
-                log.info("Executor Service Closed Success. cost {}ms", System.currentTimeMillis() - start);
-            } else {
-                log.warn("Executor Service Closed Timeout. cost {}ms", System.currentTimeMillis() - start);
-            }
+            defaultShutdown(log, this);
         } catch (InterruptedException e) {
             throw new IllegalStateException("await executor termination fail: " + e.getMessage(), e);
         }
-    }
-
-    public void allowCoreThreadTimeOut(boolean value) {
-        getExecutor().allowCoreThreadTimeOut(value);
-    }
-
-    public BlockingQueue<Runnable> getQueue() {
-        return getExecutor().getQueue();
-    }
-
-    public long getTaskCount() {
-        return getExecutor().getTaskCount();
-    }
-
-    public int getLargestPoolSize() {
-        return getExecutor().getLargestPoolSize();
-    }
-
-    public long getKeepAliveTime(TimeUnit unit) {
-        return getExecutor().getKeepAliveTime(unit);
-    }
-
-    public boolean remove(Runnable task) {
-        return getExecutor().remove(task);
-    }
-
-    public long getCompletedTaskCount() {
-        return getExecutor().getCompletedTaskCount();
-    }
-
-    public int getCorePoolSize() {
-        return getExecutor().getCorePoolSize();
-    }
-
-    public void setCorePoolSize(int corePoolSize) {
-        getExecutor().setCorePoolSize(corePoolSize);
-    }
-
-    public boolean isTerminating() {
-        return getExecutor().isTerminating();
-    }
-
-    public void setKeepAliveTime(long time, TimeUnit unit) {
-        getExecutor().setKeepAliveTime(time, unit);
-    }
-
-    public boolean prestartCoreThread() {
-        return getExecutor().prestartCoreThread();
-    }
-
-    public void purge() {
-        getExecutor().purge();
-    }
-
-    public ThreadFactory getThreadFactory() {
-        return getExecutor().getThreadFactory();
-    }
-
-    public void setThreadFactory(@NotNull ThreadFactory threadFactory) {
-        getExecutor().setThreadFactory(threadFactory);
-    }
-
-    public int getMaximumPoolSize() {
-        return getExecutor().getMaximumPoolSize();
-    }
-
-    public void setMaximumPoolSize(int maximumPoolSize) {
-        getExecutor().setMaximumPoolSize(maximumPoolSize);
-    }
-
-    public RejectedExecutionHandler getRejectedExecutionHandler() {
-        return getExecutor().getRejectedExecutionHandler();
-    }
-
-    public void setRejectedExecutionHandler(@NotNull RejectedExecutionHandler handler) {
-        getExecutor().setRejectedExecutionHandler(handler);
-    }
-
-    public boolean allowsCoreThreadTimeOut() {
-        return getExecutor().allowsCoreThreadTimeOut();
-    }
-
-    public int getActiveCount() {
-        return getExecutor().getActiveCount();
-    }
-
-    public int getPoolSize() {
-        return getExecutor().getPoolSize();
-    }
-
-    public int prestartAllCoreThreads() {
-        return getExecutor().prestartAllCoreThreads();
     }
 
     @Override

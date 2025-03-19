@@ -1,7 +1,10 @@
+import lombok.AllArgsConstructor;
+import lombok.ToString;
 import org.example.dcheck.api.*;
 import org.example.dcheck.impl.DocxDocument;
 import org.example.dcheck.impl.PdfDocument;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
+import org.example.dcheck.util.ContentConvert;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -20,13 +22,74 @@ import java.util.stream.Stream;
 
 /**
  * Date 2025/02/28
- * 正在编写中
+ * <p>
+ * here code should be run in jre21 ([21,22] is test-pass now)
+ * <p>
+ * deving
  *
  * @author 三石而立Sunsy
  */
 @SuppressWarnings("all")
 public class DcheckAggregateTest {
 
+    private static void print(CheckResult checkResult) {
+        checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
+        @ToString
+        @AllArgsConstructor
+        class Entry {
+            double relevancy;
+            String source;
+            String paragraph;
+        }
+
+        for (DuplicatePart duplicatePart : checkResult.getDuplicateParts()) {
+            System.out.println("check for paragrah: \n" + ContentConvert.castToText(duplicatePart.getParagraph().getContent()));
+            System.out.println("duplicate paragraphs: \n" + duplicatePart.getDuplicates().stream().map(p -> new Entry(p.getRelevancy(), p.getMetadata().getDocumentId(), ContentConvert.castToText(p.getContent())).toString()).collect(Collectors.toList()).stream().collect(Collectors.joining("\n")));
+            System.out.println();
+        }
+    }
+
+    @NotNull
+    private static List<Document> getDocuments() throws IOException {
+        // 临时构建文档集合（从中查找重复内容）
+        // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
+        List<Document> diffCollection;
+        Path input = Paths.get("../diff-files");
+        try (Stream<Path> stream = Files.list(input)) {
+            diffCollection = stream
+                    .filter(Files::isRegularFile)
+                    .filter(p -> !p.getFileName().toString().equals("doc5.docx"))
+                    .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
+                        try {
+                            return Files.newInputStream(p);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }))
+                    .map(e -> {
+                        boolean isDocx = e.getKey().toString().endsWith(".docx");
+                        BiFunction<String, Content, Document> factory = isDocx ? DocxDocument::new : PdfDocument::new;
+                        return factory.apply(e.getKey().toString(), () -> e.getValue().get());
+                    })
+                    .collect(Collectors.toList());
+            if (diffCollection.isEmpty()) {
+                throw new IllegalStateException("请将查重文件放入到目标目录中，目标目录中没有文件！Please place the duplicate checking files into the target directory. The target directory is empty!\n" +
+                        "目标目录/target directory: " + input.toAbsolutePath());
+            }
+        }
+        return diffCollection;
+    }
+
+    /**
+     * general usecase 一般的使用方式
+     * <p>
+     * Note: to greatfully use embeddedNeo4j. you should enable jdk21 vector api:
+     * <p>
+     * please run with these args:
+     * {@code --add-modules jdk.incubator.vector}
+     * <p>
+     * or use module-info.java => add {@code require java.incubator.vector}
+     */
     @Test
     public void quickStartDurable() throws Exception {
         // 获取查重入口类实例（spi机制）
@@ -63,8 +126,12 @@ public class DcheckAggregateTest {
         checking.close();
     }
 
+    /**
+     * A temp usecase. you should check out the {@code Note} section
+     * of {@link #quickStartDurable()} to make a better use to DCheck
+     */
     @Test
-    public void quickStart() throws Exception {
+    public void quickStartTemp() throws Exception {
         DuplicateChecking checking = getDuplicateChecking();
 
         // 临时构建文档集合（从中查找重复内容）
@@ -88,45 +155,6 @@ public class DcheckAggregateTest {
         print(checkResult);
 
         checking.close();
-    }
-
-    private static void print(CheckResult checkResult) {
-        checkResult.getRelevantDocuments().forEach(doc -> System.out.println("docId: " + doc.getDocumentId() + " score: " + doc.getScore()));
-        for (DuplicatePart duplicatePart : checkResult.getDuplicateParts()) {
-            System.out.println("check for paragrah: " + duplicatePart.getParagraph());
-            System.out.println("duplicate paragraphs: \n" + duplicatePart.getDuplicates().stream().map(Objects::toString).collect(Collectors.toList()).stream().collect(Collectors.joining("\n")));
-        }
-    }
-
-    @NotNull
-    private static List<Document> getDocuments() throws IOException {
-        // 临时构建文档集合（从中查找重复内容）
-        // 使用临时集合不适合需要持久化的场景，见 quickStartDurable
-        List<Document> diffCollection;
-        Path input = Paths.get("diff-files");
-        try (Stream<Path> stream = Files.list(input)) {
-            diffCollection = stream
-                    .filter(Files::isRegularFile)
-                    .filter(p -> !p.getFileName().toString().equals("doc5.docx"))
-                    .map(p -> new AbstractMap.SimpleEntry<>(p, (Supplier<InputStream>) () -> {
-                        try {
-                            return Files.newInputStream(p);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }))
-                    .map(e -> {
-                        boolean isDocx = e.getKey().toString().endsWith(".docx");
-                        BiFunction<String, Content, Document> factory = isDocx ? DocxDocument::new : PdfDocument::new;
-                        return factory.apply(e.getKey().toString(), () -> e.getValue().get());
-                    })
-                    .collect(Collectors.toList());
-            if (diffCollection.isEmpty()) {
-                throw new IllegalStateException("请将查重文件放入到目标目录中，目标目录中没有文件！Please place the duplicate checking files into the target directory. The target directory is empty!\n" +
-                        "目标目录/target directory: " + input.toAbsolutePath());
-            }
-        }
-        return diffCollection;
     }
 
     @NotNull

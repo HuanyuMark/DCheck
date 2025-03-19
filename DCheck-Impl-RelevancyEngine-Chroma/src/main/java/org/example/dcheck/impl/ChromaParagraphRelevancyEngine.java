@@ -271,30 +271,33 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
                     List<String> queryResultDocument = response.getDocuments().get(i);
                     List<Map<String, Object>> queryResultMetadata = response.getMetadatas().get(i);
                     List<Float> queryResultScore = response.getDistances().get(i);
-                    List<DuplicatePart.DuplicateParagraph> duplicates = IntStream.range(0, queryResultDocument.size()).mapToObj(j -> {
-                        String document = queryResultDocument.get(j);
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
-                                .entrySet().stream().map(e -> {
-                                    try {
-                                        return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
-                                    } catch (IOException ex) {
-                                        throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
-                                    }
-                                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                        Float score = queryResultScore.get(j);
-                        ParagraphMetadata metadataObj;
-                        try {
-                            metadataObj = codec.convertTo(metadata, ParagraphMetadata.class);
-                        } catch (IOException e) {
-                            throw new IllegalArgumentException("parse metadata fail: " + e.getMessage(), e);
-                        }
+                    List<DuplicatePart.DuplicateParagraph> duplicates = IntStream.range(0, queryResultDocument.size())
+                            // chroma did`t support distance filter now
+                            .filter(j -> queryResultScore.get(j) > query.getMinRelevancy())
+                            .mapToObj(j -> {
+                                String document = queryResultDocument.get(j);
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> metadata = ((Map<String, String>) ((Object) queryResultMetadata.get(j)))
+                                        .entrySet().stream().map(e -> {
+                                            try {
+                                                return new AbstractMap.SimpleEntry<>(e.getKey(), codec.deserialize(e.getValue(), Object.class));
+                                            } catch (IOException ex) {
+                                                throw new IllegalStateException("deserialize metadata '" + e.getKey() + "=" + e.getValue() + "' fail: " + ex.getMessage(), ex);
+                                            }
+                                        }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                                Float score = queryResultScore.get(j);
+                                ParagraphMetadata metadataObj;
+                                try {
+                                    metadataObj = codec.convertTo(metadata, ParagraphMetadata.class);
+                                } catch (IOException e) {
+                                    throw new IllegalArgumentException("parse metadata fail: " + e.getMessage(), e);
+                                }
 
-                        return DuplicatePart.DuplicateParagraph.builder()
-                                .paragraph(metadataObj.getParagraphType().createParagraph(document, metadataObj))
-                                .relevancy(score)
-                                .build();
-                    }).collect(Collectors.toList());
+                                return DuplicatePart.DuplicateParagraph.builder()
+                                        .paragraph(metadataObj.getParagraphType().createParagraph(document, metadataObj))
+                                        .relevancy(score)
+                                        .build();
+                            }).collect(Collectors.toList());
                     return new DuplicatePart(paragraphs.get(i), duplicates);
                 }).collect(Collectors.toList());
 
@@ -513,8 +516,8 @@ public class ChromaParagraphRelevancyEngine extends AbstractParagraphRelevancyEn
 
     @Override
     public void close() throws Exception {
+        DCheckExecutorService.defaultShutdown(log, executor);
         embeddingFunction.close();
         reranker.close();
-        DCheckExecutorService.defaultShutdown(log, executor);
     }
 }

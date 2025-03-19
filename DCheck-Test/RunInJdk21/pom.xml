@@ -1,0 +1,81 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.example.dcheck</groupId>
+        <artifactId>DCheck-Test</artifactId>
+        <version>0.0.1</version>
+    </parent>
+    <artifactId>RunInJdk21</artifactId>
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-API</artifactId>
+        </dependency>
+
+        <!--
+                        <dependency>
+                            <groupId>org.example.dcheck</groupId>
+                            <artifactId>DCheck-Impl-Default-RelevancyEngine</artifactId>
+                        </dependency>
+        -->
+
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-RelevancyEngine-EmbeddedNeo4j</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Embedding-Remote</artifactId>
+        </dependency>
+
+        <!-- 文档处理器: 启用处理docx文件 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Default-DocxProcessor</artifactId>
+        </dependency>
+
+        <!-- 文档处理器: 启用处理pdf文件 -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Default-PdfProcessor</artifactId>
+        </dependency>
+
+        <!-- 文档处理器: 启用tika自动处理 -->
+        <!--        <dependency>-->
+        <!--            <groupId>org.example.dcheck</groupId>-->
+        <!--            <artifactId>DCheck-Impl-Default-TikaProcessor</artifactId>-->
+        <!--        </dependency>-->
+
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-Impl-Codec-Jackson</artifactId>
+        </dependency>
+        <!-- gson正在开发中，后续支持请持续跟踪该项目 -->
+        <!--        <dependency>-->
+        <!--            <groupId>org.example.dcheck</groupId>-->
+        <!--            <artifactId>DCheck-Impl-Codec-Gson</artifactId>-->
+        <!--        </dependency>-->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

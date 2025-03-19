@@ -50,11 +50,13 @@ public class BigModelTokenizer implements DCheckTokenizer {
     }
 
     protected static final String DEFAULT_MODEL_NAME = "glm-4-flash";
+
     private final OnceRunner runner = OnceRunner.of();
     @Getter
     @Setter
     @NonNull
     private OkHttpClient client;
+
     private Request requestTemplate;
     @With
     private String modelName;
@@ -71,6 +73,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
             .build();
 
     private ConcurrentLruCache<String, Integer> estimateCache;
+    protected ConcurrentLruCache<String, Integer> shortSentenceCache;
 
     private final AtomicInteger cacheClearVersion = new AtomicInteger(Integer.MIN_VALUE);
 
@@ -78,7 +81,6 @@ public class BigModelTokenizer implements DCheckTokenizer {
     @Setter
     @NonNull
     private ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
-    protected ConcurrentLruCache<String, Integer> shortSentenceCache;
 
     public BigModelTokenizer(@NonNull OkHttpClient client, @NonNull Headers requestHeaders) {
         this.client = client;
@@ -95,7 +97,6 @@ public class BigModelTokenizer implements DCheckTokenizer {
     }
 
     @Getter
-    @Setter
     private long estimateCacheExpireTimeMillis;
 
     protected Integer doRequest(String text) {
@@ -124,12 +125,12 @@ public class BigModelTokenizer implements DCheckTokenizer {
                                 }
                                 return doTokenizeResponse.getUsage().getPrompt_tokens();
                             }
-                            log.warn("do tokenize request fail, response: " + response);
+                            log.warn("do tokenize request fail, response: {}", response);
                             throw new IOException("do tokenize request fail, response: " + response);
                         }
                     });
         } catch (FailsafeException e) {
-            log.error("do tokenize request fail: " + e.getCause().getMessage(), e.getCause());
+            log.error("do tokenize request fail: {}", e.getCause().getMessage(), e.getCause());
             return 0;
         }
     }
@@ -144,9 +145,6 @@ public class BigModelTokenizer implements DCheckTokenizer {
         requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
 
         modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
-//        if (modelName == null) {
-//            throw new IllegalArgumentException("missing required config '" + ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME + "'");
-//        }
 
         if (codec == null) {
             codec = CodecProvider.getInstance()
@@ -160,17 +158,19 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
         estimateCache = new ConcurrentLruCache<>(estimateCacheSize, this::doRequest);
         shortSentenceCache = new ConcurrentLruCache<>(estimateCacheSize * 30, this::doRequest);
-        estimateCacheExpireTimeMillis = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME, Long.class);
+        setEstimateCacheExpireTimeMillis(apiConfig.requiredPositiveLong(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME));
     }
 
     @Override
-    public int estimateTokenCountInText(String text) {
+    public int estimateTokenCountInText(String rawText) {
         init();
-        if (!StringUtils.hasText(text)) {
+        if (!StringUtils.hasText(rawText)) {
             return 0;
         }
 
         accessCache();
+
+        String text = rawText.trim();
 
         if (text.length() < 5) {
             return shortSentenceCache.get(text);
@@ -188,6 +188,13 @@ public class BigModelTokenizer implements DCheckTokenizer {
             estimateCache.clear();
             shortSentenceCache.clear();
         }, estimateCacheExpireTimeMillis, TimeUnit.MILLISECONDS);
+    }
+
+    public void setEstimateCacheExpireTimeMillis(long estimateCacheExpireTimeMillis) {
+        if (estimateCacheExpireTimeMillis <= 0) {
+            throw new IllegalArgumentException("estimateCacheExpireTimeMillis must be > 0");
+        }
+        this.estimateCacheExpireTimeMillis = estimateCacheExpireTimeMillis;
     }
 
     @Override

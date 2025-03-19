@@ -97,12 +97,12 @@ class Providers {
 
     @SuppressWarnings("unchecked")
     static <Service> Service createService(Properties map, String instanceName, String mapKey) {
-        String classname = map.getProperty(mapKey);
-        if (classname == null) {
+        String className = map.getProperty(mapKey);
+        if (className == null) {
             throw new IllegalArgumentException("unsupported " + instanceName + ": '" + mapKey + "'");
         }
         try {
-            return instantiate((Class<Service>) Class.forName(classname));
+            return instantiate((Class<Service>) Class.forName(className));
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("create service fail: " + e.getMessage(), e);
         }

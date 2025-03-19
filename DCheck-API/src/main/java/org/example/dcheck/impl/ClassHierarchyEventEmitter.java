@@ -69,7 +69,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
                 try {
                     return Stream.of(((Function<Object, CompletableFuture<?>>) l).apply(event));
                 } catch (Exception e) {
-                    log.error("listener error", e);
+                    log.error("event '{}'\nlistener error", event, e);
                 }
                 return Stream.of();
             }).toArray(CompletableFuture[]::new)));

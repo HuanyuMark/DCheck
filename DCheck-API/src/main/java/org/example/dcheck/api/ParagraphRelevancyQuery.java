@@ -37,7 +37,6 @@ public class ParagraphRelevancyQuery {
     /**
      * 如果相关性分数小于minRelevancy，则该段落会被忽略，不会参与后续的相似度计算
      */
-    //TODO skip <= minRelevancy
     double minRelevancy;
 
     /**

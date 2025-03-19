@@ -76,6 +76,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
             """
                     CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
                     YIELD node,score
+                    WHERE score > $minRelevancy
                     RETURN node,score
                     """;
     @Nullable
@@ -240,7 +241,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                                 Map.of(
                                         "embedding", entry.getValue().asArray(),
                                         "VECTOR_INDEX", VECTOR_INDEX,
-                                        "topK", query.getTopK()
+                                        "topK", query.getTopK(),
+                                        "minRelevancy", query.getMinRelevancy()
                                 ))
                         .stream()
                         .map(result -> {
@@ -596,15 +598,17 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         if (!init) return;
         synchronized (this) {
             if (!init) return;
+
+            DCheckExecutorService.defaultShutdown(log, executor);
+
             for (var collection : tempDocumentCollections) {
                 try {
                     collection.close();
                 } catch (Exception e) {
-                    log.warn("encounter some problem in closing '" + getClass().getSimpleName() + "': close temp collection fail: {}", e.getMessage(), e);
+                    log.warn("encounter some problem in closing '{}': close temp collection fail: {}", getClass().getSimpleName(), e.getMessage(), e);
                 }
             }
 
-            DCheckExecutorService.defaultShutdown(log, executor);
 
             dbms.shutdown();
             tempDbms.destroy();

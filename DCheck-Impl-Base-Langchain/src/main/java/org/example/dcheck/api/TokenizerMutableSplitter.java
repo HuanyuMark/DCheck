@@ -9,6 +9,7 @@ import org.example.dcheck.spi.DuplicateCheckingProvider;
 import org.example.dcheck.util.UtilConst;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Date: 2025/3/11
@@ -21,19 +22,22 @@ public abstract class TokenizerMutableSplitter extends LazySplitter {
 
     private DCheckTokenizer tokenizer = DCheckTokenizer.NONE;
 
+    protected CompletableFuture<?> handleTokenizerInjection(FileProcessorTokenizerInjectionEvent e) {
+        setTokenizer(e.getTokenizer());
+        return UtilConst.emptyFuture();
+    }
+
     @Override
     public void init() throws Exception {
         tokenizer.init();
-        DuplicateCheckingProvider.getInstance().getChecking().addListener(FileProcessorTokenizerInjectionEvent.class, e -> {
-            setTokenizer(e.getTokenizer());
-            return UtilConst.emptyFuture();
-        });
+        DuplicateCheckingProvider.getInstance().getChecking().addListener(FileProcessorTokenizerInjectionEvent.class, this::handleTokenizerInjection);
     }
 
     @Override
     public void inited() throws Exception {
         super.inited();
         tokenizer.inited();
+        DuplicateCheckingProvider.getInstance().getChecking().removeListener(FileProcessorTokenizerInjectionEvent.class, this::handleTokenizerInjection);
     }
 
     @Override

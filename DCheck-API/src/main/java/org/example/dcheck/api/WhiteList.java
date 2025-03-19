@@ -1,8 +1,8 @@
 package org.example.dcheck.api;
 
 import lombok.EqualsAndHashCode;
-import lombok.NonNull;
 import lombok.Value;
+import lombok.experimental.NonFinal;
 
 /**
  * Date: 2025/3/17
@@ -11,7 +11,7 @@ import lombok.Value;
  * @author 三石而立Sunsy
  */
 @Value
-@NonNull
+@NonFinal
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class WhiteList {
     @EqualsAndHashCode.Include

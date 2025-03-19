@@ -21,7 +21,7 @@ public class TextParagraph implements Paragraph {
     @With
     @Getter
     @NonNull
-    private ParagraphMetadata metadata;
+    private final ParagraphMetadata metadata;
 
     @Override
     public TextContent getContent() {

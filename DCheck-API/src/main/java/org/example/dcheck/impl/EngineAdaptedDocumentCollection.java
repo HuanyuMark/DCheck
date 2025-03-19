@@ -65,11 +65,24 @@ public class EngineAdaptedDocumentCollection implements DocumentCollection {
         List<CompletableFuture<List<UniversalParagraph>>> fus = IntStream.range(0, documents.size())
                 .filter(i -> !added.get(i))
                 .mapToObj(documents::get)
-                .map(document -> CompletableFuture.supplyAsync(() -> DocumentProcessorProvider
-                        .getInstance()
-                        .splitToParagraphs(document).collect(Collectors.toList()), executor)).collect(Collectors.toList());
+                .map(document -> CompletableFuture.supplyAsync(() -> {
+                    log.debug("splitting document '{}'", document.getId());
+                    return DocumentProcessorProvider
+                            .getInstance()
+                            .splitToParagraphs(document).collect(Collectors.toList());
+                }, executor)).collect(Collectors.toList());
 
-        List<UniversalParagraph> batch = fus.stream().map(CompletableFuture::join).flatMap(Collection::stream).collect(Collectors.toList());
+        List<UniversalParagraph> batch;
+        try {
+            batch = fus.stream().map(CompletableFuture::join).flatMap(Collection::stream).collect(Collectors.toList());
+        } catch (Exception e) {
+            for (CompletableFuture<List<UniversalParagraph>> fu : fus) {
+                if (!fu.isDone() && !fu.isCancelled()) {
+                    fu.cancel(true);
+                }
+            }
+            throw e;
+        }
 
         if (batch.isEmpty()) {
             return;

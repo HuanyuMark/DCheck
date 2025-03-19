@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/DCheck-API/ClassResource/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-API/ClassResource/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-API/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-API/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Common/src/main/java" charset="UTF-8" />
@@ -33,6 +35,8 @@
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Reranker/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Reranker/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Test/RunInJdk21/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Test/RunInJdk21/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Test/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Test/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />

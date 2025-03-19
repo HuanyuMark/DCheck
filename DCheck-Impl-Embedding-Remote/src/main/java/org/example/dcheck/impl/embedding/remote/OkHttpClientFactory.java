@@ -1,9 +1,11 @@
 package org.example.dcheck.impl.embedding.remote;
 
 import lombok.Getter;
+import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 import org.example.dcheck.api.DCheckConfig;
 import org.example.dcheck.spi.DCheckConfigProvider;
+import org.example.dcheck.util.DCheckExecutorService;
 
 import java.time.Duration;
 
@@ -19,9 +21,12 @@ public class OkHttpClientFactory {
     private static final OkHttpClientFactory instance = new OkHttpClientFactory();
 
     public OkHttpClient create() {
-        DCheckConfig DCheckConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
+        DCheckConfig config = DCheckConfigProvider.getInstance().getDCheckConfig();
+        Dispatcher dispatcher = new Dispatcher(new DCheckExecutorService());
+        dispatcher.setMaxRequestsPerHost(config.requiredPositiveInt(ConfigPropertyKey.EMBEDDING_REMOTE_PARALLELISM));
         return new OkHttpClient.Builder()
-                .readTimeout(DCheckConfig.required(READ_TIME_OUT, Duration.class))
+                .dispatcher(dispatcher)
+                .readTimeout(config.required(READ_TIME_OUT, Duration.class))
                 .build();
     }
 }

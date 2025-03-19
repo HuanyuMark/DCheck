@@ -16,6 +16,7 @@ import org.junit.platform.commons.util.ReflectionUtils;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Date 2025/03/13
@@ -31,6 +32,11 @@ public class DraftTest {
         String json = "{\"startText\":\"# 城市公园景观提升项目招标文\",\"endText\":\"\\n在功能优化上，我们将合理规划不同区域功能。增加休闲座椅、健身设施、儿童游乐区等，满足不同年龄段人群需求。例如，在阳光充足、视野开阔区域设置健身广场，配备多样化健身器材；在相对安静、绿树环绕处打造儿童游乐区，设置安全有趣的游乐设施，让孩子在自然环境中快乐玩耍。\",\"splitIdx\":0,\"type\":\"CONTENT_MATCH\"}";
         System.out.println(json);
         System.out.println((Object) codec.deserialize(json, ContentMatchParagraphLocation.class));
+    }
+
+    @Test
+    public void seeArgs() {
+        System.out.println(System.getProperties().entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("\n")));
     }
 
     @Test
