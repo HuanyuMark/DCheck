@@ -1,5 +1,6 @@
 package org.example.dcheck.impl;
 
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.IEventEmitter;
 import org.example.dcheck.util.UtilConst;
@@ -49,7 +50,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> CompletableFuture<?> emitEvent(Class<T> evnetClass, T event) {
+    public <T> CompletableFuture<?> emitEvent(@NonNull Class<T> evnetClass, @NonNull T event) {
         List<Class<?>> eventClasses = searchEventClass(evnetClass);
 
         List<Set<Function<?, CompletableFuture<?>>>> allEventLis = new ArrayList<>(1);
@@ -78,12 +79,12 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
     }
 
     @Override
-    public <E> void addListener(Class<E> event, Function<E, CompletableFuture<?>> listener) {
+    public <E> void addListener(@NonNull Class<E> event, @NonNull Function<E, CompletableFuture<?>> listener) {
         bus.computeIfAbsent(event, e -> initCallbackSet()).add(listener);
     }
 
     @Override
-    public <E> void addOnceListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
+    public <E> void addOnceListener(@NonNull Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
         Object[] wrapper = {null};
         @SuppressWarnings("unchecked")
         Function<E, CompletableFuture<?>> cb = e -> {
@@ -105,7 +106,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
     }
 
     @Override
-    public <E> void addSyncListener(Class<E> event, Consumer<E> cb) {
+    public <E> void addSyncListener(@NonNull Class<E> event, @NonNull Consumer<E> cb) {
         addListener(event, e -> {
             cb.accept(e);
             return UtilConst.emptyFuture();
@@ -113,7 +114,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
     }
 
     @Override
-    public <E> void removeListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener) {
+    public <E> void removeListener(@NonNull Class<E> event, @NonNull Function<E, @NotNull CompletableFuture<?>> listener) {
         Set<Function<?, CompletableFuture<?>>> ls = bus.get(event);
         if (ls == null) {
             log.warn("remove: no listener for event {}", event);
@@ -123,7 +124,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
     }
 
     @Override
-    public <E> void removeSyncListener(Class<E> event, Consumer<E> cb) {
+    public <E> void removeSyncListener(@NonNull Class<E> event, @NonNull Consumer<E> cb) {
         //如果cb与addSyncListener中的cb一致，则生成的lambda实例是同一个，则可以正确移除对应的Function
         removeListener(event, e -> {
             cb.accept(e);
@@ -138,7 +139,7 @@ public class ClassHierarchyEventEmitter implements IEventEmitter {
         evictCache();
     }
 
-    public void evictCache(Class<?> event) {
+    public void evictCache(@NonNull Class<?> event) {
         eventClassCache.remove(event);
     }
 

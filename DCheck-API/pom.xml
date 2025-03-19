@@ -8,6 +8,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>DCheck-API</artifactId>
+
+    <properties>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -23,9 +27,8 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>DCheck-API-PSPI</artifactId>
         </dependency>
 
         <dependency>
@@ -39,10 +42,22 @@
             <artifactId>reflections</artifactId>
         </dependency>
 
-
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- support jdk21 virtual thread: jar would be copied which would be loaded if runtime support VirtualThread -->
+        <dependency>
+            <groupId>org.example.dcheck</groupId>
+            <artifactId>JdkVirtualThreadProvider</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -64,4 +79,46 @@
         </dependency>
         <!-- dev dependency - end -->
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>${class-resources.path}</directory>
+                            <includes>
+                                <include>**/*</include>
+                            </includes>
+                            <followSymlinks>false</followSymlinks>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <!-- copy plugin jar to resources path. they would be extracted to support neo4j plugin installations -->
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeArtifactIds>JdkVirtualThreadProvider</includeArtifactIds>
+                            <outputDirectory>${class-resources.path}</outputDirectory>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>false</overWriteSnapshots>
+                            <overWriteIfNewer>true</overWriteIfNewer>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

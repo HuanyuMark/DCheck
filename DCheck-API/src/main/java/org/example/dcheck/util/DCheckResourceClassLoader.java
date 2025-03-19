@@ -5,22 +5,27 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.stream.Stream;
 
 /**
  * Date 2025/03/18
- * @apiNote load class dynamic is an operation needs to be carefully considered
+ *
  * @author 三石而立Sunsy
+ * @apiNote load class dynamic is an operation needs to be carefully considered
  */
 @SuppressWarnings("unused")
 @Slf4j
-public class DCheckResourceClassLoader extends ClassLoader {
+public class DCheckResourceClassLoader extends ClassLoader implements Closeable {
 
+    public static final String UNJAR_LOCATION_PATTERN = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + "org/example/dcheck/class-resources/";
+    public static final String JAR_LOCATION_PATTERN = UNJAR_LOCATION_PATTERN + "**/*.jar";
     @Getter
     protected static DCheckResourceClassLoader shared = new DCheckResourceClassLoader();
 
@@ -30,14 +35,19 @@ public class DCheckResourceClassLoader extends ClassLoader {
         target = new URLClassLoader(urls, parent);
     }
 
-    protected DCheckResourceClassLoader() {
-        this(defineUrl(), defineParent());
-        log.info("load urls: {}", Arrays.toString(target.getURLs()));
+    public DCheckResourceClassLoader(ClassLoader parent) {
+        target = new URLClassLoader(defineUrl(), parent);
     }
 
-    protected static URL[] defineUrl() {
+    protected DCheckResourceClassLoader() {
+        target = new URLClassLoader(defineUrl(), defineParent());
+
+        log.info("load urls: {}", Arrays.asList(target.getURLs()));
+    }
+
+    protected URL[] defineUrl() {
         try {
-            return Arrays.stream(UtilConst.RESOLVER.getResources(ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + "org/example/dcheck/class-resources/")).map(r -> {
+            return Stream.concat(Arrays.stream(UtilConst.RESOLVER.getResources(UNJAR_LOCATION_PATTERN)), Arrays.stream(UtilConst.RESOLVER.getResources(JAR_LOCATION_PATTERN))).map(r -> {
                 try {
                     return r.getURL();
                 } catch (IOException e) {
@@ -49,7 +59,7 @@ public class DCheckResourceClassLoader extends ClassLoader {
         }
     }
 
-    protected static ClassLoader defineParent() {
+    protected ClassLoader defineParent() {
         return DCheckResourceClassLoader.class.getClassLoader();
     }
 
@@ -94,6 +104,11 @@ public class DCheckResourceClassLoader extends ClassLoader {
     @Override
     public @Nullable InputStream getResourceAsStream(String name) {
         return target.getResourceAsStream(name);
+    }
+
+    @Override
+    public void close() throws IOException {
+        target.close();
     }
 
     public URL[] getURLs() {

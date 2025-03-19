@@ -1,3 +1,5 @@
+import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import org.example.dcheck.api.Check;
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.Document;
@@ -47,5 +49,16 @@ public class TestApp {
 //        ScriptEngineManager engineManager = new ScriptEngineManager(getClass().getClassLoader());
 //        ScriptEngine engine = engineManager.getEngineByExtension("groovy");
 //        System.out.println(engine.eval("Thread.ofVirtual().name(\"v-\").factory()"));
+    }
+
+    @Test
+    public void testAddNull() {
+        new Pojo(null);
+    }
+
+    @NonNull
+    @AllArgsConstructor
+    static class Pojo {
+        String name;
     }
 }

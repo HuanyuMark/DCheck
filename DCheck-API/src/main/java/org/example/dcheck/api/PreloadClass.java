@@ -14,6 +14,9 @@ public interface PreloadClass {
 
     /**
      * mark the method should be call after class loaded
+     * <p>
+     * Note: <strong>marked method should be static and no parameters</strong>
+     *
      */
     @Inherited
     @Documented

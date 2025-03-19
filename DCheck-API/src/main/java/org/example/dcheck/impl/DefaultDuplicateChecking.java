@@ -1,6 +1,7 @@
 package org.example.dcheck.impl;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
@@ -101,7 +102,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     @Override
-    public CheckResult check(Check check, DocumentCollection collection) {
+    public CheckResult check(@NonNull Check check, @NonNull DocumentCollection collection) {
         init();
         ParagraphRelevancyQuery.ParagraphRelevancyQueryBuilder queryBuilder = ParagraphRelevancyQuery.builder()
                 .documentId(check.getDocument().getId())
@@ -146,7 +147,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     @Override
-    public void onClosing(Runnable cb) {
+    public void onClosing(@NonNull Runnable cb) {
         eventEmitter.addSyncListener(CloseEvent.class, e -> cb.run());
     }
 

@@ -11,6 +11,11 @@ import java.io.InputStream;
 @SuppressWarnings("unused")
 public interface Content {
 
+    // identity to diff between different content
+    default String getId() {
+        return null;
+    }
+
     InputStream getInputStream();
 
     default void resetRead() {

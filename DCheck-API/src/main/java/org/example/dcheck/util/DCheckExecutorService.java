@@ -63,7 +63,13 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
                     "-Djdk.virtualThreadScheduler.maxPoolSize=<default is 256>");
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(sharedExecutor::close));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                defaultShutdown(log, sharedExecutor);
+            } catch (InterruptedException e) {
+                throw new IllegalStateException("shutdown shared executor fail: " + e.getMessage(), e);
+            }
+        }));
     }
 
     @Getter
@@ -151,7 +157,6 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
 
     @Override
     public void close() {
-        log.info("Closing Executor Service. shutdown manually is grateful");
         long start = System.currentTimeMillis();
         try {
             defaultShutdown(log, this);

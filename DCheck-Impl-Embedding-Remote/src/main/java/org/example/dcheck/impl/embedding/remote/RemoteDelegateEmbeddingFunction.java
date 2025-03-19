@@ -1,15 +1,14 @@
 package org.example.dcheck.impl.embedding.remote;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.dcheck.api.Content;
 import org.example.dcheck.api.DCheckConfig;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.DCheckConfigProvider;
 
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import static org.example.dcheck.impl.embedding.remote.ConfigPropertyKey.*;
 
@@ -98,7 +97,7 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
     }
 
     @Override
-    public List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws Exception {
+    public List<Embedding> embedUnknownTypeDocuments(List<Content> documents) throws Exception {
         try {
             init();
         } catch (Exception e) {

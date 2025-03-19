@@ -1,12 +1,11 @@
 package org.example.dcheck.api.embedding;
 
+import org.example.dcheck.api.Content;
 import org.example.dcheck.api.DCheckComponent;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Date 2025/02/26
@@ -45,7 +44,7 @@ public interface EmbeddingFunction extends DCheckComponent {
     List<Embedding> embedDocuments(String[] documents) throws Exception;
 
     //TODO 支持多模态嵌入
-    default List<Embedding> embedUnknownTypeDocuments(List<Supplier<InputStream>> documents) throws Exception {
+    default List<Embedding> embedUnknownTypeDocuments(List<Content> documents) throws Exception {
         throw new Exception();
     }
 

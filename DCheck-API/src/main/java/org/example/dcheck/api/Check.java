@@ -50,7 +50,7 @@ public class Check {
     double minDocumentRelevancy;
 
     @Singular
-    Set<WhiteList> whiteLists;
+    Set<@NonNull WhiteListRuleSet> whiteLists;
 
     public static CheckBuilder builder() {
         return new ValidatedCheckBuilder();

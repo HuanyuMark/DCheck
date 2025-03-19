@@ -116,6 +116,6 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
         @NonNull
         private final String model;
         @NonNull
-        private final List<List<Float>> embeddings;
+        private final List<float[]> embeddings;
     }
 }
