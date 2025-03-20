@@ -1,4 +1,4 @@
-package org.example.dcheck.common.util;
+package org.example.dcheck.util;
 
 import java.util.List;
 import java.util.stream.Collectors;

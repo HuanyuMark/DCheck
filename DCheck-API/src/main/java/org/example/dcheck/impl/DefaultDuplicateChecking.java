@@ -9,12 +9,10 @@ import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.DocumentProcessorProvider;
 import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.example.dcheck.support.PreloadClassLoader;
+import org.example.dcheck.util.CollectionUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -29,6 +27,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DefaultDuplicateChecking implements DuplicateChecking {
 
+    public static final int WHITE_LIST_RULE_CAL_CHUNK_SIZE = 15;
     private final IEventEmitter eventEmitter = new ClassHierarchyEventEmitter() {
         @Override
         protected Map<Class<?>, Set<Function<?, CompletableFuture<?>>>> initBus() {
@@ -49,8 +48,9 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     @Override
-    public WhiteListManager getWhiteListManager() {
-        throw new UnsupportedOperationException("TODO impl...");
+    public Optional<WhiteListManager> getWhiteListManager() {
+        // TODO impl...
+        return Optional.empty();
     }
 
     @Override
@@ -101,9 +101,25 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
         }
     }
 
+
     @Override
     public CheckResult check(@NonNull Check check, @NonNull DocumentCollection collection) {
         init();
+
+        ParagraphRelevancyQuery query = buildQuery(check, collection);
+
+        ParagraphRelevancyQueryResult queryResult = relevancyEngine.queryParagraph(query);
+
+        ParagraphRelevancyQueryResult postProcessResult = postProcessResult(check, queryResult);
+
+        return CheckResult.builder()
+                .relevantDocuments(doDocumentStatistics(check, postProcessResult))
+                .duplicateParts(postProcessResult.getDuplicateParts())
+                .build();
+    }
+
+
+    protected ParagraphRelevancyQuery buildQuery(@NotNull Check check, @NotNull DocumentCollection collection) {
         ParagraphRelevancyQuery.ParagraphRelevancyQueryBuilder queryBuilder = ParagraphRelevancyQuery.builder()
                 .documentId(check.getDocument().getId())
                 .collectionId(collection.getId())
@@ -114,36 +130,53 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
             queryBuilder
                     .paragraphs(DocumentProcessorProvider.getInstance().splitToParagraphs(check.getDocument()).collect(Collectors.toList()));
         }
-        ParagraphRelevancyQueryResult queryResult = relevancyEngine.queryParagraph(queryBuilder.build());
+        return queryBuilder.build();
+    }
 
+    protected ParagraphRelevancyQueryResult postProcessResult(@NotNull Check check, ParagraphRelevancyQueryResult queryResult) {
+        if (check.getWhiteLists().isEmpty()) return queryResult;
+
+        log.debug("Apply white list rule to document '{}': {}", check.getDocument().getId(), check.getWhiteLists().stream().map(WhiteListRuleSet::getId).collect(Collectors.toList()));
+
+        return queryResult.withDuplicateParts(
+                CollectionUtils.partition(queryResult.getDuplicateParts(), WHITE_LIST_RULE_CAL_CHUNK_SIZE).stream()
+                        .flatMap(ps -> check.getWhiteLists()
+                                .stream()
+                                .flatMap(WhiteListRuleSet::getEnabledRules)
+                                .reduce(
+                                        ps,
+                                        (duplicateParts, rule) -> rule.calculateFilterScore(duplicateParts, s -> s > check.getWhiteListThreshold()),
+                                        (prev, nest) -> nest
+                                )
+                                .stream())
+                        .collect(Collectors.toList())
+        );
+    }
+
+    @NotNull
+    protected List<CheckResult.RelevantDocument> doDocumentStatistics(@NotNull Check check, ParagraphRelevancyQueryResult postProcessResult) {
         @Getter
         @RequiredArgsConstructor
-        class Entry {
+        class DocumentTotalScoreEntry {
             final String documentId;
             final double totalScore;
         }
 
-
-        return CheckResult.builder()
-                .relevantDocuments(
-                        queryResult.getDuplicateParts()
-                                .stream()
-                                .flatMap(p -> p.getDuplicates().stream())
-                                // calculate total score of each document
-                                .map(r -> new CheckResult.RelevantDocument(r.getMetadata().getDocumentId(), r.getRelevancy()))
-                                .collect(Collectors.groupingBy(CheckResult.RelevantDocument::getDocumentId))
-                                .entrySet()
-                                .stream()
-                                .map(e -> new Entry(e.getKey(), e.getValue().stream().mapToDouble(CheckResult.RelevantDocument::getScore).sum()))
-                                .filter(e -> e.getTotalScore() >= check.getMinDocumentRelevancy())
-                                // sort and limit to tokOfDocument
-                                .sorted(Comparator.comparingDouble(Entry::getTotalScore).reversed())
-                                .limit(check.getTopKOfDocument())
-                                .map(e -> new CheckResult.RelevantDocument(e.getDocumentId(), e.getTotalScore()))
-                                .collect(Collectors.toList())
-                )
-                .duplicateParts(queryResult.getDuplicateParts())
-                .build();
+        return postProcessResult.getDuplicateParts()
+                .stream()
+                .flatMap(p -> p.getDuplicates().stream())
+                // calculate total score of each document
+                .map(r -> new CheckResult.RelevantDocument(r.getMetadata().getDocumentId(), r.getRelevancy()))
+                .collect(Collectors.groupingBy(CheckResult.RelevantDocument::getDocumentId))
+                .entrySet()
+                .stream()
+                .map(e -> new DocumentTotalScoreEntry(e.getKey(), e.getValue().stream().mapToDouble(CheckResult.RelevantDocument::getScore).sum()))
+                .filter(e -> e.getTotalScore() >= check.getMinDocumentRelevancy())
+                // sort and limit to tokOfDocument
+                .sorted(Comparator.comparingDouble(DocumentTotalScoreEntry::getTotalScore).reversed())
+                .limit(check.getTopKOfDocument())
+                .map(e -> new CheckResult.RelevantDocument(e.getDocumentId(), e.getTotalScore()))
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -35,6 +35,9 @@ public class CheckResult {
     public static class RelevantDocument {
         @NonNull
         String documentId;
+        /**
+         * total of all {@link #duplicateParts}.relevancy
+         */
         double score;
     }
 }

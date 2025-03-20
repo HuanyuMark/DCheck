@@ -29,5 +29,14 @@ public interface WhiteListRule {
     /**
      * The larger the value, the more likely the respective paragraph to be ignored
      */
-    float @Range(from = 0, to = 1) [] calculateFilterScore(List<? extends @NotNull Paragraph> paragraphs);
+    List<@NotNull DuplicatePart> calculateFilterScore(List<@NotNull DuplicatePart> paragraphs, FilterHandler handler);
+
+    /**
+     * store the result in filtering procedure {@link #calculateFilterScore} and
+     * notify the procedure whether the score represent the duplicated paragraph is capable to be filtered
+     */
+    interface FilterHandler {
+
+        boolean isFiltered(@Range(from = 0, to = 1) double score);
+    }
 }

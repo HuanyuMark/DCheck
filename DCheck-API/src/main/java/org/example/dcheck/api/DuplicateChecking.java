@@ -3,6 +3,7 @@ package org.example.dcheck.api;
 import org.example.dcheck.spi.DuplicateCheckingProvider;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Date 2025/02/25
@@ -33,7 +34,7 @@ public interface DuplicateChecking extends AutoCloseable, IEventEmitter {
     /**
      * 获取白名单管理器
      */
-    WhiteListManager getWhiteListManager();
+    Optional<WhiteListManager> getWhiteListManager();
 
     /**
      * 根据配置的检查，在指定集合里查重
