@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -18,6 +19,7 @@ import java.util.Properties;
  * @see DCheckConfigProvider
  */
 @SuppressWarnings("unused")
+@Slf4j
 public class DCheckConfig {
     public static final String EMBEDDING_MODEL_KEY = "relevancy-engine.model.embedding.name";
 
@@ -60,7 +62,11 @@ public class DCheckConfig {
         if (value == null) {
             throw new IllegalArgumentException("invalid config '" + key + "=" + null + "': missing required config");
         }
-        return convert(clazz, key, value);
+        T obj = convert(clazz, key, value);
+        if (obj == null) {
+            throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': parse to null");
+        }
+        return obj;
     }
 
     /**
@@ -84,7 +90,11 @@ public class DCheckConfig {
         if (value == null) {
             return defaultValue;
         }
-        return convert(clazz, key, value);
+        T obj = convert(clazz, key, value);
+        if (obj == null) {
+            throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': value parse fail");
+        }
+        return obj;
     }
 
     @NotNull
@@ -125,9 +135,9 @@ public class DCheckConfig {
         try {
             return conversionService.convert(value, clazz);
         } catch (ConversionException e) {
-            throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': fail to convert '" + value + "' to '" + clazz + "'", e);
+            throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': fail to convert '" + value + "' to '" + clazz + "': " + e.getMessage(), e);
         } catch (Throwable e) {
-            throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': required type is '" + clazz + "'", e);
+            throw new IllegalArgumentException("invalid config '" + key + "=" + value + "': required type is '" + clazz + "': " + e.getMessage(), e);
         }
     }
 }

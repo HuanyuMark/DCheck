@@ -3,6 +3,7 @@ package org.example.dcheck.impl.embedding.remote;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.DCheckConfig;
+import org.example.dcheck.api.embedding.CachedEmbeddingFunction;
 import org.example.dcheck.api.embedding.Embedding;
 import org.example.dcheck.api.embedding.EmbeddingFunction;
 import org.example.dcheck.spi.DCheckConfigProvider;
@@ -34,7 +35,7 @@ public class RemoteDelegateEmbeddingFunction implements EmbeddingFunction {
             String baseUrl = DCheckConfig.nullable(EMBEDDING_REMOTE_BASE_URL);
             String modelName = DCheckConfig.nullable(EMBEDDING_REMOTE_MODEL_NAME);
 
-            target = determineFunc(type, baseUrl, modelName);
+            target = CachedEmbeddingFunction.wrap(determineFunc(type, baseUrl, modelName));
             target.init();
 
             init = true;

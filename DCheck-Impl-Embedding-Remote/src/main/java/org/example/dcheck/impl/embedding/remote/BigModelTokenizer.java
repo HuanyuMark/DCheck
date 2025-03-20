@@ -1,5 +1,7 @@
 package org.example.dcheck.impl.embedding.remote;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
@@ -15,7 +17,6 @@ import org.example.dcheck.api.DCheckTokenizer;
 import org.example.dcheck.spi.CodecProvider;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.util.OnceRunner;
-import org.springframework.util.ConcurrentLruCache;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -72,8 +74,8 @@ public class BigModelTokenizer implements DCheckTokenizer {
             .withBackoff(Duration.ofSeconds(1), Duration.ofSeconds(5), 1.5)
             .build();
 
-    private ConcurrentLruCache<String, Integer> estimateCache;
-    protected ConcurrentLruCache<String, Integer> shortSentenceCache;
+    private LoadingCache<String, Integer> estimateCache;
+    protected LoadingCache<String, Integer> shortSentenceCache;
 
     private final AtomicInteger cacheClearVersion = new AtomicInteger(Integer.MIN_VALUE);
 
@@ -81,6 +83,11 @@ public class BigModelTokenizer implements DCheckTokenizer {
     @Setter
     @NonNull
     private ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
+    @Getter
+    private int estimateCacheSize = -1;
+
+    @Getter
+    private long estimateCacheExpireTimeMillis = -1;
 
     public BigModelTokenizer(@NonNull OkHttpClient client, @NonNull Headers requestHeaders) {
         this.client = client;
@@ -95,9 +102,6 @@ public class BigModelTokenizer implements DCheckTokenizer {
     public void init() {
         runner.run(this::doInit);
     }
-
-    @Getter
-    private long estimateCacheExpireTimeMillis;
 
     protected Integer doRequest(String text) {
         String body;
@@ -137,11 +141,7 @@ public class BigModelTokenizer implements DCheckTokenizer {
 
     private void doInit() {
         DCheckConfig apiConfig = DCheckConfigProvider.getInstance().getDCheckConfig();
-        URL uncheckedBaseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, BASE_URL, URL.class);
-        HttpUrl baseUrl = HttpUrl.get(BASE_URL);
-        if (baseUrl == null) {
-            throw new IllegalArgumentException("invalid config '" + ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL + "=" + uncheckedBaseUrl + "'");
-        }
+        HttpUrl baseUrl = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_BASE_URL, Objects.requireNonNull(HttpUrl.get(BASE_URL)), HttpUrl.class);
         requestTemplate = requestTemplate.newBuilder().url(baseUrl).build();
 
         modelName = apiConfig.required(ConfigPropertyKey.TOKENIZER_REMOTE_MODEL_NAME, DEFAULT_MODEL_NAME);
@@ -154,11 +154,22 @@ public class BigModelTokenizer implements DCheckTokenizer {
                     .orElseThrow(() -> new IllegalStateException("manual set codec before init(), otherwise list " + Codec.class + " provider in classpath"));
         }
 
-        Integer estimateCacheSize = apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE);
+        estimateCache = Caffeine.newBuilder()
+                .build(this::doRequest);
+        shortSentenceCache = Caffeine.newBuilder()
+                .build(this::doRequest);
 
-        estimateCache = new ConcurrentLruCache<>(estimateCacheSize, this::doRequest);
-        shortSentenceCache = new ConcurrentLruCache<>(estimateCacheSize * 30, this::doRequest);
-        setEstimateCacheExpireTimeMillis(apiConfig.requiredPositiveLong(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME));
+        if (getEstimateCacheExpireTimeMillis() < 0) {
+            setEstimateCacheExpireTimeMillis(apiConfig.requiredPositiveLong(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME));
+        } else {
+            setEstimateCacheExpireTimeMillis(getEstimateCacheExpireTimeMillis());
+        }
+
+        if (getEstimateCacheSize() < 0) {
+            setEstimateCacheSize(apiConfig.requiredPositiveInt(ConfigPropertyKey.TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE));
+        } else {
+            setEstimateCacheSize(getEstimateCacheSize());
+        }
     }
 
     @Override
@@ -168,26 +179,13 @@ public class BigModelTokenizer implements DCheckTokenizer {
             return 0;
         }
 
-        accessCache();
-
         String text = rawText.trim();
 
         if (text.length() < 5) {
-            return shortSentenceCache.get(text);
+            return Objects.requireNonNull(shortSentenceCache.get(text));
         }
 
-        return estimateCache.get(text);
-    }
-
-    protected void accessCache() {
-        int version = cacheClearVersion.getAndIncrement();
-        scheduler.schedule(() -> {
-            if (version < cacheClearVersion.get()) {
-                return;
-            }
-            estimateCache.clear();
-            shortSentenceCache.clear();
-        }, estimateCacheExpireTimeMillis, TimeUnit.MILLISECONDS);
+        return Objects.requireNonNull(estimateCache.get(text));
     }
 
     public void setEstimateCacheExpireTimeMillis(long estimateCacheExpireTimeMillis) {
@@ -195,6 +193,29 @@ public class BigModelTokenizer implements DCheckTokenizer {
             throw new IllegalArgumentException("estimateCacheExpireTimeMillis must be > 0");
         }
         this.estimateCacheExpireTimeMillis = estimateCacheExpireTimeMillis;
+        if (estimateCache != null) {
+            estimateCache.policy().expireAfterAccess().ifPresent(op -> op.setExpiresAfter(getEstimateCacheExpireTimeMillis(), TimeUnit.MILLISECONDS));
+        }
+        if (shortSentenceCache != null) {
+            shortSentenceCache.policy().expireAfterAccess().ifPresent(op -> op.setExpiresAfter(getEstimateCacheExpireTimeMillis(), TimeUnit.MILLISECONDS));
+        }
+    }
+
+    public void setEstimateCacheSize(int estimateCacheSize) {
+        if (estimateCacheSize <= 0) {
+            throw new IllegalArgumentException("estimateCacheSize must be > 0");
+        }
+        this.estimateCacheSize = estimateCacheSize;
+        if (estimateCache != null) {
+            estimateCache.policy().eviction().ifPresent(ev -> ev.setMaximum(getEstimateCacheSize()));
+        }
+        if (shortSentenceCache != null) {
+            shortSentenceCache.policy().eviction().ifPresent(ev -> ev.setMaximum(getShortSentenceCacheSize(getEstimateCacheSize())));
+        }
+    }
+
+    protected int getShortSentenceCacheSize(int estimateCacheSize) {
+        return estimateCacheSize * 30;
     }
 
     @Override

@@ -1,20 +1,25 @@
 package org.example.dcheck.api.embedding;
 
-import lombok.Data;
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.example.dcheck.api.Content;
+import org.example.dcheck.api.DCheckConfig;
 import org.example.dcheck.spi.DCheckConfigProvider;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.util.ConcurrentLruCache;
 
-import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 /**
  * Date: 2025/3/19
@@ -22,36 +27,95 @@ import java.util.stream.IntStream;
  *
  * @author 三石而立Sunsy
  */
-@Data
-@Getter
-@RequiredArgsConstructor
+@ToString
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@SuppressWarnings("unused")
 public class CachedEmbeddingFunction implements EmbeddingFunction {
 
-    @NonNull
+    @Getter
+    @EqualsAndHashCode.Include
     private final EmbeddingFunction target;
 
-    private final ThreadLocal<@Nullable Map<String, Embedding>> batchTextEmbeddingCache = new ThreadLocal<>();
+    @ToString.Exclude
+    private LoadingCache<String, Embedding> textEmbeddingCache;
 
-    private ConcurrentLruCache<String, Embedding> textEmbeddingCache;
+    @Getter
+    private int cacheSize = -1;
+    @Getter
+    private long expireTime = -1;
+
+    protected CachedEmbeddingFunction(@NonNull EmbeddingFunction target) {
+        this.target = target;
+    }
+
+    public void setCacheSize(int cacheSize) {
+        if (cacheSize <= 0) {
+            throw new IllegalArgumentException("cacheSize must be > 0");
+        }
+        this.cacheSize = cacheSize;
+        if (textEmbeddingCache != null) {
+            textEmbeddingCache.policy().eviction().ifPresent(ev -> ev.setMaximum(getCacheSize()));
+        }
+    }
+
+    public void setExpireTime(long expireTime) {
+        if (expireTime <= 0) {
+            throw new IllegalArgumentException("expireTime must be > 0");
+        }
+        this.expireTime = expireTime;
+        if (textEmbeddingCache != null) {
+            textEmbeddingCache.policy().expireAfterAccess().ifPresent(ev -> ev.setExpiresAfter(getExpireTime(), TimeUnit.MICROSECONDS));
+        }
+    }
+
+    public static CachedEmbeddingFunction wrap(@NonNull EmbeddingFunction target) {
+        if (target instanceof CachedEmbeddingFunction) return ((CachedEmbeddingFunction) target);
+        return new CachedEmbeddingFunction(target);
+    }
 
     @Override
     public void init() throws Exception {
         getTarget().init();
 
-        Integer cacheSize = DCheckConfigProvider.getInstance().getDCheckConfig().requiredPositiveInt(EmbeddingApiConfigKey.EMBEDDING_CACHE_SIZE);
+        DCheckConfig config = DCheckConfigProvider.getInstance().getDCheckConfig();
 
-        textEmbeddingCache = new ConcurrentLruCache<>(cacheSize, key -> {
-            Map<String, Embedding> area = batchTextEmbeddingCache.get();
-            if (area != null) {
-                Embedding embedding = area.get(key);
-                if (embedding != null) return embedding;
-            }
-            try {
-                return getTarget().embedQuery(key);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        textEmbeddingCache = Caffeine.newBuilder()
+                .build(new CacheLoader<String, Embedding>() {
+                    @Override
+                    public Embedding load(@NotNull String key) throws Exception {
+                        return getTarget().embedQuery(key);
+                    }
+
+                    @Override
+                    @SuppressWarnings("unchecked")
+                    public @NotNull Map<String, Embedding> loadAll(@NotNull Iterable<? extends @NotNull String> keys) throws Exception {
+                        List<String> requests;
+                        if (keys instanceof List<?>) {
+                            requests = (List<String>) keys;
+                        } else {
+                            requests = StreamSupport.stream(keys.spliterator(), false).collect(Collectors.toList());
+                        }
+                        List<Embedding> result = getTarget().embedDocuments(requests);
+                        Map<String, Embedding> hit = new HashMap<>((int) Math.ceil(requests.size() / 0.75f));
+                        int size = requests.size();
+                        for (int i = 0; i < size; i++) {
+                            hit.put(requests.get(i), result.get(i));
+                        }
+                        return hit;
+                    }
+                });
+
+        if (cacheSize < 0) {
+            setCacheSize(config.requiredPositiveInt(EmbeddingApiConfigKey.EMBEDDING_CACHE_SIZE));
+        } else {
+            setCacheSize(getCacheSize());
+        }
+
+        if (expireTime < 0) {
+            setExpireTime(config.requiredPositiveInt(EmbeddingApiConfigKey.EMBEDDING_CACHE_EXPIRE_TIME));
+        } else {
+            setExpireTime(getExpireTime());
+        }
     }
 
     @Override
@@ -62,8 +126,8 @@ public class CachedEmbeddingFunction implements EmbeddingFunction {
     @Override
     public void close() throws Exception {
         getTarget().close();
-        textEmbeddingCache.clear();
-        textEmbeddingCache = new ConcurrentLruCache<>(1, s -> Embedding.from(new float[]{}));
+        textEmbeddingCache.cleanUp();
+        textEmbeddingCache = null;
     }
 
     @Override
@@ -83,35 +147,8 @@ public class CachedEmbeddingFunction implements EmbeddingFunction {
 
     @Override
     public List<Embedding> embedDocuments(List<String> documents) throws Exception {
-
-        List<String> missedDocs = documents.stream().filter(s -> !textEmbeddingCache.contains(s)).collect(Collectors.toList());
-
-        if (missedDocs.isEmpty()) {
-            return documents.stream().map(doc -> textEmbeddingCache.get(doc)).collect(Collectors.toList());
-        }
-
-        List<Embedding> missedEmbeddings = getTarget().embedDocuments(missedDocs);
-
-
-        Map<String, Embedding> preTextEmbeddingCacheValue = IntStream.range(0, missedDocs.size()).mapToObj(i -> new AbstractMap.SimpleEntry<>(missedDocs.get(i), missedEmbeddings.get(i))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        // avoid memory leak
-        batchTextEmbeddingCache.remove();
-        batchTextEmbeddingCache.set(preTextEmbeddingCacheValue);
-        try {
-            for (String toStore : missedDocs) {
-                // emit cache operation: store in the cache
-                embedQuery(toStore);
-            }
-        } finally {
-            batchTextEmbeddingCache.remove();
-        }
-
-        // use local construction to avoid the cache miss and concurrent race
-        return documents.stream().map(doc -> {
-            Embedding embedding = preTextEmbeddingCacheValue.get(doc);
-            if (embedding != null) return embedding;
-            return textEmbeddingCache.get(doc);
-        }).collect(Collectors.toList());
+        Map<String, Embedding> all = textEmbeddingCache.getAll(documents);
+        return documents.stream().map(all::get).collect(Collectors.toList());
     }
 
     @Override

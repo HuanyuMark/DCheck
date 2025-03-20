@@ -152,4 +152,5 @@ maven编译条件：
    你可以参照以下源码的中罗列的配置项
     1. [DCheckConfig](DCheck-API/src/main/java/org/example/dcheck/api/DCheckConfig.java)
     2. [EmbeddedNeo4jConfigKey](DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/java/org/example/dcheck/impl/EmbeddedNeo4jConfigKey.java)
-    3. [remote/ConfigPropertyKey](DCheck-Impl-Embedding-Remote/src/main/java/org/example/dcheck/impl/embedding/remote/ConfigPropertyKey.java) 
+    3. [remote/ConfigPropertyKey](DCheck-Impl-Embedding-Remote/src/main/java/org/example/dcheck/impl/embedding/remote/ConfigPropertyKey.java)
+    4. [EmbeddingApiConfigKey](DCheck-Embedding/src/main/java/org/example/dcheck/api/embedding/EmbeddingApiConfigKey.java)

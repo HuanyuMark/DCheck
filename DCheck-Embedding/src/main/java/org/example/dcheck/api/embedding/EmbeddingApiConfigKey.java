@@ -13,4 +13,9 @@ public class EmbeddingApiConfigKey {
      * @see CachedEmbeddingFunction
      */
     public static final String EMBEDDING_CACHE_SIZE = "relevancy-engine.model.embedding.cache-size";
+
+    /**
+     * unit: ms
+     */
+    public static final String EMBEDDING_CACHE_EXPIRE_TIME = "relevancy-engine.model.embedding.expire-time";
 }

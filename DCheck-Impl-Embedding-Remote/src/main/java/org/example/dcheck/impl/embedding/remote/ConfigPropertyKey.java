@@ -35,7 +35,7 @@ public class ConfigPropertyKey {
     public static final String TOKENIZER_REMOTE_MODEL_NAME = "relevancy-engine.model.tokenizer.remote.model-name";
     public static final String TOKENIZER_REMOTE_ESTIMATE_CACHE_SIZE = "relevancy-engine.model.tokenizer.remote.estimate-cache-size";
     // unit: ms
-    public static final String TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME = "relevancy-engine.model.tokenizer.remote.estimate-cache-expire";
+    public static final String TOKENIZER_REMOTE_ESTIMATE_CACHE_EXPIRE_TIME = "relevancy-engine.model.tokenizer.remote.estimate-cache-expire-time";
 
 
     public static final String DIMENSION_CONFIG = "relevancy-engine.model.embedding.remote.dimension";

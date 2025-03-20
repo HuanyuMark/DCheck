@@ -60,6 +60,8 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
     private ToIntFunction<String> tokenizer;
     @Nullable
     private Object tokenizerToInject;
+    //TODO dev retry
+//    private RetryPolicy<Object> requestPolicy = RetryPolicy.builder();
 
     {
         codec = CodecProvider.getInstance().getCodecs().stream().findFirst()
@@ -203,6 +205,7 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
             List<Embedding> embeddings = doPartition(input)
                     .stream()
                     .flatMap(part -> {
+
                         try (Response response = client.newCall(embeddingRequestTemplate.newBuilder()
                                 .method(
                                         "POST",
@@ -214,12 +217,12 @@ public class BigModelEmbeddingFunction implements EmbeddingFunction {
                                         )
                                 )
                                 .build()).execute()) {
-                            if (response.body() == null) {
-                                throw new RuntimeException(new IOException("response body is null"));
+                            if (!response.isSuccessful()) {
+                                throw new IOException("Fail Response:" + response + " Context: " + getDetails());
                             }
 
-                            if (!response.isSuccessful()) {
-                                throw new IOException("fail response: " + response);
+                            if (response.body() == null) {
+                                throw new RuntimeException(new IOException("response body is null"));
                             }
 
                             CreateEmbeddingResponse res = codec.deserialize(response.body().bytes(), CreateEmbeddingResponse.class);

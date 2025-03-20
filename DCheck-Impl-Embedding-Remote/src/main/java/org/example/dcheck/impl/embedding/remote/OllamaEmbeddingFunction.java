@@ -45,6 +45,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
         this.details = Collections.unmodifiableMap(details);
     }
 
+    //TODO dev retry
     private CreateEmbeddingResponse createEmbedding(CreateEmbeddingRequest req) throws Exception {
         Request request = new Request.Builder()
                 .url(baseUrl)
@@ -55,7 +56,7 @@ public class OllamaEmbeddingFunction implements EmbeddingFunction {
                 .build();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + response);
+                throw new IOException("Fail Response:" + response + " Context: " + getDetails());
             }
 
             if (response.body() == null) {

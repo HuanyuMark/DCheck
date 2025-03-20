@@ -30,7 +30,7 @@ public class ConvertMethodDelegateConvertor implements GenericConverter {
     private final ConcurrentReferenceHashMap<CacheKey, Method> parseMethods = new ConcurrentReferenceHashMap<>(32);
 
     @Getter
-    private final Set<String> delegateMethodNames = new HashSet<>(Arrays.asList("parse", "of", "from", "valueOf", "create"));
+    private final Set<String> delegateMethodNames = new HashSet<>(Arrays.asList("parse", "of", "from", "valueOf", "create", "get"));
 
     protected Method getParseMethod(Class<?> sourceClass, Class<?> targetClass) {
         Method method = parseMethods.get(new CacheKey(sourceClass, targetClass));
