@@ -13,4 +13,10 @@ public interface WhiteListManager {
 
     void removeRuleSet(String whiteListId);
 
+    /**
+     * it the rule set is manage by the manager,
+     * the mutation of this rule set would be performed,
+     * otherwise the rule set would be added and saved;
+     */
+    void addAndSaveRuleSet(WhiteListRuleSet ruleSet);
 }

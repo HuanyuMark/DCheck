@@ -1,4 +1,4 @@
-package org.example.dcheck.impl;
+package org.example.dcheck.impl.content;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

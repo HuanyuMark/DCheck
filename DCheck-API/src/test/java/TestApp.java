@@ -1,10 +1,14 @@
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NonNull;
 import org.example.dcheck.api.Check;
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.Document;
 import org.example.dcheck.util.DCheckExecutorService;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Date 2025/02/25
@@ -51,9 +55,27 @@ public class TestApp {
 //        System.out.println(engine.eval("Thread.ofVirtual().name(\"v-\").factory()"));
     }
 
+
+    @Data
+    static class Num {
+        private final float v;
+
+        public Num add(Num num) {
+            return new Num(v + num.v);
+        }
+    }
+
     @Test
     public void testAddNull() {
-        new Pojo(null);
+        List<Integer> ages = Arrays.asList(25, 30, 45, 28, 32);
+        System.out.println(ages.stream().reduce(new Num(0), (Num a, Integer b) -> {
+            // do accumulate in seperate sub task
+            return a.add(new Num(b.floatValue()));
+        }, (Num p, Num n) -> {
+            // merge sub task in parallel stream
+            System.out.println("p: " + p + " n: " + n);
+            return p.add(n);
+        }));
     }
 
     @NonNull

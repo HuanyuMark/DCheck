@@ -3,6 +3,7 @@ package org.example.dcheck.impl;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.api.*;
 import org.example.dcheck.spi.DCheckConfigProvider;
@@ -11,6 +12,7 @@ import org.example.dcheck.spi.RelevancyEngineMapProvider;
 import org.example.dcheck.support.PreloadClassLoader;
 import org.example.dcheck.util.CollectionUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Range;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -138,6 +140,8 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
         log.debug("Apply white list rule to document '{}': {}", check.getDocument().getId(), check.getWhiteLists().stream().map(WhiteListRuleSet::getId).collect(Collectors.toList()));
 
+        WhiteListRule.FilterContext filterContext = new DefaultFilterContext(check);
+
         return queryResult.withDuplicateParts(
                 CollectionUtils.partition(queryResult.getDuplicateParts(), WHITE_LIST_RULE_CAL_CHUNK_SIZE).stream()
                         .flatMap(ps -> check.getWhiteLists()
@@ -145,8 +149,11 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                                 .flatMap(WhiteListRuleSet::getEnabledRules)
                                 .reduce(
                                         ps,
-                                        (duplicateParts, rule) -> rule.calculateFilterScore(duplicateParts, s -> s > check.getWhiteListThreshold()),
-                                        (prev, nest) -> nest
+                                        (duplicateParts, rule) -> rule.calculateFilterScore(duplicateParts, filterContext),
+                                        (prev, nest) -> {
+                                            //must be run in sequential stream (ensure the filter chain of each rule). the combiner cannot be used in subtask merging
+                                            throw new IllegalStateException();
+                                        }
                                 )
                                 .stream())
                         .collect(Collectors.toList())
@@ -234,5 +241,15 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     protected static class CloseEvent {
+    }
+
+    @Value
+    protected static class DefaultFilterContext implements WhiteListRule.FilterContext {
+        Check check;
+
+        @Override
+        public boolean isFiltered(@Range(from = 0, to = 1) double score) {
+            return score > check.getWhiteListThreshold();
+        }
     }
 }

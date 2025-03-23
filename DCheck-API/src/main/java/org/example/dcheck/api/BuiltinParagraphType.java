@@ -1,10 +1,10 @@
 package org.example.dcheck.api;
 
 import lombok.Getter;
-import org.example.dcheck.impl.CharSeqTextContent;
-import org.example.dcheck.impl.ReadableTextContent;
 import org.example.dcheck.impl.TextParagraph;
 import org.example.dcheck.impl.TextParagraphMetadata;
+import org.example.dcheck.impl.content.CharSeqTextContent;
+import org.example.dcheck.impl.content.ReadableTextContent;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;

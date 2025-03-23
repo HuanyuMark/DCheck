@@ -1,7 +1,11 @@
-package org.example.dcheck.impl;
+package org.example.dcheck.impl.content;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NonNull;
 import org.example.dcheck.api.TextContent;
+import org.example.dcheck.exception.UnsupportedContentTypeException;
+import org.example.dcheck.spi.ReadableHandlerProvider;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -16,9 +20,15 @@ import java.nio.charset.*;
  * @author 三石而立Sunsy
  */
 @Data
+@AllArgsConstructor
 public class ReadableTextContent implements TextContent {
+    @NonNull
+    private Readable reader;
 
-    private final Readable reader;
+    @Override
+    public void resetRead() throws IOException {
+        ReadableHandlerProvider.getInstance().reset(reader);
+    }
 
     @Override
     public InputStream getInputStream() {
@@ -27,7 +37,11 @@ public class ReadableTextContent implements TextContent {
 
     @Override
     public String toString() {
-        return reader.toString();
+        try {
+            return ReadableHandlerProvider.getInstance().toString(reader);
+        } catch (IOException e) {
+            throw new UnsupportedContentTypeException(e);
+        }
     }
 
     protected static class ReaderInputStream extends InputStream {

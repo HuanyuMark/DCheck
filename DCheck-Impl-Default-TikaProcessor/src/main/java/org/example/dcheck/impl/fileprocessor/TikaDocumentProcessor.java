@@ -11,9 +11,9 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import org.example.dcheck.api.*;
-import org.example.dcheck.impl.CharSeqTextContent;
 import org.example.dcheck.impl.ContentMatchParagraphLocation;
 import org.example.dcheck.impl.SharedDocumentProcessorConfig;
+import org.example.dcheck.impl.content.CharSeqTextContent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;

@@ -2,7 +2,7 @@ package org.example.dcheck.util;
 
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.TextContent;
-import org.example.dcheck.impl.CharSeqTextContent;
+import org.example.dcheck.impl.content.CharSeqTextContent;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

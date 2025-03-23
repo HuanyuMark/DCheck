@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -18,6 +19,6 @@ public interface Content {
 
     InputStream getInputStream();
 
-    default void resetRead() {
+    default void resetRead() throws IOException {
     }
 }
