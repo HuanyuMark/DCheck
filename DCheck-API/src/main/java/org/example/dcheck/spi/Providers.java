@@ -27,13 +27,18 @@ import java.util.stream.Collectors;
  * @author 三石而立Sunsy
  */
 @Slf4j
-@SuppressWarnings("unused")
 class Providers {
     static final String AGGREGATE_CONFIG_NAME = "dcheck-config.properties";
-    static final Properties BASE_VARIABLES = System.getenv().entrySet().stream().collect(() -> new Properties(System.getProperties()), (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
 
     /**
-     * load all impl at startup. maybe lead to performance problem.
+     * load the newest properties...
+     */
+    static Properties loadBaseProperties() {
+        return System.getenv().entrySet().stream().collect(() -> new Properties(System.getProperties()), (p, e) -> p.put(e.getKey(), e.getValue()), Hashtable::putAll);
+    }
+
+    /**
+     * load all impl at startup. maybe lead to a performance problem.
      * define an init() method in these impls, and call init() method in your code is
      * recommended.
      *
@@ -110,7 +115,7 @@ class Providers {
 
     static Properties loadConfig(String configName, Resource... injects) {
         try {
-            Properties base = new Properties(BASE_VARIABLES);
+            Properties base = new Properties(loadBaseProperties());
             Properties config = new Properties(base);
 
             // 读取类路径中最匹配的配置

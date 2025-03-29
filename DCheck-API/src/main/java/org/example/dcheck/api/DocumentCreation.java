@@ -16,7 +16,6 @@ import java.util.function.Supplier;
 @Value
 @Builder
 @NonFinal
-@SuppressWarnings("unused")
 public class DocumentCreation {
 
     @NonNull

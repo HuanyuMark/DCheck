@@ -18,7 +18,7 @@ public class DuplicateCheckingProvider implements DCheckProvider {
             Providers.findAllImplementations(DuplicateChecking.class)
                     .stream()
                     .findFirst()
-                    .orElseThrow(IllegalStateException::new);
+                    .orElseThrow(() -> new IllegalStateException("not found implementation of '" + DuplicateChecking.class + "'"));
 
     protected DuplicateCheckingProvider() {
     }

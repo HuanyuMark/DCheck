@@ -68,7 +68,6 @@ public enum BuiltinParagraphType implements ParagraphType, PreloadClass {
     }
 
     @PreloadMethod
-    @SuppressWarnings("unused")
     private static void preload() {
     }
 }

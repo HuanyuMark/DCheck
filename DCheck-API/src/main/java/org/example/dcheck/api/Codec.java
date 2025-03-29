@@ -13,7 +13,6 @@ import java.lang.reflect.Type;
  * @author 三石而立Sunsy
  * @see org.example.dcheck.impl.codec.gson.GsonCodec
  */
-@SuppressWarnings("unused")
 public interface Codec {
 
     /**

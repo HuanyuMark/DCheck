@@ -99,6 +99,12 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
                 throw new IllegalStateException("Relevancy Engine 'inited()' hock throw: " + e.getMessage(), e);
             }
 
+            if (config.requiredEnable(DCheckConfig.DCHECK_CONFIG_AUTO_CLEAR)) {
+                DCheckConfigProvider.getInstance().getInjectedConfigResources().clear();
+            } else {
+                log.warn("'{}' is disabled, please clear injected config resources manually", DCheckConfig.DCHECK_CONFIG_AUTO_CLEAR);
+            }
+
             init = true;
         }
     }

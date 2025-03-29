@@ -9,7 +9,6 @@ import java.lang.annotation.*;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface PreloadClass {
 
     /**

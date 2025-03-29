@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public class ContentConvert {
 
     public static String castToText(Content content) {

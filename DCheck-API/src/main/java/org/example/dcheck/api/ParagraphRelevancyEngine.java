@@ -10,7 +10,6 @@ import java.util.List;
  * @author 三石而立Sunsy
  * @see DuplicateChecking
  */
-@SuppressWarnings("unused")
 public interface ParagraphRelevancyEngine extends AutoCloseable, DCheckComponent {
 
     ParagraphRelevancyQueryResult queryParagraph(ParagraphRelevancyQuery query);

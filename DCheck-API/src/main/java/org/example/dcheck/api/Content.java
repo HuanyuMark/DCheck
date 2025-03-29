@@ -9,7 +9,6 @@ import java.io.InputStream;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface Content {
 
     // identity to diff between different content

@@ -5,12 +5,11 @@ import lombok.Setter;
 
 /**
  * Date 2025/03/14
- * control the runnable. make sure the runnable only run once
+ * control the runnable. Make sure the runnable only run once
  *
  * @author 三石而立Sunsy
  */
 @Getter
-@SuppressWarnings("unused")
 public class OnceRunner implements Runnable {
 
     private final Runnable initTask;

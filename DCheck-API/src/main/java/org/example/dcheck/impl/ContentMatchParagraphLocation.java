@@ -20,7 +20,10 @@ public class ContentMatchParagraphLocation implements ParagraphLocation {
     private final String startText;
     @NonNull
     private final String endText;
-
+    /**
+     * indicate the order in document splitting. if {@link #startText} and
+     * {@link #endText} is the same,that index would clarify the order.
+     */
     private final int splitIdx;
 
     public static ContentMatchParagraphLocation formLine(String text, int splitIdx) {

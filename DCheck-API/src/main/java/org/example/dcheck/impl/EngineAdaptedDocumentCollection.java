@@ -21,7 +21,6 @@ import java.util.stream.IntStream;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 @Slf4j
 @Getter
 public class EngineAdaptedDocumentCollection implements DocumentCollection {

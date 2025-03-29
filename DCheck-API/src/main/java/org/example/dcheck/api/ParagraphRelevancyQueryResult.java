@@ -13,7 +13,6 @@ import java.util.List;
 @Value
 @Builder
 @NonFinal
-@SuppressWarnings("unused")
 @AllArgsConstructor
 public class ParagraphRelevancyQueryResult {
 

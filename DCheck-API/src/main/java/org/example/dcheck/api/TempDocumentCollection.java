@@ -11,7 +11,6 @@ import java.io.Closeable;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface TempDocumentCollection extends DocumentCollection, Closeable {
 
     @Override

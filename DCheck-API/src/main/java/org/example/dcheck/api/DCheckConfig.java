@@ -1,5 +1,6 @@
 package org.example.dcheck.api;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +19,6 @@ import java.util.Properties;
  * @author 三石而立Sunsy
  * @see DCheckConfigProvider
  */
-@SuppressWarnings("unused")
 @Slf4j
 public class DCheckConfig {
     public static final String EMBEDDING_MODEL_KEY = "relevancy-engine.model.embedding.name";
@@ -28,9 +28,17 @@ public class DCheckConfig {
     public static final String DB_VECTOR_URL = "relevancy-engine.config.url";
     public static final String RERANKING_MODEL_KEY = "relevancy-engine.model.reranking.name";
     public static final String RERANKING_MODEL_URL = "relevancy-engine.model.reranking.url";
+    /**
+     * if true, will clear associated resources would not be used in dcheck automatically.
+     * value type is boolean
+     *
+     * @see org.springframework.core.convert.support.StringToBooleanConverter
+     */
+    public static final String DCHECK_CONFIG_AUTO_CLEAR = "dcheck.config.auto-clear";
+
 
     private final ConversionService conversionService;
-
+    @Getter
     private final Properties values;
 
     public DCheckConfig(Properties defaults, ConversionService conversionService) {

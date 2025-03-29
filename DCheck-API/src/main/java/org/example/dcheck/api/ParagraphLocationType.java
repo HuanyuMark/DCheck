@@ -14,6 +14,10 @@ public interface ParagraphLocationType {
     /**
      * 在实例化ParagraphLocationType的实例时，请将该实例的name作为key，该实例作为value，放入ALL_TYPES中，
      * 以支持{@link Codec}转换
+     * <p>
+     * Note: preload builtin types to register builtin ahead
+     *
+     * @see org.example.dcheck.support.PreloadClassLoader PreloadClassLoader
      */
     Map<String, ParagraphLocationType> ALL_TYPES = new ConcurrentHashMap<>();
 

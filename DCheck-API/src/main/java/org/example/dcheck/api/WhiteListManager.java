@@ -6,7 +6,6 @@ package org.example.dcheck.api;
  * rule set storage
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface WhiteListManager {
 
     WhiteListRuleSet getRuleSet(String whiteListId);

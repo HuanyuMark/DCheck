@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface WhiteListRuleType {
 
     /**

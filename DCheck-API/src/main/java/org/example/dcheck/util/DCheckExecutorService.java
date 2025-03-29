@@ -30,7 +30,6 @@ import java.util.stream.StreamSupport;
  * @author 三石而立Sunsy
  */
 @Slf4j
-@SuppressWarnings("unused")
 public class DCheckExecutorService implements ExecutorService, DCheckComponent {
 
     @Nullable
@@ -157,7 +156,6 @@ public class DCheckExecutorService implements ExecutorService, DCheckComponent {
 
     @Override
     public void close() {
-        long start = System.currentTimeMillis();
         try {
             defaultShutdown(log, this);
         } catch (InterruptedException e) {

@@ -11,7 +11,6 @@ import java.util.function.Function;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface IEventEmitter extends AutoCloseable {
 
     <E> void addListener(Class<E> event, Function<E, @NotNull CompletableFuture<?>> listener);

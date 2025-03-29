@@ -13,7 +13,6 @@ import java.util.List;
 @Value
 @NonFinal
 @Builder
-@SuppressWarnings("unused")
 public class CheckResult {
 
     /**

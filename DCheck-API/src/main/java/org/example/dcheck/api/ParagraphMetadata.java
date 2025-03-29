@@ -13,7 +13,6 @@ import java.util.function.Function;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface ParagraphMetadata {
 
     @NonNull

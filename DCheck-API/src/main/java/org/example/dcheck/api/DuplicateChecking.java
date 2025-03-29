@@ -14,7 +14,6 @@ import java.util.Optional;
  * @author 三石而立Sunsy
  * @see DuplicateCheckingProvider DuplicateCheckingProvider
  */
-@SuppressWarnings("unused")
 public interface DuplicateChecking extends AutoCloseable, IEventEmitter {
 
     /**

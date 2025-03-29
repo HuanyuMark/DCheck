@@ -6,7 +6,6 @@ package org.example.dcheck.api;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface Document {
 
     String getId();

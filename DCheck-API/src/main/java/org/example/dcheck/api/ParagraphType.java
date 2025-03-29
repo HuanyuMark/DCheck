@@ -11,12 +11,15 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface ParagraphType {
 
     /**
      * 在实例化ParagraphType时，请将其实例注册到这里，将所有ParagraphType注册到Map中
-     * name() -> ParagraphType
+     * name() → ParagraphType
+     * <p>
+     * Note: preload builtin types to register builtin ahead
+     *
+     * @see org.example.dcheck.support.PreloadClassLoader PreloadClassLoader
      */
     Map<String, ParagraphType> ALL_TYPES = new ConcurrentHashMap<>();
 

@@ -20,7 +20,6 @@ import java.util.stream.Stream;
  * @author 三石而立Sunsy
  */
 @Slf4j
-@SuppressWarnings("unused")
 public class DocumentProcessorProvider implements DCheckProvider, DocumentProcessor {
 
     @Getter(lazy = true)
@@ -48,6 +47,9 @@ public class DocumentProcessorProvider implements DCheckProvider, DocumentProces
         }
     }
 
+    /**
+     * Note: return {@link #UNSUPPORTED} if no processor supports the document type
+     */
     public DocumentProcessor getProcessor(DocumentType type) {
         return matchedCache.computeIfAbsent(type, (documentType) -> {
             for (DocumentProcessor impl : getImplementations()) {

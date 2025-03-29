@@ -8,6 +8,5 @@ import lombok.experimental.StandardException;
  * @author 三石而立Sunsy
  */
 @StandardException
-@SuppressWarnings("unused")
 public class DCheckException extends Exception {
 }

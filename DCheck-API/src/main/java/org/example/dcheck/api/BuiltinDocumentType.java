@@ -9,7 +9,6 @@ import java.util.List;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public enum BuiltinDocumentType implements DocumentType {
     DOCX,
     PDF,

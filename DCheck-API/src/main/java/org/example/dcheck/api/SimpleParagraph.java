@@ -17,7 +17,6 @@ import java.util.function.Supplier;
 @Builder
 @NonFinal
 @AllArgsConstructor
-@SuppressWarnings("unused")
 public class SimpleParagraph {
     @NonNull
     Supplier<Content> content;

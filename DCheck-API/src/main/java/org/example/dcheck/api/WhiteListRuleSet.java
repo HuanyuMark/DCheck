@@ -10,7 +10,7 @@ import java.util.stream.Stream;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
+
 public interface WhiteListRuleSet {
 
     /**

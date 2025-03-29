@@ -16,7 +16,6 @@ import java.util.function.BiFunction;
  * @author 三石而立Sunsy
  */
 @SuperBuilder
-@SuppressWarnings("unused")
 public class TextParagraphMetadata extends AbstractParagraphMetadata {
 
     public TextParagraphMetadata(String documentId, ParagraphLocation location) {

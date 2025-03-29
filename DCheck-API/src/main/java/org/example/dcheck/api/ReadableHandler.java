@@ -10,7 +10,6 @@ import java.io.IOException;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public interface ReadableHandler {
     /**
      * make sure call that method before call any method declare in this interface

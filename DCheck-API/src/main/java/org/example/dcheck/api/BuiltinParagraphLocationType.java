@@ -8,7 +8,6 @@ import org.example.dcheck.impl.TextParagraphLocation;
  *
  * @author 三石而立Sunsy
  */
-@SuppressWarnings("unused")
 public enum BuiltinParagraphLocationType implements ParagraphLocationType, PreloadClass {
     TEXT() {
         @Override

@@ -20,7 +20,6 @@ import java.util.stream.Stream;
  * @author 三石而立Sunsy
  * @apiNote load class dynamic is an operation needs to be carefully considered
  */
-@SuppressWarnings("unused")
 @Slf4j
 public class DCheckResourceClassLoader extends ClassLoader implements Closeable {
 

@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -49,8 +50,8 @@ import java.util.stream.StreamSupport;
 @Slf4j
 @SuppressWarnings("unused")
 public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngine {
-    public static final String DOCUMENT_ID_PROPERTY = "documentId";
     public static final int PARAGRAPH_HANDLE_CHUNK_SIZE = 50;
+    public static final String DOCUMENT_ID_PROPERTY = "documentId";
     protected static final Label PARAGRAPH_LABEL = Label.label("Paragraph");
     protected static final String VECTOR_INDEX = "vector_index";
     protected static final String DOCUMENT_ID_INDEX = "document_id_index";
@@ -59,7 +60,9 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     protected static final String EMBEDDING_FUC_PROPERTY = "_$$_embedding_func_$$_";
     protected static final Label COLLECTION_METADATA_LABEL = Label.label("CollectionMetadata");
     protected static final String EMBEDDING_FUC_DETAILS_PROPERTY = "_$$_embedding_func_details_$$_";
-    protected static final String QueryEmbeddingCypher = MessageFormat.format(
+    protected final Set<String> initedCollections = Collections.newSetFromMap(new ConcurrentSkipListMap<>());
+    protected final Map<String, DocumentCollection> collections = new ConcurrentSkipListMap<>();
+    protected static final String QUERY_EMBEDDING_CYPHER = MessageFormat.format(
             """
                     MATCH (p: {PARAGRAPH_LABEL})
                     WHERE p.{DOCUMENT_ID_PROPERTY} = $queryDocument
@@ -70,8 +73,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
                     "VECTOR_PROPERTY", VECTOR_PROPERTY,
                     "DOCUMENT_ID_PROPERTY", DOCUMENT_ID_PROPERTY
             ));
-    protected final Set<String> initedCollections = Collections.newSetFromMap(new ConcurrentSkipListMap<>());
-    protected final Map<String, DocumentCollection> collections = new ConcurrentSkipListMap<>();
     protected static final String QUERY_PARAGRAPH_CYPHER =
             """
                     CALL db.index.vector.queryNodes($VECTOR_INDEX,$topK,$embedding)
@@ -86,6 +87,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     @Getter
     protected EmbeddingFunction embeddingFunction;
     @Getter
+    @Setter
+    @NonNull
     protected Codec codec;
     @Getter
     @Setter
@@ -96,10 +99,6 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
     private static String[] filterVectorPropertyKey(Node node) {
         return StreamSupport.stream(node.getPropertyKeys().spliterator(), false)
                 .filter(k -> !VECTOR_PROPERTY.equals(k)).toArray(String[]::new);
-    }
-
-    public void setCodec(@NonNull Codec codec) {
-        this.codec = codec;
     }
 
     protected ManageableGraphDatabaseService getCollection(String collectionId) {
@@ -125,7 +124,8 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
 
     @Override
     public void doInit() {
-        if (codec == null) {
+        Predicate<Object> isNull = Objects::isNull;
+        if (isNull.test(codec)) {
             setCodec(CodecProvider.getInstance()
                     .getCodecs()
                     .stream()
@@ -276,7 +276,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         if (query.getParagraphs() == null) {
             var tx = collection.beginTx();
             try {
-                embeddingArguments = tx.execute(QueryEmbeddingCypher, Collections.singletonMap("queryDocument", query.getDocumentId()))
+                embeddingArguments = tx.execute(QUERY_EMBEDDING_CYPHER, Collections.singletonMap("queryDocument", query.getDocumentId()))
                         .stream()
                         .map(result -> {
                             Map<String, Object> properties = ((NodeEntity) result.get("p")).getAllProperties();

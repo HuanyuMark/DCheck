@@ -19,7 +19,6 @@ import java.util.stream.Stream;
  * @author 三石而立Sunsy
  */
 @Slf4j
-@SuppressWarnings("unused")
 public class ClassHierarchyEventEmitter implements IEventEmitter {
     protected final Map<Class<?>, Set<Function<?, CompletableFuture<?>>>> bus = initBus();
     private final Map<Class<?>, List<Class<?>>> eventClassCache = new ConcurrentHashMap<>();
