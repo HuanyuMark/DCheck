@@ -16,7 +16,7 @@ import java.util.List;
 public class DuplicatePart {
 
     /**
-     * the paragraph be compared(need to find duplicates)
+     * the paragraph be compared (need to find duplicates)
      */
     @NonNull
     Paragraph paragraph;

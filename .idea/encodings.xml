@@ -35,6 +35,10 @@
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-ES/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Impl-RelevancyEngine-EmbeddedNeo4j/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Impl-WhiteListManager-JDBC/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Impl-WhiteListManager-JDBC/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Impl-WhiteListManager-JDK/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/DCheck-Impl-WhiteListManager-JDK/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Reranker/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Reranker/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/DCheck-Test/RunInJdk21/src/main/java" charset="UTF-8" />

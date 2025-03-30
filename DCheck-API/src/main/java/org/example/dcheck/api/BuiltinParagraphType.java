@@ -39,11 +39,11 @@ public enum BuiltinParagraphType implements ParagraphType, PreloadClass {
         }
 
         private TextContent convertContent(Object content) {
-            if (content instanceof TextContent) {
-                return (TextContent) content;
-            }
             if (content instanceof CharSequence) {
                 return new CharSeqTextContent((CharSequence) content);
+            }
+            if (content instanceof TextContent) {
+                return (TextContent) content;
             }
             if (content instanceof Reader) {
                 return new ReadableTextContent((Reader) content);

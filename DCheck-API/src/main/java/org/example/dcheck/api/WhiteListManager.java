@@ -6,7 +6,7 @@ package org.example.dcheck.api;
  * rule set storage
  * @author 三石而立Sunsy
  */
-public interface WhiteListManager {
+public interface WhiteListManager extends DCheckComponent {
 
     WhiteListRuleSet getRuleSet(String whiteListId);
 

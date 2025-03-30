@@ -11,6 +11,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>DCheck-API</module>
+        <module>DCheck-API-PSPI</module>
         <module>DCheck-Common</module>
         <module>DCheck-Embedding</module>
         <module>DCheck-Reranker</module>
@@ -28,7 +29,8 @@
         <module>DCheck-Impl-Default-TikaProcessor</module>
         <module>DCheck-Test</module>
         <module>JdkVirtualThreadProvider</module>
-        <module>DCheck-API-PSPI</module>
+        <module>DCheck-Impl-WhiteListManager-JDBC</module>
+        <module>DCheck-Impl-WhiteListManager-JDK</module>
     </modules>
 
     <properties>

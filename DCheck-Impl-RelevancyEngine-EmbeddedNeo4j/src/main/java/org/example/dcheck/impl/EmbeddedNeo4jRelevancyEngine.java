@@ -358,17 +358,7 @@ public class EmbeddedNeo4jRelevancyEngine extends AbstractParagraphRelevancyEngi
         } catch (IOException e) {
             throw new IllegalStateException("convert flatProperties to ParagraphMetadata fail: " + e.getMessage(), e);
         }
-
-        var paragraphContent = ContentConvert.castToContent(nodeProperties.get(CONTENT_PROPERTY));
-
-        if (metadata.getParagraphType() != BuiltinParagraphType.TEXT) {
-            throw new UnsupportedOperationException("unsupported paragraph type: " + metadata.getParagraphType());
-        }
-
-        return new TextParagraph(
-                () -> (TextContent) paragraphContent,
-                metadata
-        );
+        return metadata.getParagraphType().createParagraph(nodeProperties.get(CONTENT_PROPERTY), metadata);
     }
 
 

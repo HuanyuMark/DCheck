@@ -6,6 +6,7 @@ import org.example.dcheck.api.Content;
 import org.example.dcheck.api.Document;
 import org.example.dcheck.util.DCheckExecutorService;
 import org.junit.jupiter.api.Test;
+import org.springframework.cglib.beans.BeanMap;
 
 import java.util.Arrays;
 import java.util.List;
@@ -63,6 +64,17 @@ public class TestApp {
         public Num add(Num num) {
             return new Num(v + num.v);
         }
+    }
+
+    static class Obj {
+        public String getId() {
+            return "ok";
+        }
+    }
+
+    @Test
+    public void testBeanMap() {
+        System.out.println(BeanMap.create(new Obj()));
     }
 
     @Test
