@@ -1,8 +1,8 @@
 package org.example.dcheck.impl.wlm.jdbc.core;
 
+import org.example.dcheck.api.AllowListManager;
+import org.example.dcheck.api.AllowListRuleSet;
 import org.example.dcheck.api.DCheckConfig;
-import org.example.dcheck.api.WhiteListManager;
-import org.example.dcheck.api.WhiteListRuleSet;
 import org.example.dcheck.impl.wlm.jdbc.exception.JdbcException;
 import org.example.dcheck.impl.wlm.jdbc.support.JdbcAgent;
 import org.example.dcheck.spi.DCheckConfigProvider;
@@ -12,7 +12,7 @@ import org.example.dcheck.spi.DCheckConfigProvider;
  *
  * @author 三石而立Sunsy
  */
-public class JdbcWhiteListManager implements WhiteListManager {
+public class JdbcAllowListManager implements AllowListManager {
 
     protected JdbcAgent jdbcAgent;
 
@@ -28,17 +28,17 @@ public class JdbcWhiteListManager implements WhiteListManager {
     }
 
     @Override
-    public WhiteListRuleSet getRuleSet(String whiteListId) {
+    public AllowListRuleSet getRuleSet(String ruleSetId) {
         return null;
     }
 
     @Override
-    public void removeRuleSet(String whiteListId) {
+    public void removeRuleSet(String ruleSetId) {
 
     }
 
     @Override
-    public void addAndSaveRuleSet(WhiteListRuleSet ruleSet) {
+    public void addAndSaveRuleSet(AllowListRuleSet ruleSet) {
 
     }
 }

@@ -12,14 +12,14 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @author 三石而立Sunsy
  */
-public interface WhiteListRuleType extends Serializable, EntityProvider<WhiteListRule> {
+public interface AllowListRuleType extends Serializable, EntityProvider<AllowListRule> {
 
     /**
      * same as {@link ParagraphType} and {@link ParagraphLocationType}.
      * <p>
      * support codec work
      */
-    Map<String, WhiteListRuleType> ALL_TYPES = new ConcurrentSkipListMap<>();
+    Map<String, AllowListRuleType> ALL_TYPES = new ConcurrentSkipListMap<>();
 
     @NotNull
     String name();

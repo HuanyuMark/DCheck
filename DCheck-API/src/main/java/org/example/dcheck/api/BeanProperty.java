@@ -103,6 +103,18 @@ public class BeanProperty {
         return wither == null ? null : annotationCaches.computeIfAbsent(wither, AnnotationCache::new).get(annotationClass);
     }
 
+    @Nullable
+    public <A extends Annotation> A getFieldAnn(Class<A> annotationClass) {
+        return field == null ? null : annotationCaches.computeIfAbsent(field, AnnotationCache::new).get(annotationClass);
+    }
+
+    public boolean isAnyAnnPresent(Class<? extends Annotation> annotationClass) {
+        if (isSetterAnnPresent(annotationClass)) return true;
+        if (isGetterAnnPresent(annotationClass)) return true;
+        if (isWitherAnnPresent(annotationClass)) return true;
+        return isFieldAnnPresent(annotationClass);
+    }
+
     public boolean isGetterAnnPresent(Class<? extends Annotation> annotationClass) {
         return getGetterAnn(annotationClass) != null;
     }
@@ -113,6 +125,10 @@ public class BeanProperty {
 
     public boolean isWitherAnnPresent(Class<? extends Annotation> annotationClass) {
         return getWitherAnn(annotationClass) != null;
+    }
+
+    public boolean isFieldAnnPresent(Class<? extends Annotation> annotationClass) {
+        return getFieldAnn(annotationClass) != null;
     }
 
     public Object get(Object target) {

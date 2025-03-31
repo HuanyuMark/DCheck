@@ -13,6 +13,9 @@ import java.util.Properties;
  */
 @Getter
 public class IdentityStringMapper extends StringMapper {
+    /**
+     * some db may limit the max length of string field
+     */
     protected int stringFieldLength;
     private String jdbcFieldType;
 

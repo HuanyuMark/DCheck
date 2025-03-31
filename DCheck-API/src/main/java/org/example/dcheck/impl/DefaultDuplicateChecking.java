@@ -50,7 +50,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     @Override
-    public Optional<WhiteListManager> getWhiteListManager() {
+    public Optional<AllowListManager> getAllowListManager() {
         // TODO impl...
         return Optional.empty();
     }
@@ -101,7 +101,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
 
             if (config.requiredEnable(DCheckConfig.DCHECK_CONFIG_AUTO_CLEAR)) {
                 DCheckConfigProvider.getInstance().getInjectedConfigResources().clear();
-            } else {
+            } else if (!DCheckConfigProvider.getInstance().getInjectedConfigResources().isEmpty()) {
                 log.warn("'{}' is disabled, please clear injected config resources manually", DCheckConfig.DCHECK_CONFIG_AUTO_CLEAR);
             }
 
@@ -144,15 +144,15 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     protected ParagraphRelevancyQueryResult postProcessResult(@NotNull Check check, ParagraphRelevancyQueryResult queryResult) {
         if (check.getWhiteLists().isEmpty()) return queryResult;
 
-        log.debug("Apply white list rule to document '{}': {}", check.getDocument().getId(), check.getWhiteLists().stream().map(WhiteListRuleSet::getId).collect(Collectors.toList()));
+        log.debug("Apply white list rule to document '{}': {}", check.getDocument().getId(), check.getWhiteLists().stream().map(AllowListRuleSet::getId).collect(Collectors.toList()));
 
-        WhiteListRule.FilterContext filterContext = new DefaultFilterContext(check);
+        AllowListRule.FilterContext filterContext = new DefaultFilterContext(check);
 
         return queryResult.withDuplicateParts(
                 CollectionUtils.partition(queryResult.getDuplicateParts(), WHITE_LIST_RULE_CAL_CHUNK_SIZE).stream()
                         .flatMap(ps -> check.getWhiteLists()
                                 .stream()
-                                .flatMap(WhiteListRuleSet::getEnabledRules)
+                                .flatMap(AllowListRuleSet::getEnabledRules)
                                 .reduce(
                                         ps,
                                         (duplicateParts, rule) -> rule.calculateFilterScore(duplicateParts, filterContext),
@@ -250,7 +250,7 @@ public class DefaultDuplicateChecking implements DuplicateChecking {
     }
 
     @Value
-    protected static class DefaultFilterContext implements WhiteListRule.FilterContext {
+    protected static class DefaultFilterContext implements AllowListRule.FilterContext {
         Check check;
 
         @Override

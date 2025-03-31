@@ -61,7 +61,7 @@ public class Check {
      * these white list will be used to filter the duplicate parts
      */
     @Singular
-    List<@NonNull WhiteListRuleSet> whiteLists;
+    List<@NonNull AllowListRuleSet> whiteLists;
 
     /**
      * 白名单过滤阈值. 越接近1则表示无视越多的 WhiteListRule 所认为的“不重复”片段，及控制whiteList的筛选力度，
@@ -97,7 +97,7 @@ public class Check {
                 throw new IllegalArgumentException("whiteListThreshold must be >= 0 and <= 1");
             }
 
-            Set<WhiteListRuleSet> sets = new LinkedHashSet<>(target.getWhiteLists());
+            Set<AllowListRuleSet> sets = new LinkedHashSet<>(target.getWhiteLists());
             if (sets.size() == target.getWhiteLists().size()) {
                 return target;
             }

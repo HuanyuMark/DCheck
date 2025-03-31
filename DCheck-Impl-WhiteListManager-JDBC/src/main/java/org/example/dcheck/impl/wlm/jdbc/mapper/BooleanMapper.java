@@ -32,6 +32,7 @@ public class BooleanMapper implements EntityFieldMapper {
 
     @Override
     public Serializable mapToJdbcFieldValue(Properties jdbcProperties, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
-        return (pojoState.getValue().getValue() != null && (Boolean) pojoState.getValue().getValue()) ? "Y" : "N";
+        Serializable value = pojoState.getValue().getValue();
+        return (value != null && (Boolean) value) ? "Y" : "N";
     }
 }

@@ -33,7 +33,7 @@ public interface DuplicateChecking extends AutoCloseable, IEventEmitter {
     /**
      * 获取白名单管理器
      */
-    Optional<WhiteListManager> getWhiteListManager();
+    Optional<AllowListManager> getAllowListManager();
 
     /**
      * 根据配置的检查，在指定集合里查重

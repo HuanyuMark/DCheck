@@ -6,16 +6,16 @@ package org.example.dcheck.api;
  * rule set storage
  * @author 三石而立Sunsy
  */
-public interface WhiteListManager extends DCheckComponent {
+public interface AllowListManager extends DCheckComponent {
 
-    WhiteListRuleSet getRuleSet(String whiteListId);
+    AllowListRuleSet getRuleSet(String ruleSetId);
 
-    void removeRuleSet(String whiteListId);
+    void removeRuleSet(String ruleSetId);
 
     /**
      * it the rule set is manage by the manager,
      * the mutation of this rule set would be performed,
      * otherwise the rule set would be added and saved;
      */
-    void addAndSaveRuleSet(WhiteListRuleSet ruleSet);
+    void addAndSaveRuleSet(AllowListRuleSet ruleSet);
 }

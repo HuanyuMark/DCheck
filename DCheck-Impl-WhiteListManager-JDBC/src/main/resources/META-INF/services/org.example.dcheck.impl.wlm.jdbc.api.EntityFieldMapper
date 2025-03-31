@@ -3,6 +3,6 @@ org.example.dcheck.impl.wlm.jdbc.mapper.IdentityStringMapper
 org.example.dcheck.impl.wlm.jdbc.mapper.IntegerMapper
 org.example.dcheck.impl.wlm.jdbc.mapper.StringMapper
 org.example.dcheck.impl.wlm.jdbc.mapper.BooleanMapper
-org.example.dcheck.impl.wlm.jdbc.mapper.WhiteListTypeMapper
+org.example.dcheck.impl.wlm.jdbc.mapper.AllowListTypeMapper
 
 

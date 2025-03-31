@@ -12,10 +12,10 @@ import java.util.stream.Stream;
  * @author 三石而立Sunsy
  */
 
-public interface WhiteListRuleSet {
+public interface AllowListRuleSet {
 
     /**
-     * the identity of a collection of white list rule
+     * the identity to a collection of allowlist rules
      */
     @NotNull
     String getId();
@@ -50,39 +50,40 @@ public interface WhiteListRuleSet {
     /**
      * if the rule store in the set, the rule would be disabled
      */
-    default void disableRule(WhiteListRule rule) {
+    default void disableRule(AllowListRule rule) {
         disableRule(rule.getId());
     }
 
     /**
-     * if call this method with same rule. it will replace the old rule
+     * if call this method with the same rule.
+     * it will replace the old rule
      * and {@code enabled} the last rule
      */
-    void addRule(WhiteListRule rule, boolean enabled);
+    void addRule(AllowListRule rule, boolean enabled);
 
     /**
      * get all rule stored in the set whether enabled or disabled.
      * equals to {@link #getEnabledRules()} + {@link #getDisabledRules()}
      * order by {@link #getOrder}
      */
-    Stream<? extends WhiteListRule> getAllRules();
+    Stream<? extends AllowListRule> getAllRules();
 
     /**
      * get all enabled rule stored in the set
      * order by {@link #getOrder}
      */
-    Stream<? extends WhiteListRule> getEnabledRules();
+    Stream<? extends AllowListRule> getEnabledRules();
 
     /**
      * get all disabled rule stored in the set
      * order by {@link #getOrder}
      */
-    Stream<? extends WhiteListRule> getDisabledRules();
+    Stream<? extends AllowListRule> getDisabledRules();
 
 
     /**
      * default order is {@link org.springframework.core.Ordered#LOWEST_PRECEDENCE}
-     * indicate the applied order of the container {@link WhiteListRuleSet}
+     * indicate the applied order of the container {@link AllowListRuleSet}
      *
      * @throws IllegalArgumentException if the rule is not in the set
      */
@@ -90,17 +91,17 @@ public interface WhiteListRuleSet {
 
     /**
      * default order is {@link org.springframework.core.Ordered#LOWEST_PRECEDENCE}
-     * indicate the applied order of the container {@link WhiteListRuleSet}
+     * indicate the applied order of the container {@link AllowListRuleSet}
      *
      * @throws IllegalArgumentException if the rule is not in the set
      */
-    default int getOrder(WhiteListRule rule) {
+    default int getOrder(AllowListRule rule) {
         return getOrder(rule.getId());
     }
 
     /**
      * default order is {@link org.springframework.core.Ordered#LOWEST_PRECEDENCE}
-     * indicate the applied order of the container {@link WhiteListRuleSet}
+     * indicate the applied order of the container {@link AllowListRuleSet}
      *
      * @throws IllegalArgumentException if the rule is not in the set
      */
@@ -108,11 +109,11 @@ public interface WhiteListRuleSet {
 
     /**
      * default order is {@link org.springframework.core.Ordered#LOWEST_PRECEDENCE}
-     * indicate the applied order of the container {@link WhiteListRuleSet}
+     * indicate the applied order of the container {@link AllowListRuleSet}
      *
      * @throws IllegalArgumentException if the rule is not in the set
      */
-    default void setOrder(WhiteListRule ruleId, int order) {
+    default void setOrder(AllowListRule ruleId, int order) {
         setOrder(ruleId.getId(), order);
     }
 

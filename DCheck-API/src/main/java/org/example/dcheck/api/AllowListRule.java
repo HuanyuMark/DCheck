@@ -20,7 +20,7 @@ import java.util.Map;
  * @author 三石而立Sunsy
  */
 @ExtensionMethod({BeanUtils.class, Collections.class})
-public interface WhiteListRule {
+public interface AllowListRule {
 
     /**
      * identity
@@ -39,7 +39,7 @@ public interface WhiteListRule {
      */
     @Ignore
     @NotNull
-    WhiteListRuleType getType();
+    AllowListRuleType getType();
 
     /**
      * The larger the value, the more likely the respective paragraph to be ignored
