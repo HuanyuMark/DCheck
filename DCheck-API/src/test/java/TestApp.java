@@ -1,12 +1,14 @@
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NonNull;
+import org.example.dcheck.annotation.Ignore;
+import org.example.dcheck.api.BeanProperty;
 import org.example.dcheck.api.Check;
 import org.example.dcheck.api.Content;
 import org.example.dcheck.api.Document;
+import org.example.dcheck.util.BeanUtils;
 import org.example.dcheck.util.DCheckExecutorService;
 import org.junit.jupiter.api.Test;
-import org.springframework.cglib.beans.BeanMap;
 
 import java.util.Arrays;
 import java.util.List;
@@ -66,7 +68,13 @@ public class TestApp {
         }
     }
 
-    static class Obj {
+    interface I {
+        @Ignore
+        String getId();
+    }
+
+    static class Obj implements I {
+
         public String getId() {
             return "ok";
         }
@@ -74,7 +82,8 @@ public class TestApp {
 
     @Test
     public void testBeanMap() {
-        System.out.println(BeanMap.create(new Obj()));
+        BeanProperty property = BeanUtils.getProperties(Obj.class).get(0);
+        System.out.println(property.isGetterAnnPresent(Ignore.class));
     }
 
     @Test

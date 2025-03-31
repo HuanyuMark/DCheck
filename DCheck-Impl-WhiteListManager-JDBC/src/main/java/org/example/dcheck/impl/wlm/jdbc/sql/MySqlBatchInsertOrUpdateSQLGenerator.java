@@ -41,13 +41,14 @@ public class MySqlBatchInsertOrUpdateSQLGenerator implements BatchInsertOrUpdate
                                     " VALUES {values}" +
                                     " ON DUPLICATE KEY UPDATE {updates};", new HashMap<String, Object>() {{
 
-                                put("tableName", agent.inferRuleTableName(rule));
+                                put("tableName", agent.inferRuleTableName(rule.getType()));
                                 put("keys", String.join(",", firstEntity.keySet()));
                                 put("values", mappedValues.stream().map(values -> "(" + values.values().stream().map(v -> v == null ? "NULL" : "?").collect(Collectors.joining(",")) + ")").collect(Collectors.joining(",")));
                                 put("updates", firstEntity.keySet().stream().map(k -> k + "=VALUES(" + k + ")").collect(Collectors.joining(",")));
 
                             }}));
-                            for (int i = 0; i < mappedValues.size(); i++) {
+                            int size = mappedValues.size();
+                            for (int i = 0; i < size; i++) {
                                 Object[] values = mappedValues.get(i).values().stream().filter(Objects::nonNull).toArray();
                                 for (int j = 0; j < values.length; j++) {
                                     stm.setObject(i + j, values[j]);
@@ -76,7 +77,7 @@ public class MySqlBatchInsertOrUpdateSQLGenerator implements BatchInsertOrUpdate
                 + " VALUES {values}"
                 + "ON DUPLICATE KEY UPDATE ruleType=VALUES(ruleType);", new HashMap<String, Object>() {{
 
-            put("tableName", agent.getRuleTypeTableName());
+            put("tableName", JdbcAgent.RuleTypeEntity.tableName);
             put("values", rules.stream().map(rule -> "(" + rule.getId() + "," + rule.getType().name() + ")").collect(Collectors.joining(",")));
 
         }}));

@@ -1,10 +1,14 @@
 package org.example.dcheck.api;
 
+import lombok.experimental.ExtensionMethod;
+import org.example.dcheck.annotation.Ignore;
+import org.example.dcheck.util.BeanUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
-import org.springframework.cglib.beans.BeanMap;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +19,7 @@ import java.util.Map;
  *
  * @author 三石而立Sunsy
  */
+@ExtensionMethod({BeanUtils.class, Collections.class})
 public interface WhiteListRule {
 
     /**
@@ -24,8 +29,15 @@ public interface WhiteListRule {
     String getId();
 
     /**
+     * description
+     */
+    @Nullable
+    String getDescription();
+
+    /**
      * type hint
      */
+    @Ignore
     @NotNull
     WhiteListRuleType getType();
 
@@ -34,28 +46,25 @@ public interface WhiteListRule {
      */
     @NotNull List<@NotNull DuplicatePart> calculateFilterScore(@NotNull List<@NotNull DuplicatePart> paragraphs, FilterContext handler);
 
-    default LinkedHashMap<String, PojoField> getState() {
-        if (this instanceof Map<?, ?>) {
-            throw new UnsupportedOperationException("The rule is a map");
-        }
+
+    /**
+     * get state schema.
+     */
+    default List<BeanProperty> getSchema() {
+        return EntityProvider.getDefaultSchema(getClass());
+    }
+
+
+    default Map<String, PojoField> getState() {
         LinkedHashMap<String, PojoField> state = new LinkedHashMap<>();
-        BeanMap beanMap = BeanMap.create(this);
-        for (Object kvLike : beanMap.entrySet()) {
-            if (!(kvLike instanceof Map.Entry)) continue;
-            Map.Entry<?, ?> kv = (Map.Entry<?, ?>) kvLike;
-            if (!(kv.getKey() instanceof CharSequence)) continue;
-            String fieldKey = ((CharSequence) kv.getKey()).toString();
-            if (kv.getValue() instanceof Serializable || kv.getValue() == null) {
-                state.put(fieldKey, new PojoField(fieldKey, beanMap.getPropertyType(fieldKey), (Serializable) kv.getValue()));
-            }
-        }
-        return state;
-    }
 
-    default void restoreState(Map<String, PojoField> state) {
-        BeanMap.create(this).putAll(state);
-    }
+        getSchema().forEach(p -> {
+            assert p.getGetter() != null;
+            state.put(p.getName(), new PojoField(p, (Serializable) p.get(this)));
+        });
 
+        return state.unmodifiableMap();
+    }
 
     /**
      * store the result in filtering procedure {@link #calculateFilterScore} and
@@ -66,6 +75,5 @@ public interface WhiteListRule {
         Check getCheck();
 
         boolean isFiltered(@Range(from = 0, to = 1) double score);
-
     }
 }

@@ -1,0 +1,40 @@
+package org.example.dcheck.impl.wlm.jdbc.mapper;
+
+import lombok.Getter;
+import org.example.dcheck.api.EntityProvider;
+import org.example.dcheck.api.PojoField;
+
+import java.util.Properties;
+
+/**
+ * Date: 2025/3/30
+ *
+ * @author 三石而立Sunsy
+ */
+@Getter
+public class IdentityStringMapper extends StringMapper {
+    protected int stringFieldLength;
+    private String jdbcFieldType;
+
+    public IdentityStringMapper() {
+        setStringFieldLength(255);
+    }
+
+    public void setStringFieldLength(int stringFieldLength) {
+        if (stringFieldLength <= 0) {
+            throw new IllegalArgumentException("stringFieldLength must be > 0");
+        }
+        this.stringFieldLength = stringFieldLength;
+        jdbcFieldType = "VARCHAR(" + stringFieldLength + ")";
+    }
+
+    @Override
+    protected boolean support(PojoField kv) {
+        return "id".equalsIgnoreCase(kv.getProperty().getName()) && kv.getProperty().getPropertyType().isAssignableFrom(String.class);
+    }
+
+    @Override
+    public String getJdbcFieldType(EntityProvider<?> entity, Properties jdbcProperties, PojoField kv) {
+        return jdbcFieldType;
+    }
+}

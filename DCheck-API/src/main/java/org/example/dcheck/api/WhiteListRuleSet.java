@@ -1,6 +1,7 @@
 package org.example.dcheck.api;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.stream.Stream;
 
@@ -18,6 +19,9 @@ public interface WhiteListRuleSet {
      */
     @NotNull
     String getId();
+
+    @Nullable
+    String getDescription();
 
     /**
      * if a rule is enabled, we claim that rule would be used in DuplicateChecking procedure

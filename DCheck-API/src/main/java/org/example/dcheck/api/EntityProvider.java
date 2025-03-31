@@ -1,0 +1,94 @@
+package org.example.dcheck.api;
+
+import lombok.experimental.ExtensionMethod;
+import org.example.dcheck.annotation.Ignore;
+import org.example.dcheck.util.BeanUtils;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+/**
+ * Date 2025/03/31
+ *
+ * @author 三石而立Sunsy
+ */
+@ExtensionMethod({BeanUtils.class, Collections.class})
+public interface EntityProvider<E> {
+    Map<Class<?>, List<BeanProperty>> SCHEMA_CACHE = new ConcurrentHashMap<>();
+
+    Map<Class<?>, List<BeanProperty>> POPULATE_CACHE = new ConcurrentHashMap<>();
+
+    static <E> EntityProvider<E> getDefaultProvider(Class<E> type, Supplier<E> factory) {
+        return new EntityProvider<E>() {
+            @Override
+            public E createPlain() {
+                return factory.get();
+            }
+
+            @Override
+            public @NotNull Class<? extends E> getType() {
+                return type;
+            }
+        };
+    }
+
+
+    static List<BeanProperty> getDefaultSchema(Class<?> ruleClazz) {
+        return SCHEMA_CACHE.computeIfAbsent(ruleClazz, clazz ->
+                clazz.getProperties()
+                        .stream()
+                        .filter(p -> p.getGetter() != null)
+                        .filter(p -> Serializable.class.isAssignableFrom(p.getGetter().getReturnType()))
+                        .filter(p -> p.isGetterAnnPresent(Ignore.class))
+                        .collect(Collectors.toList())
+                        .unmodifiableList()
+        );
+    }
+
+
+    default List<BeanProperty> getSchema() {
+        return getDefaultSchema(getType());
+    }
+
+    @SuppressWarnings("unchecked")
+    default E populateStates(E entity, Map<String, PojoField> state) {
+        List<BeanProperty> setterProperties = POPULATE_CACHE.computeIfAbsent(getClass(), this::computePopulateSchema);
+        for (BeanProperty property : setterProperties) {
+            PojoField pojoField = state.get(property.getName());
+            if (pojoField == null) {
+                continue;
+            }
+            if (property.getPropertyType().isInstance(pojoField.getValue())) {
+                if (property.getSetter() != null) {
+                    property.set(entity, pojoField.getValue());
+                } else if (property.getWither() != null) {
+                    entity = (E) property.with(entity, pojoField.getValue());
+                }
+            } else {
+                throw new IllegalArgumentException("restore property '" + property.getName() + "' fail: expected type is '" + property.getPropertyType() + "'");
+            }
+        }
+        return entity;
+    }
+
+    default List<BeanProperty> computePopulateSchema(Class<?> clazz) {
+        return clazz
+                .getProperties()
+                .stream()
+                .filter(p -> p.getSetter() != null)
+                .filter(p -> p.isSetterAnnPresent(Ignore.class))
+                .collect(Collectors.toList())
+                .unmodifiableList();
+    }
+
+    E createPlain();
+
+    @NotNull
+    Class<? extends E> getType();
+}

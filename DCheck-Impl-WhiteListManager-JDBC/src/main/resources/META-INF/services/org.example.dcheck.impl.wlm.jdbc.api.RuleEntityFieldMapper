@@ -1,6 +1,0 @@
-org.example.dcheck.impl.wlm.jdbc.mapper.DoubleRuleEntityFieldMapper
-org.example.dcheck.impl.wlm.jdbc.mapper.IdentityStringRuleEntityFieldMapper
-org.example.dcheck.impl.wlm.jdbc.mapper.IntegerRuleEntityFieldMapper
-org.example.dcheck.impl.wlm.jdbc.mapper.StringRuleEntityFieldMapper
-
-

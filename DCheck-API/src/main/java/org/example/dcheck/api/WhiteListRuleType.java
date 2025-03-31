@@ -2,6 +2,7 @@ package org.example.dcheck.api;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 
@@ -11,7 +12,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @author 三石而立Sunsy
  */
-public interface WhiteListRuleType {
+public interface WhiteListRuleType extends Serializable, EntityProvider<WhiteListRule> {
 
     /**
      * same as {@link ParagraphType} and {@link ParagraphLocationType}.
@@ -23,6 +24,4 @@ public interface WhiteListRuleType {
     @NotNull
     String name();
 
-    @NotNull
-    Class<?> getType();
 }

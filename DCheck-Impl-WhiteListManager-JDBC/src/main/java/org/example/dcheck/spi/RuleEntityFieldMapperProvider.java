@@ -1,7 +1,7 @@
 package org.example.dcheck.spi;
 
 import lombok.Getter;
-import org.example.dcheck.impl.wlm.jdbc.api.RuleEntityFieldMapper;
+import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ public class RuleEntityFieldMapperProvider implements DCheckProvider {
     private static final RuleEntityFieldMapperProvider INSTANCE = new RuleEntityFieldMapperProvider();
 
     @Getter(lazy = true)
-    private final List<RuleEntityFieldMapper> mappers = Providers.findAllImplementations(RuleEntityFieldMapper.class);
+    private final List<EntityFieldMapper> mappers = Providers.findAllImplementations(EntityFieldMapper.class);
 
     public static RuleEntityFieldMapperProvider getInstance() {
         return INSTANCE;

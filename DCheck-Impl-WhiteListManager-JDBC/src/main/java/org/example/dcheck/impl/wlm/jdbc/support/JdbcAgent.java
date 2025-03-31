@@ -2,17 +2,14 @@ package org.example.dcheck.impl.wlm.jdbc.support;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import lombok.Data;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
-import org.example.dcheck.api.DuplicatePart;
-import org.example.dcheck.api.PojoField;
-import org.example.dcheck.api.WhiteListRule;
-import org.example.dcheck.api.WhiteListRuleType;
+import org.example.dcheck.annotation.Index;
+import org.example.dcheck.api.*;
 import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.impl.wlm.jdbc.api.BatchInsertOrUpdateSQLGenerator;
-import org.example.dcheck.impl.wlm.jdbc.api.RuleEntityFieldMapper;
+import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
 import org.example.dcheck.impl.wlm.jdbc.exception.JdbcException;
 import org.example.dcheck.impl.wlm.jdbc.exception.UnsupportedFieldTypeException;
 import org.example.dcheck.spi.BatchInsertOrUpdateSQLGeneratorProvider;
@@ -21,12 +18,16 @@ import org.example.dcheck.spi.RuleEntityFieldMapperProvider;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.lang.NonNull;
 
+import javax.annotation.Resource;
 import javax.sql.DataSource;
 import java.io.Serializable;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Date: 2025/3/30
@@ -44,15 +45,13 @@ public class JdbcAgent implements AutoCloseable {
 
     protected final Set<Class<?>> entityTableGenerated = ConcurrentHashMap.newKeySet();
 
-    protected final Map<Class<? extends WhiteListRule>, List<RuleEntityFieldMapper>> fieldMappers = new ConcurrentHashMap<>();
+    protected final Map<EntityProvider<?>, Map<BeanProperty, EntityFieldMapper>> fieldMappers = new ConcurrentHashMap<>();
 
     protected final BatchInsertOrUpdateSQLGenerator batchInsertOrUpdateSQLGenerator;
 
     protected static final String DCHECK_TABLE_PREFIX = "dcheck_";
 
     protected static final String RULE_TABLE_PREFIX = DCHECK_TABLE_PREFIX + "wlr_state_";
-    @Getter
-    protected final String ruleTypeTableName = DCHECK_TABLE_PREFIX + "wlr_type";
 
     public JdbcAgent(@NonNull String url, String username, String password) throws JdbcException {
         jdbcProperties = new Properties(DCheckConfigProvider.getInstance().getDCheckConfig().getValues());
@@ -110,57 +109,196 @@ public class JdbcAgent implements AutoCloseable {
         createTableIfNeeded(rules.get(0));
         Map<WhiteListRuleType, List<BatchInsertOrUpdateSQLGenerator.MappedRuleEntity>> mappedGroups = rules.stream().map(rule -> {
             Map<String, PojoField> state = rule.getState();
-            List<RuleEntityFieldMapper> mappers = getMappers(rule, state);
-
-            Iterator<RuleEntityFieldMapper> mapperItr = mappers.iterator();
+            Map<BeanProperty, EntityFieldMapper> mappers = getMappers(rule.getType());
 
             Map<String, Serializable> mapped = new LinkedHashMap<>(state.size(), 1);
             for (Map.Entry<String, PojoField> entry : state.entrySet()) {
-                mapped.put(entry.getKey(), mapperItr.next().mapToJdbcFieldValue(jdbcProperties, rule, entry));
+                mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(jdbcProperties, rule.getType(), entry));
             }
 
             return new DefaultMappedRuleEntity(rule, mapped);
         }).collect(Collectors.groupingBy(e -> e.getRule().getType()));
 
         executeInTransaction("insert/update", () -> {
-            Map<WhiteListRuleType, PreparedStatement> sqls = batchInsertOrUpdateSQLGenerator.generateMergeRuleEntity(this, mappedGroups);
-            for (PreparedStatement sql : sqls.values()) {
+            Map<WhiteListRuleType, PreparedStatement> stm = batchInsertOrUpdateSQLGenerator.generateMergeRuleEntity(this, mappedGroups);
+            for (PreparedStatement sql : stm.values()) {
                 try (PreparedStatement ignored = sql) {
-                    log.debug("execute sql: \n{}", sql.toString());
+                    logSql(sql);
                     sql.execute();
                 }
             }
             try (PreparedStatement storeTypeSql = batchInsertOrUpdateSQLGenerator.generateMergeEntityType(this, rules)) {
-                log.debug("execute sql: \n{}", storeTypeSql.toString());
+                logSql(storeTypeSql);
                 storeTypeSql.execute();
             }
         });
     }
 
-    public void remove(List<@NotNull String> ruleIds) throws JdbcException {
+//    protected Map<WhiteListRuleType, >
+
+    public void remove(Set<@NotNull String> ruleIds) throws JdbcException {
         if (ruleIds.isEmpty()) return;
         executeInTransaction("remove", () -> {
-            try (Connection con = getConnection();
-                 PreparedStatement stm = con.prepareStatement(MessageFormat.format("SELECT * FROM {tableName} WHERE id in ({ids})", new HashMap<String, Object>() {{
-                     put("tableName", getRuleTypeTableName());
-                     put("ids", ruleIds.stream().map(id -> "?").collect(Collectors.joining(",")));
-                 }}))) {
-                int size = ruleIds.size();
-                for (int i = 0; i < size; i++) {
-                    stm.setString(i, ruleIds.get(i));
-                }
-//                con.getMetaData().getTa
-                try (ResultSet resultSet = stm.executeQuery()) {
-                    //TODO auto map to entity
-                    String id = resultSet.getString("id");
-                    String ruleTypeStr = resultSet.getString("ruleType");
-                    WhiteListRuleType ruleType = WhiteListRuleType.ALL_TYPES.get(ruleTypeStr);
-                    if (ruleType == null) {
-                        throw new JdbcException("unknown ruleType: " + ruleTypeStr);
+            try (Connection con = getConnection()) {
+                Map<WhiteListRuleType, List<RuleTypeEntity>> types = getRuleTypes(con, ruleIds);
+                List<PreparedStatement> deleteSql = types.entrySet()
+                        .stream()
+                        .map(group -> {
+                            try {
+                                PreparedStatement removeSql = con.prepareStatement(MessageFormat.format("DELETE FROM {tableName} WHERE id IN ({ids})", new HashMap<String, Object>() {{
+                                    put("tableName", inferRuleTableName(group.getKey()));
+                                    put("ids", group.getValue().stream().map(r -> "?").collect(Collectors.joining(",")));
+                                }}));
+                                int size = group.getValue().size();
+                                for (int i = 0; i < size; i++) {
+                                    logSql(removeSql);
+                                    removeSql.setString(i, group.getValue().get(i).getId());
+                                }
+                                return removeSql;
+                            } catch (SQLException e) {
+                                throw new RuntimeException(new JdbcException("open delete sql fail: " + e.getMessage(), e));
+                            }
+                        })
+                        .collect(Collectors.toList());
+
+                for (PreparedStatement statement : deleteSql) {
+                    try (PreparedStatement s = statement) {
+                        s.execute();
+                    } catch (Throwable e) {
+                        for (PreparedStatement s : deleteSql) {
+                            try {
+                                if (!s.isClosed()) {
+                                    s.close();
+                                }
+                            } catch (SQLException ignore) {
+                            }
+                        }
+                        throw e;
                     }
                 }
             }
         });
+    }
+
+    private Map<WhiteListRuleType, List<RuleTypeEntity>> getRuleTypes(Connection connection, Set<@NotNull String> ruleIds) throws SQLException {
+        try (
+                PreparedStatement stm = connection.prepareStatement("SELECT * FROM " + RuleTypeEntity.tableName + " WHERE id in ("
+                        + ruleIds.stream().map(id -> "?").collect(Collectors.joining(","))
+                        + ")")
+        ) {
+            Iterator<@NotNull String> itr = ruleIds.iterator();
+            for (int i = 0; itr.hasNext(); i++) {
+                stm.setString(i, itr.next());
+            }
+
+            try (Stream<RuleTypeEntity> rules = map(stm.executeQuery(), RuleTypeEntity.type)) {
+                return rules.collect(Collectors.groupingBy(RuleTypeEntity::getRuleType));
+            }
+        }
+    }
+
+    public Map<String, WhiteListRule> getRules(Set<String> ruleIds) throws JdbcException {
+        if (ruleIds.isEmpty()) return Collections.emptyMap();
+        @SuppressWarnings("unchecked")
+        Map<String, WhiteListRule>[] resultHolder = new Map[1];
+        executeInTransaction("select rules", () -> {
+            try (Connection con = getConnection()) {
+                Map<WhiteListRuleType, List<RuleTypeEntity>> types = getRuleTypes(con, ruleIds);
+                List<Map.Entry<WhiteListRuleType, PreparedStatement>> selectStm = types.entrySet()
+                        .stream()
+                        .map(group -> {
+                            try {
+                                List<RuleTypeEntity> value = group.getValue();
+                                PreparedStatement stm = con.prepareStatement(MessageFormat.format("SELECT * from {tableName} where id in ({ids})", new HashMap<String, Object>() {{
+                                    put("tableName", inferRuleTableName(group.getKey()));
+                                    put("ids", value.stream().map(r -> "?").collect(Collectors.joining(",")));
+                                }}));
+                                int size = value.size();
+                                for (int i = 0; i < size; i++) {
+                                    stm.setString(i, value.get(i).getId());
+                                }
+                                return new AbstractMap.SimpleEntry<>(group.getKey(), stm);
+                            } catch (SQLException e) {
+                                throw new RuntimeException(new JdbcException("open select rules statement fail: " + e.getMessage(), e));
+                            }
+                        }).collect(Collectors.toList());
+                for (Map.Entry<WhiteListRuleType, PreparedStatement> stm : selectStm) {
+                    logSql(stm.getValue());
+                    try (Statement ignore = stm.getValue(); Stream<WhiteListRule> rules = map(stm.getValue().executeQuery(), stm.getKey())) {
+                        resultHolder[0] = rules.collect(Collectors.toMap(WhiteListRule::getId, Function.identity()));
+                    } catch (Throwable e) {
+                        for (Map.Entry<WhiteListRuleType, PreparedStatement> s : selectStm) {
+                            try {
+                                if (!s.getValue().isClosed()) {
+                                    s.getValue().close();
+                                }
+                            } catch (SQLException ignore) {
+                            }
+                        }
+                        throw e;
+                    }
+                }
+            }
+        });
+        return resultHolder[0];
+    }
+
+    private static void logSql(PreparedStatement sql) {
+        log.debug("execute sql: \n{}", sql);
+    }
+
+    protected void sneakyClose(ResultSet resultSet) {
+        try {
+            if (resultSet.isClosed()) return;
+            resultSet.close();
+        } catch (SQLException ignore) {
+        }
+    }
+
+    public <E> @Resource Stream<E> map(ResultSet resultSet, EntityProvider<E> entityProvider) {
+        Iterator<E> it = new Iterator<E>() {
+            @Override
+            public boolean hasNext() {
+                try {
+                    return resultSet.next();
+                } catch (SQLException e) {
+                    sneakyClose(resultSet);
+                    throw new RuntimeException(new JdbcException("read result set fail: " + e.getMessage(), e));
+                }
+            }
+
+            @Override
+            public E next() {
+                Map<BeanProperty, EntityFieldMapper> mappers = getMappers(entityProvider);
+                Map<String, PojoField> state = new HashMap<>();
+                for (BeanProperty property : entityProvider.getSchema()) {
+                    Object jdbcValue;
+                    try {
+                        jdbcValue = resultSet.getObject(property.getName());
+                    } catch (SQLException e) {
+                        sneakyClose(resultSet);
+                        throw new RuntimeException(new JdbcException("get property from ResultSet fail: " + e.getMessage(), e));
+                    }
+                    Serializable value = mappers.get(property).mapToPojoFieldValue(jdbcProperties, new EntityFieldMapper.JdbcMapContext(
+                            new PojoField(property, null),
+                            property.getName(),
+                            jdbcValue
+                    ));
+                    state.put(property.getName(), new PojoField(property, value));
+                }
+                return entityProvider.populateStates(entityProvider.createPlain(), state);
+            }
+        };
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.DISTINCT), false)
+                .onClose(() -> {
+                    try {
+                        if (!resultSet.isClosed()) {
+                            resultSet.close();
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(new JdbcException("close result set fail: " + e.getMessage(), e));
+                    }
+                });
     }
 
     protected void startTransaction(String transactionName) throws JdbcException {
@@ -186,6 +324,12 @@ public class JdbcAgent implements AutoCloseable {
                 rollback(transactionName);
             } else {
                 commit(transactionName);
+            }
+            if (e instanceof JdbcException) {
+                throw (JdbcException) e;
+            }
+            if (e.getMessage() == null && e.getCause() instanceof JdbcException) {
+                throw (JdbcException) e.getCause();
             }
             throw new JdbcException("execution fail: " + e.getMessage(), e);
         }
@@ -231,16 +375,18 @@ public class JdbcAgent implements AutoCloseable {
     }
 
     @NotNull
-    private List<RuleEntityFieldMapper> getMappers(WhiteListRule rule, Map<String, PojoField> state) {
-        return fieldMappers.computeIfAbsent(rule.getClass(), c ->
-                state.entrySet().stream()
-                        .map(kv ->
-                                RuleEntityFieldMapperProvider.getInstance().getMappers().stream()
-                                        .filter(m -> m.support(rule, jdbcProperties, kv.getValue()))
-                                        .findFirst()
-                                        .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Field-Value '" + kv + "' of Rule '" + rule + "'. Value Type is '" + (kv.getValue() != null ? kv.getValue().getClass() : null) + "'"))
-                        )
-                        .collect(Collectors.toList())
+    protected Map<BeanProperty, EntityFieldMapper> getMappers(EntityProvider<?> provider) {
+        return fieldMappers.computeIfAbsent(provider, c ->
+                provider.getSchema().stream()
+                        .map(p -> {
+                            PojoField field = new PojoField(p, null);
+                            EntityFieldMapper mapper = RuleEntityFieldMapperProvider.getInstance().getMappers().stream()
+                                    .filter(m -> m.support(provider, jdbcProperties, field))
+                                    .findFirst()
+                                    .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Field-Value '" + field + "' of Rule '" + provider + "'. Value Type is '" + field.getProperty().getPropertyType() + "'"));
+                            return new AbstractMap.SimpleEntry<>(p, mapper);
+                        })
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
         );
     }
 
@@ -255,7 +401,7 @@ public class JdbcAgent implements AutoCloseable {
                 return;
             }
 
-            String createTemplate = generateTableCreateSQL(inferRuleTableName(rule), generateTableSchema(rule));
+            String createTemplate = generateTableCreateSQL(inferRuleTableName(rule.getType()), generateTableSchema(rule.getType()));
             try (Connection con = getConnection(); Statement stm = con.createStatement()) {
                 stm.execute(createTemplate);
             } catch (SQLException e) {
@@ -266,16 +412,20 @@ public class JdbcAgent implements AutoCloseable {
     }
 
     protected void prepareBuiltinTable() throws JdbcException {
-        String createTemplate = generateTableCreateSQL(getRuleTypeTableName(), generateTableSchema(new RuleType("", "")));
-        try (Connection con = getConnection(); Statement stm = con.createStatement()) {
-            stm.execute(createTemplate);
+        String ruleTypeTable = generateTableCreateSQL(RuleTypeEntity.tableName, generateTableSchema(RuleTypeEntity.type));
+        String ruleSetEntityTable = generateTableCreateSQL(RuleSetEntity.tableName, generateTableSchema(RuleSetEntity.type));
+        String ruleSetElementTable = generateTableCreateSQL(RuleSetElementEntity.tableName, generateTableSchema(RuleSetElementEntity.type));
+        try (Connection con = getConnection(); Statement ruleTypeTableStm = con.createStatement(); Statement ruleSetEntityTableStm = con.createStatement(); Statement ruleSetElementTableStm = con.createStatement()) {
+            ruleTypeTableStm.execute(ruleTypeTable);
+            ruleSetEntityTableStm.execute(ruleSetEntityTable);
+            ruleSetElementTableStm.execute(ruleSetElementTable);
         } catch (SQLException e) {
-            throw new JdbcException("create builtin table '" + getRuleTypeTableName() + "' fail: " + e.getMessage(), e);
+            throw new JdbcException("create builtin table '" + RuleTypeEntity.tableName + "' fail: " + e.getMessage(), e);
         }
     }
 
-    public String inferRuleTableName(WhiteListRule rule) {
-        return RULE_TABLE_PREFIX + rule.getType();
+    public String inferRuleTableName(WhiteListRuleType type) {
+        return RULE_TABLE_PREFIX + type;
     }
 
     protected String generateTableCreateSQL(String tableName, String schemaSeg) {
@@ -288,21 +438,19 @@ public class JdbcAgent implements AutoCloseable {
         );
     }
 
-    protected String generateTableSchema(WhiteListRule rule) {
-        List<RuleEntityFieldMapper> mappers = RuleEntityFieldMapperProvider.getInstance().getMappers();
+    protected String generateTableSchema(EntityProvider<?> provider) {
+        List<EntityFieldMapper> mappers = RuleEntityFieldMapperProvider.getInstance().getMappers();
 
-        Map<String, PojoField> state = rule.getState();
-
-        List<String> schemaSeg = new ArrayList<>(state.size());
-
-        for (Map.Entry<String, PojoField> entry : state.entrySet()) {
-            RuleEntityFieldMapper mapper = mappers.stream().filter(m -> m.support(rule, jdbcProperties, entry.getValue())).findFirst()
-                    .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Field-Value '" + entry + "' of Rule '" + rule + "'. Value Type is '" + (entry.getValue() != null ? entry.getValue().getClass() : null) + "'"));
-            String jdbcFieldType = mapper.getJdbcFieldType(rule, jdbcProperties, entry.getValue());
-            schemaSeg.add(entry.getKey() + " " + jdbcFieldType);
+        List<String> schemaSeg = new ArrayList<>(provider.getSchema().size());
+        for (BeanProperty property : provider.getSchema()) {
+            PojoField field = new PojoField(property, null);
+            EntityFieldMapper mapper = mappers.stream().filter(m -> m.support(provider, jdbcProperties, field)).findFirst()
+                    .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Property '" + property + "'."));
+            String jdbcFieldType = mapper.getJdbcFieldType(provider, jdbcProperties, field);
+            schemaSeg.add(property.getName() + " " + jdbcFieldType);
         }
 
-        if (state.containsKey("id")) {
+        if (provider.getSchema().stream().anyMatch(p -> "id".equals(p.getName()))) {
             schemaSeg.add("PRIMARY KEY (id)");
         }
 
@@ -356,37 +504,31 @@ public class JdbcAgent implements AutoCloseable {
     }
 
     @Data
-    protected static class RuleType implements WhiteListRule {
-        private final String id;
-        private final String ruleType;
+    public static class RuleTypeEntity {
+        private String id;
+        private WhiteListRuleType ruleType;
+        public static final String tableName = DCHECK_TABLE_PREFIX + "wlr_type";
+        public static final EntityProvider<RuleTypeEntity> type = EntityProvider.getDefaultProvider(RuleTypeEntity.class, RuleTypeEntity::new);
+    }
 
-        @Override
-        public @NotNull String getId() {
-            return "TypeRule";
-        }
+    @Data
+    public static class RuleSetEntity {
+        private String id;
+        private String description;
+        public static final String tableName = DCHECK_TABLE_PREFIX + "wlr_ruleSet";
+        public static final EntityProvider<RuleSetEntity> type = EntityProvider.getDefaultProvider(RuleSetEntity.class, RuleSetEntity::new);
+    }
 
-        public String getRuleType() {
-            return "RuleType";
-        }
-
-        @Override
-        public @NotNull WhiteListRuleType getType() {
-            return new WhiteListRuleType() {
-                @Override
-                public @NotNull String name() {
-                    return "TypeRule";
-                }
-
-                @Override
-                public @NotNull Class<?> getType() {
-                    return RuleType.class;
-                }
-            };
-        }
-
-        @Override
-        public @NotNull List<@NotNull DuplicatePart> calculateFilterScore(@NotNull List<@NotNull DuplicatePart> paragraphs, FilterContext handler) {
-            return paragraphs;
-        }
+    @Data
+    public static class RuleSetElementEntity {
+        private String id;
+        @Index
+        private String ruleSetId;
+        @Index
+        private String ruleId;
+        private Boolean enabled;
+        private Integer order;
+        public static final String tableName = DCHECK_TABLE_PREFIX + "wlr_ruleSetElement";
+        public static final EntityProvider<RuleSetElementEntity> type = EntityProvider.getDefaultProvider(RuleSetElementEntity.class, RuleSetElementEntity::new);
     }
 }
