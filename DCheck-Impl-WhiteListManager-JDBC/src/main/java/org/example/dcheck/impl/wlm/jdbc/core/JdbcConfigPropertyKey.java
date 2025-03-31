@@ -6,9 +6,9 @@ package org.example.dcheck.impl.wlm.jdbc.core;
  * @author 三石而立Sunsy
  */
 class JdbcConfigPropertyKey {
-    static final String JDBC_URL = "wlm.jdbc.connection.url";
+    static final String JDBC_URL = "alm.jdbc.connection.url";
 
-    static final String JDBC_USERNAME = "wlm.jdbc.connection.username";
+    static final String JDBC_USERNAME = "alm.jdbc.connection.username";
 
-    static final String JDBC_PASSWORD = "wlm.jdbc.connection.password";
+    static final String JDBC_PASSWORD = "alm.jdbc.connection.password";
 }
