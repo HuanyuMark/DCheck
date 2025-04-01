@@ -61,13 +61,7 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
 
                             }}));
                             stm.closeOnCompletion();
-                            int size = mappedValues.size();
-                            for (int i = 0; i < size; i++) {
-                                Object[] values = mappedValues.get(i).values().stream().filter(Objects::nonNull).toArray();
-                                for (int j = 0; j < values.length; j++) {
-                                    stm.setObject(i + j, values[j]);
-                                }
-                            }
+                            setMappedValuesInStm(mappedValues, stm);
                             return new AbstractMap.SimpleEntry<>(kv.getKey(), stm);
                         } catch (JdbcException e) {
                             throw new RuntimeException(e);
@@ -148,7 +142,7 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
         try (Connection con = agent.getConnection();
              PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + JdbcAgent.RuleSetEntity.tableName + " (id,description) " +
                      "VALUES %s " +
-                     "ON DUPLICATE KEY UPDATE description=VALUES(description)", valuesSeg))) {
+                     "ON DUPLICATE KEY UPDATE description=VALUES(description);", valuesSeg))) {
             int size = entities.size();
             for (int i = 0; i < size; i += 2) {
                 JdbcAgent.RuleSetEntity entity = entities.get(i);
@@ -163,17 +157,37 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
 
     protected static final String RULE_SET_ELEMENT_ENTITY_COLUMNS = JdbcAgent.RuleSetElementEntity.provider.getSchema().stream().map(BeanProperty::getName).collect(Collectors.joining(","));
 
+    protected static final String RULE_SET_ELEMENT_UPDATE_STM = JdbcAgent.RuleSetElementEntity.provider.getSchema().stream().map(p -> p.getName() + "=VALUES(" + p.getName() + ")").collect(Collectors.joining(","));
+
     @Override
     public void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException {
+        List<Map<String, Object>> mappedValues = entities.stream().map(MappedRuleSetElementEntity::getMappedValues).collect(Collectors.toList());
+        String valuesSeg = mappedValues.stream().map(values -> "(" + values.values().stream().map(v -> v == null ? "NULL" : "?").collect(Collectors.joining(",")) + ")").collect(Collectors.joining(","));
 
         try (Connection con = agent.getConnection();
              PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + JdbcAgent.RuleSetElementEntity.tableName + " (%s) " +
-                     "VALUES %s " +
-                     //TODO implement
-                     "ON DUPLICATE KEY UPDATE description=VALUES(description)", RULE_SET_ELEMENT_ENTITY_COLUMNS))) {
+                             "VALUES %s " +
+                             "ON DUPLICATE KEY UPDATE %s;",
+                     RULE_SET_ELEMENT_ENTITY_COLUMNS,
+                     valuesSeg,
+                     RULE_SET_ELEMENT_UPDATE_STM
+             ))) {
+
+            setMappedValuesInStm(mappedValues, stm);
+
             stm.execute();
         } catch (SQLException e) {
-            throw new JdbcException("execute MergeRuleSetEntity fail: ", e);
+            throw new JdbcException("Execute MergeRuleSetEntity fail: ", e);
+        }
+    }
+
+    private void setMappedValuesInStm(List<Map<String, Object>> mappedValues, PreparedStatement stm) throws SQLException {
+        int size = mappedValues.size();
+        for (int i = 0; i < size; i++) {
+            Object[] values = mappedValues.get(i).values().stream().filter(Objects::nonNull).toArray();
+            for (int j = 0; j < values.length; j++) {
+                stm.setObject(i + j, values[j]);
+            }
         }
     }
 
