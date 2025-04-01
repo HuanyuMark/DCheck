@@ -8,7 +8,6 @@ import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 import org.example.dcheck.util.BeanProperty;
 
-import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
@@ -30,19 +29,19 @@ public interface JdbcDelegator {
 
     void executeMergeRuleSetEntity(JdbcAgent agent, List<JdbcAgent.RuleSetEntity> entities) throws JdbcException;
 
-    void executeMergeRuleSetElement(JdbcAgent jdbcAgent, List<MappedRuleSetElementEntity> entities) throws JdbcException;
+    void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException;
 
 
     interface MappedRuleEntity {
         AllowListRule getRule();
 
-        Map<String, Serializable> getMappedValues();
+        Map<String, Object> getMappedValues();
     }
 
     interface MappedRuleSetElementEntity {
         JdbcAgent.RuleSetElementEntity getEntity();
 
-        Map<String, Serializable> getMappedValues();
+        Map<String, Object> getMappedValues();
     }
 
     interface TableCreationContext {

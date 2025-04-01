@@ -42,8 +42,8 @@ public class AllowListTypeMapper implements EntityFieldMapper {
     }
 
     @Override
-    public Serializable mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
-        Serializable value = pojoState.getValue().getValue();
+    public Object mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
+        Object value = pojoState.getValue().getValue();
         return value instanceof AllowListRuleType ? ((AllowListRuleType) value).name() : null;
     }
 }

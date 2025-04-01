@@ -24,7 +24,7 @@ public interface EntityFieldMapper {
      */
     Serializable mapToPojoFieldValue(JdbcAgent agent, JdbcMapContext mapContext);
 
-    default Serializable mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
+    default Object mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
         return pojoState.getValue().getValue();
     }
 

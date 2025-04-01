@@ -17,7 +17,6 @@ import org.example.dcheck.spi.RuleEntityFieldMapperProvider;
 import org.example.dcheck.util.BeanProperty;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -47,8 +46,8 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
                     .stream()
                     .filter(kv -> !kv.getValue().isEmpty())
                     .map(kv -> {
-                        List<Map<String, Serializable>> mappedValues = kv.getValue().stream().map(MappedRuleEntity::getMappedValues).collect(Collectors.toList());
-                        Map<String, Serializable> firstEntity = mappedValues.get(0);
+                        List<Map<String, Object>> mappedValues = kv.getValue().stream().map(MappedRuleEntity::getMappedValues).collect(Collectors.toList());
+                        Map<String, Object> firstEntity = mappedValues.get(0);
                         AllowListRule rule = kv.getValue().get(0).getRule();
                         try {
                             PreparedStatement stm = agent.prepareStatement(MessageFormat.format("INSERT INTO {tableName} ({keys})" +
@@ -162,9 +161,20 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
         }
     }
 
-    @Override
-    public void executeMergeRuleSetElement(JdbcAgent jdbcAgent, List<MappedRuleSetElementEntity> entities) throws JdbcException {
+    protected static final String RULE_SET_ELEMENT_ENTITY_COLUMNS = JdbcAgent.RuleSetElementEntity.provider.getSchema().stream().map(BeanProperty::getName).collect(Collectors.joining(","));
 
+    @Override
+    public void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException {
+
+        try (Connection con = agent.getConnection();
+             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + JdbcAgent.RuleSetElementEntity.tableName + " (%s) " +
+                     "VALUES %s " +
+                     //TODO implement
+                     "ON DUPLICATE KEY UPDATE description=VALUES(description)", RULE_SET_ELEMENT_ENTITY_COLUMNS))) {
+            stm.execute();
+        } catch (SQLException e) {
+            throw new JdbcException("execute MergeRuleSetEntity fail: ", e);
+        }
     }
 
     @NotNull
