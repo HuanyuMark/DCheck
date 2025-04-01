@@ -1,4 +1,4 @@
-package org.example.dcheck.impl.wlm.jdbc.exception;
+package org.example.dcheck.impl.alm.jdbc.exception;
 
 import lombok.experimental.StandardException;
 import org.example.dcheck.exception.DCheckRuntimeException;

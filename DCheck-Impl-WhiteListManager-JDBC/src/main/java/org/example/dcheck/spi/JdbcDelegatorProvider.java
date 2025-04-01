@@ -1,10 +1,8 @@
 package org.example.dcheck.spi;
 
-import org.example.dcheck.impl.wlm.jdbc.api.JdbcDelegator;
-import org.example.dcheck.impl.wlm.jdbc.exception.UnsupportedBatchOperationException;
-import org.example.dcheck.impl.wlm.jdbc.support.JdbcAgent;
-
-import java.util.Properties;
+import org.example.dcheck.impl.alm.jdbc.api.JdbcDelegator;
+import org.example.dcheck.impl.alm.jdbc.exception.UnsupportedBatchOperationException;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 
 /**
  * Date: 2025/3/30
@@ -18,11 +16,11 @@ public class JdbcDelegatorProvider implements DCheckProvider {
         return INSTANCE;
     }
 
-    public JdbcDelegator find(JdbcAgent agent, Properties jdbcProperties) {
+    public JdbcDelegator find(JdbcAgent agent) {
         return Providers.findAllImplementations(JdbcDelegator.class)
                 .stream()
-                .filter(g -> g.support(agent, jdbcProperties))
+                .filter(g -> g.support(agent))
                 .findFirst()
-                .orElseThrow(() -> new UnsupportedBatchOperationException("Unsupported Batch Operation for " + jdbcProperties));
+                .orElseThrow(() -> new UnsupportedBatchOperationException("Unsupported Batch Operation for " + agent.getJdbcProperties()));
     }
 }

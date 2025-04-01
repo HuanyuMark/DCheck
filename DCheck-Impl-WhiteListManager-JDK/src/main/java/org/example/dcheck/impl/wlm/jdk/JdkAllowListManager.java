@@ -20,7 +20,7 @@ public class JdkAllowListManager implements AllowListManager {
     }
 
     @Override
-    public void addAndSaveRuleSet(AllowListRuleSet ruleSet) {
+    public void addRuleSet(AllowListRuleSet ruleSet) {
 
     }
 }

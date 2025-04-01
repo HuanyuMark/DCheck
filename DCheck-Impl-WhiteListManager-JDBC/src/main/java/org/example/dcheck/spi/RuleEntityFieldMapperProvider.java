@@ -1,7 +1,7 @@
 package org.example.dcheck.spi;
 
 import lombok.Getter;
-import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
 
 import java.util.List;
 

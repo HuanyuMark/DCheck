@@ -1,0 +1,8 @@
+org.example.dcheck.impl.alm.jdbc.mapper.DoubleMapper
+org.example.dcheck.impl.alm.jdbc.mapper.IdentityStringMapper
+org.example.dcheck.impl.alm.jdbc.mapper.IntegerMapper
+org.example.dcheck.impl.alm.jdbc.mapper.StringMapper
+org.example.dcheck.impl.alm.jdbc.mapper.BooleanMapper
+org.example.dcheck.impl.alm.jdbc.mapper.AllowListTypeMapper
+
+

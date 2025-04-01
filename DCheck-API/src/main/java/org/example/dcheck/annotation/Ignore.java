@@ -4,6 +4,7 @@ import java.lang.annotation.*;
 
 /**
  * Date 2025/03/31
+ * skip the using of the annotated element
  *
  * @author 三石而立Sunsy
  */

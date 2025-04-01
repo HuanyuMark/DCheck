@@ -1,10 +1,9 @@
-package org.example.dcheck.impl.wlm.jdbc.mapper;
+package org.example.dcheck.impl.alm.jdbc.mapper;
 
 import lombok.Getter;
 import org.example.dcheck.api.EntityProvider;
 import org.example.dcheck.api.PojoField;
-
-import java.util.Properties;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 
 /**
  * Date: 2025/3/30
@@ -37,7 +36,7 @@ public class IdentityStringMapper extends StringMapper {
     }
 
     @Override
-    public String getJdbcFieldType(EntityProvider<?> entity, Properties jdbcProperties, PojoField kv) {
+    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
         return jdbcFieldType;
     }
 }

@@ -1,20 +1,24 @@
-package org.example.dcheck.impl.wlm.jdbc.support;
+package org.example.dcheck.impl.alm.jdbc.support;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import lombok.*;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.annotation.Ignore;
-import org.example.dcheck.annotation.Index;
-import org.example.dcheck.api.*;
+import org.example.dcheck.api.AllowListRule;
+import org.example.dcheck.api.AllowListRuleType;
+import org.example.dcheck.api.EntityProvider;
+import org.example.dcheck.api.PojoField;
 import org.example.dcheck.common.util.MessageFormat;
-import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
-import org.example.dcheck.impl.wlm.jdbc.api.JdbcDelegator;
-import org.example.dcheck.impl.wlm.jdbc.exception.JdbcException;
-import org.example.dcheck.impl.wlm.jdbc.exception.UnsupportedFieldTypeException;
+import org.example.dcheck.impl.alm.jdbc.annotation.Index;
+import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.api.JdbcDelegator;
+import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
+import org.example.dcheck.impl.alm.jdbc.exception.UnsupportedFieldTypeException;
 import org.example.dcheck.spi.DCheckConfigProvider;
 import org.example.dcheck.spi.JdbcDelegatorProvider;
 import org.example.dcheck.spi.RuleEntityFieldMapperProvider;
+import org.example.dcheck.util.BeanProperty;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.core.Ordered;
 import org.springframework.lang.NonNull;
@@ -51,7 +55,7 @@ public class JdbcAgent implements AutoCloseable {
 
     protected final JdbcDelegator jdbcDelegator;
 
-    protected static final String DCHECK_TABLE_PREFIX = "dcheck_";
+    public static final String DCHECK_TABLE_PREFIX = "dcheck_";
 
     public static final String RULE_TABLE_PREFIX = DCHECK_TABLE_PREFIX + "alr_ruleState_";
 
@@ -61,52 +65,11 @@ public class JdbcAgent implements AutoCloseable {
         jdbcProperties.setProperty("username", username);
         jdbcProperties.setProperty("password", password);
         this.dataSource = buildDataSource();
-        jdbcDelegator = JdbcDelegatorProvider.getInstance().find(this, jdbcProperties);
+        jdbcDelegator = JdbcDelegatorProvider.getInstance().find(this);
         prepareBuiltinTable();
     }
 
-    protected DataSource buildDataSource() {
-        DruidDataSource druidDataSource = new DruidDataSource();
-        jdbcProperties.setProperty("druid.url", jdbcProperties.getProperty("url"));
-        jdbcProperties.setProperty("druid.username", jdbcProperties.getProperty("username"));
-        jdbcProperties.setProperty("druid.password", jdbcProperties.getProperty("password"));
-        druidDataSource.configFromPropeties(jdbcProperties);
-        return druidDataSource;
-    }
-
-    @Data
-    protected static class DefaultMappedRuleEntity implements JdbcDelegator.MappedRuleEntity {
-        protected final AllowListRule rule;
-        protected final Map<String, Serializable> mappedValues;
-    }
-
-    public Optional<Connection> tryGetConnection() {
-        return Optional.ofNullable(this.connection.get());
-    }
-
-    public Connection getConnection() throws JdbcException {
-        Connection connection = this.connection.get();
-        if (connection != null) {
-            return connection;
-        }
-        try {
-            Connection newC = new ConnectionProxy(dataSource.getConnection());
-            this.connection.set(newC);
-            return newC;
-        } catch (SQLException e) {
-            throw new JdbcException("get connection from dataSource fail: " + e.getMessage(), e);
-        }
-    }
-
-    public PreparedStatement prepareStatement(@NonNull String sql) throws JdbcException {
-        try {
-            return getConnection().prepareStatement(sql);
-        } catch (SQLException e) {
-            throw new JdbcException("create prepared sql fail: " + e.getMessage(), e);
-        }
-    }
-
-    public void insertOrUpdate(List<AllowListRule> rules) throws JdbcException {
+    public void mergeRule(List<AllowListRule> rules) throws JdbcException {
         if (rules.isEmpty()) return;
 
         for (AllowListRule rule : rules) {
@@ -117,15 +80,15 @@ public class JdbcAgent implements AutoCloseable {
             Map<String, PojoField> state = rule.getState();
             Map<BeanProperty, EntityFieldMapper> mappers = getMappers(rule.getType());
 
-            Map<String, Serializable> mapped = new LinkedHashMap<>(state.size(), 1);
+            Map<String, Serializable> mapped = new LinkedHashMap<>((int) (state.size() / 0.7));
             for (Map.Entry<String, PojoField> entry : state.entrySet()) {
-                mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(jdbcProperties, rule.getType(), entry));
+                mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(this, rule.getType(), entry));
             }
 
             return new DefaultMappedRuleEntity(rule, mapped);
         }).collect(Collectors.groupingBy(e -> e.getRule().getType()));
 
-        executeInTransaction("insert/update", () -> {
+        executeInTransaction("mergeRule", () -> {
             Map<AllowListRuleType, PreparedStatement> stm = jdbcDelegator.generateMergeRuleEntity(this, mappedGroups);
             for (PreparedStatement sql : stm.values()) {
                 try (PreparedStatement ignored = sql) {
@@ -140,11 +103,9 @@ public class JdbcAgent implements AutoCloseable {
         });
     }
 
-//    protected Map<WhiteListRuleType, >
-
-    public void remove(Set<@NotNull String> ruleIds) throws JdbcException {
+    public void deleteRule(List<@NotNull String> ruleIds) throws JdbcException {
         if (ruleIds.isEmpty()) return;
-        executeInTransaction("remove", () -> {
+        executeInTransaction("deleteRule", () -> {
             try (Connection con = getConnection()) {
                 Map<AllowListRuleType, List<RuleTypeEntity>> types = getRuleTypes(con, ruleIds);
                 List<PreparedStatement> deleteSql = types.entrySet()
@@ -187,28 +148,11 @@ public class JdbcAgent implements AutoCloseable {
         });
     }
 
-    private Map<AllowListRuleType, List<RuleTypeEntity>> getRuleTypes(Connection connection, Set<@NotNull String> ruleIds) throws SQLException {
-        try (
-                PreparedStatement stm = connection.prepareStatement("SELECT * FROM " + RuleTypeEntity.tableName + " WHERE id in ("
-                        + ruleIds.stream().map(id -> "?").collect(Collectors.joining(","))
-                        + ")")
-        ) {
-            Iterator<@NotNull String> itr = ruleIds.iterator();
-            for (int i = 0; itr.hasNext(); i++) {
-                stm.setString(i, itr.next());
-            }
-
-            try (Stream<RuleTypeEntity> rules = map(stm.executeQuery(), RuleTypeEntity.type)) {
-                return rules.collect(Collectors.groupingBy(RuleTypeEntity::getRuleType));
-            }
-        }
-    }
-
-    public Map<String, AllowListRule> getRules(Set<String> ruleIds) throws JdbcException {
+    public Map<String, AllowListRule> selectRule(List<String> ruleIds) throws JdbcException {
         if (ruleIds.isEmpty()) return Collections.emptyMap();
         @SuppressWarnings("unchecked")
         Map<String, AllowListRule>[] resultHolder = new Map[1];
-        executeInTransaction("select rules", () -> {
+        executeInTransaction("selectRule", () -> {
             try (Connection con = getConnection()) {
                 Map<AllowListRuleType, List<RuleTypeEntity>> types = getRuleTypes(con, ruleIds);
                 List<Map.Entry<AllowListRuleType, PreparedStatement>> selectStm = types.entrySet()
@@ -250,6 +194,104 @@ public class JdbcAgent implements AutoCloseable {
         return resultHolder[0];
     }
 
+    public void mergeRuleSet(List<RuleSetEntity> entities) throws JdbcException {
+        if (entities.isEmpty()) return;
+        executeInTransaction("mergeRuleSet", () -> jdbcDelegator.executeMergeRuleSetEntity(this, entities));
+    }
+
+    public void deleteElementInRuleSet(String ruleSetId, List<String> ruleIds) throws JdbcException {
+        if (ruleIds.isEmpty()) return;
+        executeInTransaction("deleteElementInRuleSet", () -> {
+            try (Connection con = getConnection();
+                 PreparedStatement stm = con.prepareStatement(String.format(
+                                 "DELETE " + RuleSetElementEntity.tableName + " WHERE ruleSetId=? AND ruleId IN (%s)",
+                                 ruleIds.stream().map(r -> "?").collect(Collectors.joining(","))
+                         )
+                 )) {
+
+                stm.setString(0, ruleSetId);
+
+                int size = ruleIds.size();
+                for (int i = 1; i <= size; i++) {
+                    stm.setString(i, ruleIds.get(i));
+                }
+
+                stm.execute();
+            }
+        });
+    }
+
+    public void mergeRuleSetElement(List<RuleSetElementEntity> entities) throws JdbcException {
+        if (entities.isEmpty()) return;
+        entities.stream().map(entity -> {
+            //TODO map entity values
+            return null;
+        });
+
+        //TODO call jdbcDelegator.executeMergeRuleSetElement with mapped entities above
+        executeInTransaction("mergeRuleSetElement", () -> jdbcDelegator.executeMergeRuleSetElement(this, Collections.emptyList()));
+    }
+
+
+    protected DataSource buildDataSource() {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        jdbcProperties.setProperty("druid.url", jdbcProperties.getProperty("url"));
+        jdbcProperties.setProperty("druid.username", jdbcProperties.getProperty("username"));
+        jdbcProperties.setProperty("druid.password", jdbcProperties.getProperty("password"));
+        druidDataSource.configFromPropeties(jdbcProperties);
+        return druidDataSource;
+    }
+
+    @Data
+    protected static class DefaultMappedRuleEntity implements JdbcDelegator.MappedRuleEntity {
+        protected final AllowListRule rule;
+        protected final Map<String, Serializable> mappedValues;
+
+    }
+
+    public Optional<Connection> tryGetConnection() {
+        return Optional.ofNullable(this.connection.get());
+    }
+
+    public Connection getConnection() throws JdbcException {
+        Connection connection = this.connection.get();
+        if (connection != null) {
+            return connection;
+        }
+        try {
+            Connection newC = new ConnectionProxy(dataSource.getConnection());
+            this.connection.set(newC);
+            return newC;
+        } catch (SQLException e) {
+            throw new JdbcException("get connection from dataSource fail: " + e.getMessage(), e);
+        }
+    }
+
+    public PreparedStatement prepareStatement(@NonNull String sql) throws JdbcException {
+        try {
+            return getConnection().prepareStatement(sql);
+        } catch (SQLException e) {
+            throw new JdbcException("create prepared sql fail: " + e.getMessage(), e);
+        }
+    }
+
+    private Map<AllowListRuleType, List<RuleTypeEntity>> getRuleTypes(Connection connection, List<@NotNull String> ruleIds) throws SQLException {
+        try (
+                PreparedStatement stm = connection.prepareStatement("SELECT * FROM " + RuleTypeEntity.tableName + " WHERE id in ("
+                        + ruleIds.stream().map(id -> "?").collect(Collectors.joining(","))
+                        + ")")
+        ) {
+            Iterator<@NotNull String> itr = ruleIds.iterator();
+            for (int i = 0; itr.hasNext(); i++) {
+                stm.setString(i, itr.next());
+            }
+
+            try (Stream<RuleTypeEntity> rules = map(stm.executeQuery(), RuleTypeEntity.type)) {
+                return rules.collect(Collectors.groupingBy(RuleTypeEntity::getRuleType));
+            }
+        }
+    }
+
     private static void logSql(PreparedStatement sql) {
         log.debug("execute sql: \n{}", sql);
     }
@@ -286,7 +328,7 @@ public class JdbcAgent implements AutoCloseable {
                         sneakyClose(resultSet);
                         throw new RuntimeException(new JdbcException("get property from ResultSet fail: " + e.getMessage(), e));
                     }
-                    Serializable value = mappers.get(property).mapToPojoFieldValue(jdbcProperties, new EntityFieldMapper.JdbcMapContext(
+                    Serializable value = mappers.get(property).mapToPojoFieldValue(JdbcAgent.this, new EntityFieldMapper.JdbcMapContext(
                             new PojoField(property, null),
                             property.getName(),
                             jdbcValue
@@ -388,7 +430,7 @@ public class JdbcAgent implements AutoCloseable {
                         .map(p -> {
                             PojoField field = new PojoField(p, null);
                             EntityFieldMapper mapper = RuleEntityFieldMapperProvider.getInstance().getMappers().stream()
-                                    .filter(m -> m.support(provider, jdbcProperties, field))
+                                    .filter(m -> m.support(this, provider, field))
                                     .findFirst()
                                     .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Field-Value '" + field + "' of Rule '" + provider + "'. Value Type is '" + field.getProperty().getPropertyType() + "'"));
                             return new AbstractMap.SimpleEntry<>(p, mapper);
@@ -454,6 +496,7 @@ public class JdbcAgent implements AutoCloseable {
         @Delegate
         private final Connection target;
 
+        @Override
         public void close() throws SQLException {
             try {
                 target.close();
@@ -462,6 +505,7 @@ public class JdbcAgent implements AutoCloseable {
             }
         }
 
+        @Override
         public void commit() throws SQLException {
             try {
                 target.commit();
@@ -470,6 +514,7 @@ public class JdbcAgent implements AutoCloseable {
             }
         }
 
+        @Override
         public void rollback() throws SQLException {
             try {
                 target.rollback();

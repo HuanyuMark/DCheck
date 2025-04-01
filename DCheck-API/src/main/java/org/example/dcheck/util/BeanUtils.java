@@ -1,6 +1,5 @@
 package org.example.dcheck.util;
 
-import org.example.dcheck.api.BeanProperty;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
@@ -19,7 +18,9 @@ public class BeanUtils {
     protected static final Map<Class<?>, List<BeanProperty>> propertyCache = new ConcurrentHashMap<>();
 
     protected static String getPropertyName(Method method, int nameStartIdx) {
-        StringBuilder str = new StringBuilder(method.getName().substring(nameStartIdx));
+        String rawName = method.getName().substring(nameStartIdx);
+        if (Character.isLowerCase(rawName.charAt(0))) return rawName;
+        StringBuilder str = new StringBuilder(rawName);
         str.replace(0, 1, String.valueOf(Character.toLowerCase(str.charAt(0))));
         return str.toString();
     }
@@ -41,8 +42,6 @@ public class BeanUtils {
                     propertyName = getPropertyName(method, 3);
                 } else if (method.getName().startsWith("is")) {
                     isGetterName = true;
-                    StringBuilder str = new StringBuilder(method.getName().substring(2));
-                    str.replace(0, 1, String.valueOf(Character.toLowerCase(str.charAt(0))));
                     propertyName = getPropertyName(method, 2);
                 } else if (method.getName().startsWith("with")) {
                     isWitherName = true;
@@ -51,7 +50,7 @@ public class BeanUtils {
                     continue;
                 }
 
-                if (isGetterName && method.getReturnType() != Void.class && method.getParameterCount() == 0) {
+                if (isGetterName && method.getReturnType() != void.class && method.getParameterCount() == 0) {
                     BeanProperty property = properties.get(propertyName);
                     if (property == null) {
                         properties.put(propertyName, new BeanProperty(target, propertyName, method, null, null, method.getReturnType()));
@@ -73,10 +72,10 @@ public class BeanUtils {
                     Class<?> valueType = method.getParameterTypes()[0];
                     if (property == null) {
                         properties.put(propertyName, new BeanProperty(target, propertyName, null, null, method, valueType));
-                    } else if (property.getSetter() != null) {
+                    } else if (property.getWither() != null) {
                         continue;
                     } else if (valueType.isAssignableFrom(property.getPropertyType())) {
-                        properties.put(propertyName, property.withSetter(method).withPropertyType(valueType));
+                        properties.put(propertyName, property.withWither(method).withPropertyType(valueType));
                     }
                 } else {
                     throw new IllegalStateException();

@@ -1,6 +1,7 @@
 package org.example.dcheck.api;
 
 import lombok.Data;
+import org.example.dcheck.util.BeanProperty;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;

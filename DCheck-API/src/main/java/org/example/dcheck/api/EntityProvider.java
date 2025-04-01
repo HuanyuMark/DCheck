@@ -2,6 +2,7 @@ package org.example.dcheck.api;
 
 import lombok.experimental.ExtensionMethod;
 import org.example.dcheck.annotation.Ignore;
+import org.example.dcheck.util.BeanProperty;
 import org.example.dcheck.util.BeanUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,14 +39,16 @@ public interface EntityProvider<E> {
         };
     }
 
-
+    /**
+     * @return properties which has getter and not be annotated with {@link Ignore}
+     * and return type of getter is {@link Serializable}
+     */
     static List<BeanProperty> getDefaultSchema(Class<?> ruleClazz) {
         return SCHEMA_CACHE.computeIfAbsent(ruleClazz, clazz ->
                 clazz.getProperties()
                         .stream()
                         .filter(p -> p.getGetter() != null)
-                        .filter(p -> Serializable.class.isAssignableFrom(p.getGetter().getReturnType()))
-                        .filter(p -> p.isGetterAnnPresent(Ignore.class))
+                        .filter(p -> !p.isGetterAnnPresent(Ignore.class))
                         .collect(Collectors.toList())
                         .unmodifiableList()
         );
@@ -81,8 +84,7 @@ public interface EntityProvider<E> {
         return clazz
                 .getProperties()
                 .stream()
-                .filter(p -> p.getSetter() != null)
-                .filter(p -> p.isSetterAnnPresent(Ignore.class))
+                .filter(p -> !p.isSetterAnnPresent(Ignore.class) || !p.isWitherAnnPresent(Ignore.class))
                 .collect(Collectors.toList())
                 .unmodifiableList();
     }

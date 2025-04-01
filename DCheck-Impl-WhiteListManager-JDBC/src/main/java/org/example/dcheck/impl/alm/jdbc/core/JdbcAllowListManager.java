@@ -1,10 +1,10 @@
-package org.example.dcheck.impl.wlm.jdbc.core;
+package org.example.dcheck.impl.alm.jdbc.core;
 
 import org.example.dcheck.api.AllowListManager;
 import org.example.dcheck.api.AllowListRuleSet;
 import org.example.dcheck.api.DCheckConfig;
-import org.example.dcheck.impl.wlm.jdbc.exception.JdbcException;
-import org.example.dcheck.impl.wlm.jdbc.support.JdbcAgent;
+import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 import org.example.dcheck.spi.DCheckConfigProvider;
 
 /**
@@ -38,7 +38,7 @@ public class JdbcAllowListManager implements AllowListManager {
     }
 
     @Override
-    public void addAndSaveRuleSet(AllowListRuleSet ruleSet) {
+    public void addRuleSet(AllowListRuleSet ruleSet) {
 
     }
 }

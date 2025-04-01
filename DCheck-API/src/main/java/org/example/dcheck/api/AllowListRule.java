@@ -8,10 +8,8 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Date: 2025/3/19
@@ -41,30 +39,21 @@ public interface AllowListRule {
     @NotNull
     AllowListRuleType getType();
 
+    default Map<String, PojoField> getState() {
+        return getType()
+                .getSchema()
+                .stream()
+                .map(p -> new AbstractMap.SimpleEntry<>(p.getName(), new PojoField(p, (Serializable) p.get(AllowListRule.this))))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (k1, k2) -> {
+                    throw new IllegalStateException("duplicate state field '" + k1 + "' and '" + k2 + "'");
+                }, LinkedHashMap::new))
+                .unmodifiableMap();
+    }
+
     /**
      * The larger the value, the more likely the respective paragraph to be ignored
      */
     @NotNull List<@NotNull DuplicatePart> calculateFilterScore(@NotNull List<@NotNull DuplicatePart> paragraphs, FilterContext handler);
-
-
-    /**
-     * get state schema.
-     */
-    default List<BeanProperty> getSchema() {
-        return EntityProvider.getDefaultSchema(getClass());
-    }
-
-
-    default Map<String, PojoField> getState() {
-        LinkedHashMap<String, PojoField> state = new LinkedHashMap<>();
-
-        getSchema().forEach(p -> {
-            assert p.getGetter() != null;
-            state.put(p.getName(), new PojoField(p, (Serializable) p.get(this)));
-        });
-
-        return state.unmodifiableMap();
-    }
 
     /**
      * store the result in filtering procedure {@link #calculateFilterScore} and

@@ -1,12 +1,12 @@
-package org.example.dcheck.impl.wlm.jdbc.mapper;
+package org.example.dcheck.impl.alm.jdbc.mapper;
 
 import lombok.Getter;
 import org.example.dcheck.api.EntityProvider;
 import org.example.dcheck.api.PojoField;
-import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 
 import java.io.Serializable;
-import java.util.Properties;
 
 /**
  * Date: 2025/3/30
@@ -17,7 +17,7 @@ import java.util.Properties;
 public class IntegerMapper implements EntityFieldMapper {
 
     @Override
-    public boolean support(EntityProvider<?> entity, Properties jdbcProperties, PojoField kv) {
+    public boolean support(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
         return support(kv);
     }
 
@@ -26,12 +26,12 @@ public class IntegerMapper implements EntityFieldMapper {
     }
 
     @Override
-    public String getJdbcFieldType(EntityProvider<?> entity, Properties jdbcProperties, PojoField kv) {
+    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
         return "INT";
     }
 
     @Override
-    public Serializable mapToPojoFieldValue(Properties jdbcProperties, JdbcMapContext mapContext) {
+    public Serializable mapToPojoFieldValue(JdbcAgent agent, JdbcMapContext mapContext) {
         if (mapContext.getJdbcFieldValue() instanceof Integer) {
             return (Serializable) mapContext.getJdbcFieldValue();
         }

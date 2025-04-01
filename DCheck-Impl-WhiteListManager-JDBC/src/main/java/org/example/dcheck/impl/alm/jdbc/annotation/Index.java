@@ -1,4 +1,4 @@
-package org.example.dcheck.annotation;
+package org.example.dcheck.impl.alm.jdbc.annotation;
 
 import java.lang.annotation.*;
 

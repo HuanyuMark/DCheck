@@ -1,18 +1,17 @@
-package org.example.dcheck.impl.wlm.jdbc.api;
+package org.example.dcheck.impl.alm.jdbc.api;
 
-import org.example.dcheck.annotation.Index;
 import org.example.dcheck.api.AllowListRule;
 import org.example.dcheck.api.AllowListRuleType;
-import org.example.dcheck.api.BeanProperty;
 import org.example.dcheck.api.EntityProvider;
-import org.example.dcheck.impl.wlm.jdbc.exception.JdbcException;
-import org.example.dcheck.impl.wlm.jdbc.support.JdbcAgent;
+import org.example.dcheck.impl.alm.jdbc.annotation.Index;
+import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
+import org.example.dcheck.util.BeanProperty;
 
 import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * Date: 2025/3/30
@@ -21,7 +20,7 @@ import java.util.Properties;
  */
 public interface JdbcDelegator {
 
-    boolean support(JdbcAgent agent, Properties jdbcProperties);
+    boolean support(JdbcAgent agent);
 
     Map<AllowListRuleType, PreparedStatement> generateMergeRuleEntity(JdbcAgent agent, Map<AllowListRuleType, List<MappedRuleEntity>> rules) throws JdbcException;
 
@@ -29,9 +28,19 @@ public interface JdbcDelegator {
 
     void executeCreateTable(JdbcAgent agent, TableCreationContext creationContext) throws JdbcException;
 
+    void executeMergeRuleSetEntity(JdbcAgent agent, List<JdbcAgent.RuleSetEntity> entities) throws JdbcException;
+
+    void executeMergeRuleSetElement(JdbcAgent jdbcAgent, List<MappedRuleSetElementEntity> entities) throws JdbcException;
+
 
     interface MappedRuleEntity {
         AllowListRule getRule();
+
+        Map<String, Serializable> getMappedValues();
+    }
+
+    interface MappedRuleSetElementEntity {
+        JdbcAgent.RuleSetElementEntity getEntity();
 
         Map<String, Serializable> getMappedValues();
     }

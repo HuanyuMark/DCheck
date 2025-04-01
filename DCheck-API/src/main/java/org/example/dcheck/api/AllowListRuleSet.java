@@ -23,6 +23,8 @@ public interface AllowListRuleSet {
     @Nullable
     String getDescription();
 
+    void setDescription(String description);
+
     /**
      * if a rule is enabled, we claim that rule would be used in DuplicateChecking procedure
      * <p>

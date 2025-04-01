@@ -1,12 +1,12 @@
-package org.example.dcheck.impl.wlm.jdbc.mapper;
+package org.example.dcheck.impl.alm.jdbc.mapper;
 
 import org.example.dcheck.api.EntityProvider;
 import org.example.dcheck.api.PojoField;
-import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 
 import java.io.Serializable;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * Date 2025/03/31
@@ -16,22 +16,22 @@ import java.util.Properties;
 public class BooleanMapper implements EntityFieldMapper {
 
     @Override
-    public boolean support(EntityProvider<?> entity, Properties jdbcProperties, PojoField kv) {
+    public boolean support(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
         return kv.getProperty().getPropertyType().isAssignableFrom(Boolean.class);
     }
 
     @Override
-    public String getJdbcFieldType(EntityProvider<?> entity, Properties jdbcProperties, PojoField kv) {
+    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
         return "VARCHAR(1)";
     }
 
     @Override
-    public Serializable mapToPojoFieldValue(Properties jdbcProperties, JdbcMapContext mapContext) {
+    public Serializable mapToPojoFieldValue(JdbcAgent agent, JdbcMapContext mapContext) {
         return "Y".equals(mapContext.getJdbcFieldValue()) || "N".equals(mapContext.getJdbcFieldValue());
     }
 
     @Override
-    public Serializable mapToJdbcFieldValue(Properties jdbcProperties, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
+    public Serializable mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
         Serializable value = pojoState.getValue().getValue();
         return (value != null && (Boolean) value) ? "Y" : "N";
     }

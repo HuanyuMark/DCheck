@@ -1,16 +1,20 @@
-package org.example.dcheck.impl.wlm.jdbc.sql;
+package org.example.dcheck.impl.alm.jdbc.sql;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.dcheck.annotation.Ignore;
-import org.example.dcheck.annotation.Index;
-import org.example.dcheck.api.*;
+import org.example.dcheck.api.AllowListRule;
+import org.example.dcheck.api.AllowListRuleType;
+import org.example.dcheck.api.EntityProvider;
+import org.example.dcheck.api.PojoField;
 import org.example.dcheck.common.util.MessageFormat;
-import org.example.dcheck.impl.wlm.jdbc.api.EntityFieldMapper;
-import org.example.dcheck.impl.wlm.jdbc.api.JdbcDelegator;
-import org.example.dcheck.impl.wlm.jdbc.exception.JdbcException;
-import org.example.dcheck.impl.wlm.jdbc.exception.UnsupportedFieldTypeException;
-import org.example.dcheck.impl.wlm.jdbc.support.JdbcAgent;
+import org.example.dcheck.impl.alm.jdbc.annotation.Index;
+import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
+import org.example.dcheck.impl.alm.jdbc.api.JdbcDelegator;
+import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
+import org.example.dcheck.impl.alm.jdbc.exception.UnsupportedFieldTypeException;
+import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 import org.example.dcheck.spi.RuleEntityFieldMapperProvider;
+import org.example.dcheck.util.BeanProperty;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
@@ -30,8 +34,8 @@ import java.util.stream.Stream;
 @Slf4j
 public class MySqlJdbcDelegator implements JdbcDelegator {
     @Override
-    public boolean support(JdbcAgent agent, Properties jdbcProperties) {
-        String url = Objects.requireNonNull(jdbcProperties.getProperty("url"));
+    public boolean support(JdbcAgent agent) {
+        String url = Objects.requireNonNull(agent.getJdbcProperties().getProperty("url"));
         return url.startsWith("jdbc:mysql");
     }
 
@@ -116,9 +120,9 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
                 .stream()
                 .filter(p -> !p.isGetterAnnPresent(Ignore.class))
                 .map(property -> {
-                    EntityFieldMapper mapper = mappers.stream().filter(m -> m.support(creationContext.getEntityProvider(), agent.getJdbcProperties(), new PojoField(property, null))).findFirst()
+                    EntityFieldMapper mapper = mappers.stream().filter(m -> m.support(agent, creationContext.getEntityProvider(), new PojoField(property, null))).findFirst()
                             .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Property '" + property + "'."));
-                    String jdbcFieldType = mapper.getJdbcFieldType(creationContext.getEntityProvider(), agent.getJdbcProperties(), new PojoField(property, null));
+                    String jdbcFieldType = mapper.getJdbcFieldType(agent, creationContext.getEntityProvider(), new PojoField(property, null));
                     return new AbstractMap.SimpleEntry<>(property, jdbcFieldType);
                 }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (u, v) -> {
                     throw new IllegalStateException(String.format("Duplicate key %s", u));
@@ -137,6 +141,30 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
         } catch (SQLException e) {
             throw new JdbcException("close connection fail: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void executeMergeRuleSetEntity(JdbcAgent agent, List<JdbcAgent.RuleSetEntity> entities) throws JdbcException {
+        String valuesSeg = entities.stream().map(entity -> "(?,?)").collect(Collectors.joining(","));
+        try (Connection con = agent.getConnection();
+             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + JdbcAgent.RuleSetEntity.tableName + " (id,description) " +
+                     "VALUES %s " +
+                     "ON DUPLICATE KEY UPDATE description=VALUES(description)", valuesSeg))) {
+            int size = entities.size();
+            for (int i = 0; i < size; i += 2) {
+                JdbcAgent.RuleSetEntity entity = entities.get(i);
+                stm.setString(i, entity.getId());
+                stm.setString(i + 1, entity.getDescription());
+            }
+            stm.execute();
+        } catch (SQLException e) {
+            throw new JdbcException("execute MergeRuleSetEntity fail: ", e);
+        }
+    }
+
+    @Override
+    public void executeMergeRuleSetElement(JdbcAgent jdbcAgent, List<MappedRuleSetElementEntity> entities) throws JdbcException {
+
     }
 
     @NotNull
@@ -181,10 +209,10 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
     }
 
     protected String createIndexName(EntityProvider<?> entityProvider, BeanProperty property, Index.Value index) {
-        return JdbcAgent.RULE_TABLE_PREFIX + escapeToSql(entityProvider.getType().getSimpleName()) + "_" + index.getValue() + "_" + escapeToSql(property.getName());
+        return JdbcAgent.DCHECK_TABLE_PREFIX + "idx_" + escapeNameToSql(entityProvider.getType().getSimpleName()) + "_" + index.getValue() + "_" + escapeNameToSql(property.getName());
     }
 
-    protected String escapeToSql(String str) {
-        return str.replaceAll("[\\[\\].|*+-]", "_");
+    protected String escapeNameToSql(String str) {
+        return str.replaceAll("[$.|*+-]", "_");
     }
 }

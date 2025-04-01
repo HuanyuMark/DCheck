@@ -1,6 +1,7 @@
-package org.example.dcheck.api;
+package org.example.dcheck.util;
 
 import lombok.*;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
@@ -23,18 +24,43 @@ public class BeanProperty {
 
     @With
     @Getter
+    @NotNull
     private final Class<?> beanType;
 
     @Getter
     private final String name;
+
+    /**
+     * {@code Object getMyProperty()}
+     */
     @With
     @Getter
     @Nullable
     private final Method getter;
+
+    /**
+     * may be
+     * <p>
+     * {@link SetterMode#ACCESSOR} setter, method signature:
+     * <p>
+     * {@code Self setMyProperty(Object value)}
+     * <p>
+     * or
+     * <p>
+     * {@link SetterMode#NONE_SETTER} setter, method signature:
+     * <p>
+     * {@code void setMyProperty(Object value)}
+     *
+     * @see #getSetterMode()
+     */
     @With
     @Getter
     @Nullable
     private final Method setter;
+
+    /**
+     * {@code Self withMyProperty(Object value)}
+     */
     @With
     @Getter
     @Nullable
@@ -47,8 +73,6 @@ public class BeanProperty {
 
     @With
     @Getter
-    @ToString.Include
-    @EqualsAndHashCode.Include
     private final Class<?> propertyType;
 
     @ToString.Exclude
@@ -66,8 +90,18 @@ public class BeanProperty {
         }
     }
 
-    public BeanProperty(Class<?> beanType, String name, @Nullable Method getter, @Nullable Method setter, @Nullable Method wither, Class<?> propertyType) {
+    protected BeanProperty(@NonNull Class<?> beanType, @NonNull String name, @Nullable Method getter, @Nullable Method setter, @Nullable Method wither, @NonNull Class<?> propertyType) {
         this(beanType, name, getter, setter, wither, getField(beanType, name), propertyType);
+    }
+
+    protected BeanProperty(@NonNull Class<?> beanType, String name, @Nullable Method getter, @Nullable Method setter, @Nullable Method wither, @Nullable Field field, Class<?> propertyType) {
+        this.beanType = beanType;
+        this.name = name;
+        this.getter = getter;
+        this.setter = setter;
+        this.wither = wither;
+        this.field = field;
+        this.propertyType = propertyType;
     }
 
     private static @Nullable Field getField(Class<?> beanType, String name) {
@@ -76,16 +110,6 @@ public class BeanProperty {
             f.setAccessible(true);
         }
         return f;
-    }
-
-    public BeanProperty(Class<?> beanType, String name, @Nullable Method getter, @Nullable Method setter, @Nullable Method wither, @Nullable Field field, Class<?> propertyType) {
-        this.beanType = beanType;
-        this.name = name;
-        this.getter = getter;
-        this.setter = setter;
-        this.wither = wither;
-        this.field = field;
-        this.propertyType = propertyType;
     }
 
     @Nullable
@@ -131,9 +155,23 @@ public class BeanProperty {
         return getFieldAnn(annotationClass) != null;
     }
 
+    @NotNull
+    public SetterMode getSetterMode() {
+        if (setter == null) return SetterMode.NONE_SETTER;
+        if (beanType.isAssignableFrom(setter.getReturnType())) {
+            return SetterMode.ACCESSOR;
+        }
+        return SetterMode.STANDARD;
+    }
+
     public Object get(Object target) {
-        if (getter == null) return null;
-        return ReflectionUtils.invokeMethod(getter, target);
+        if (getter != null) {
+            return ReflectionUtils.invokeMethod(getter, target);
+        }
+        if (field != null) {
+            return ReflectionUtils.getField(field, target);
+        }
+        return null;
     }
 
     public void set(Object target, Object value) {
@@ -144,5 +182,20 @@ public class BeanProperty {
     public Object with(Object target, Object value) {
         if (wither == null) return target;
         return ReflectionUtils.invokeMethod(wither, target, value);
+    }
+
+    public enum SetterMode {
+        /**
+         * {@code Self setMyProperty(Object value)}
+         */
+        ACCESSOR,
+        /**
+         * {@code void setMyProperty(Object value)}
+         */
+        STANDARD,
+        /**
+         * associated {@link BeanProperty} have no setter
+         */
+        NONE_SETTER
     }
 }

@@ -1,1 +1,1 @@
-org.example.dcheck.impl.wlm.jdbc.core.JdbcAllowListManager
+org.example.dcheck.impl.alm.jdbc.core.JdbcAllowListManager
