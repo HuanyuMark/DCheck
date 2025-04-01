@@ -246,7 +246,12 @@ public class JdbcAgent implements AutoCloseable {
     protected static class DefaultMappedRuleEntity implements JdbcDelegator.MappedRuleEntity {
         protected final AllowListRule rule;
         protected final Map<String, Serializable> mappedValues;
+    }
 
+    @Data
+    protected static class DefaultMappedRuleSetElementEntity implements JdbcDelegator.MappedRuleSetElementEntity {
+        protected final RuleSetElementEntity entity;
+        protected final Map<String, Serializable> mappedValues;
     }
 
     public Optional<Connection> tryGetConnection() {

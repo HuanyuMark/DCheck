@@ -7,9 +7,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-import java.io.Serializable;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Date: 2025/3/19
@@ -38,17 +37,6 @@ public interface AllowListRule {
     @Ignore
     @NotNull
     AllowListRuleType getType();
-
-    default Map<String, PojoField> getState() {
-        return getType()
-                .getSchema()
-                .stream()
-                .map(p -> new AbstractMap.SimpleEntry<>(p.getName(), new PojoField(p, (Serializable) p.get(AllowListRule.this))))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (k1, k2) -> {
-                    throw new IllegalStateException("duplicate state field '" + k1 + "' and '" + k2 + "'");
-                }, LinkedHashMap::new))
-                .unmodifiableMap();
-    }
 
     /**
      * The larger the value, the more likely the respective paragraph to be ignored

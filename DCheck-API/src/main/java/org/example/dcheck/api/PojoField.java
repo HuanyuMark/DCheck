@@ -4,8 +4,6 @@ import lombok.Data;
 import org.example.dcheck.util.BeanProperty;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.Serializable;
-
 /**
  * Date: 2025/3/30
  *
@@ -15,5 +13,5 @@ import java.io.Serializable;
 public class PojoField {
     private final BeanProperty property;
     @Nullable
-    private final Serializable value;
+    private final Object value;
 }
