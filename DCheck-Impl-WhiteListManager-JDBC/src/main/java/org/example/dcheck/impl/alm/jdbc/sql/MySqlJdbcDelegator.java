@@ -138,19 +138,23 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
         }
     }
 
+    protected final static String RULE_SET_ENTITY_MERGE_STM = RuleSetEntity.provider.getSchema().stream().map(p -> p.getName() + "=VALUES(" + p.getName() + ")").collect(Collectors.joining(","));
+
+    protected static final String RULE_SET_ENTITY_COLUMNS = RuleSetElementEntity.provider.getSchema().stream().map(BeanProperty::getName).collect(Collectors.joining(","));
+
+
     @Override
-    public void executeMergeRuleSetEntity(JdbcAgent agent, List<RuleSetEntity> entities) throws JdbcException {
+    public void executeMergeRuleSetEntity(JdbcAgent agent, List<MappedRuleSetEntity> entities) throws JdbcException {
         String valuesSeg = entities.stream().map(entity -> "(?,?)").collect(Collectors.joining(","));
         try (Connection con = agent.getConnection();
-             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + RuleSetEntity.tableName + " (id,description) " +
+             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + RuleSetEntity.tableName + " (%s) " +
                      "VALUES %s " +
-                     "ON DUPLICATE KEY UPDATE description=VALUES(description);", valuesSeg))) {
-            int size = entities.size();
-            for (int i = 0; i < size; i += 2) {
-                RuleSetEntity entity = entities.get(i);
-                stm.setString(i, entity.getId());
-                stm.setString(i + 1, entity.getDescription());
-            }
+                             "ON DUPLICATE KEY UPDATE %s;",
+                     RULE_SET_ENTITY_COLUMNS,
+                     valuesSeg,
+                     RULE_SET_ENTITY_MERGE_STM))) {
+
+            setMappedValuesInStm(entities.stream().map(MappedRuleSetEntity::getMappedValues).collect(Collectors.toList()), stm);
 
             JdbcAgent.logSql(stm);
 
@@ -165,7 +169,7 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
     protected static final String RULE_SET_ELEMENT_UPDATE_STM = RuleSetElementEntity.provider.getSchema().stream().map(p -> p.getName() + "=VALUES(" + p.getName() + ")").collect(Collectors.joining(","));
 
     @Override
-    public void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException {
+    public void executeMergeRuleSetElement(JdbcAgent agent, List<MappedRuleSetElementEntity> entities) throws JdbcException {
         List<Map<String, Object>> mappedValues = entities.stream().map(MappedRuleSetElementEntity::getMappedValues).collect(Collectors.toList());
         String valuesSeg = mappedValues.stream().map(values -> "(" + values.values().stream().map(v -> v == null ? "NULL" : "?").collect(Collectors.joining(",")) + ")").collect(Collectors.joining(","));
 

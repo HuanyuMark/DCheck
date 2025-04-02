@@ -94,17 +94,16 @@ public class JdbcAgent implements AutoCloseable {
             for (Map.Entry<AllowListRuleType, PreparedStatement> stm : selectStm) {
                 logSql(stm.getValue());
                 try (Statement ignore = stm.getValue(); Stream<AllowListRule> rules = map(stm.getValue().executeQuery(), stm.getKey())) {
-                    resultHolder.putAll(rules.collect(Collectors.toMap(AllowListRule::getId, Function.identity())));
-                } catch (Throwable e) {
-                    for (Map.Entry<AllowListRuleType, PreparedStatement> s : selectStm) {
-                        try {
-                            if (!s.getValue().isClosed()) {
-                                s.getValue().close();
+                    resultHolder.putAll(rules.onClose(() -> {
+                        for (Map.Entry<AllowListRuleType, PreparedStatement> s : selectStm) {
+                            try {
+                                if (!s.getValue().isClosed()) {
+                                    s.getValue().close();
+                                }
+                            } catch (SQLException ignore2) {
                             }
-                        } catch (SQLException ignore) {
                         }
-                    }
-                    throw e;
+                    }).collect(Collectors.toMap(AllowListRule::getId, Function.identity())));
                 }
             }
         } catch (SQLException e) {
@@ -113,6 +112,28 @@ public class JdbcAgent implements AutoCloseable {
         return resultHolder;
     }
 
+    public Map<String, RuleSetElementEntity> selectRuleSetElementByRuleSetId(@NonNull String ruleSetId) throws JdbcException {
+        return selectRuleSetElementAndWhere(ruleSetId, "", stm -> {
+        });
+    }
+
+    protected final EntityFieldMapper enabledMapper = getMappers(RuleSetElementEntity.provider).entrySet().stream().filter(e -> e.getKey().equals(RuleSetElementEntity.getEnabledProperty())).findFirst().orElseThrow(IllegalStateException::new).getValue();
+
+
+    public Map<String, RuleSetElementEntity> selectRuleSetElementByRuleSetIdAndEnabled(String ruleSetId, boolean enabled) throws JdbcException {
+        return selectRuleSetElementAndWhere(ruleSetId, "AND `enabled`=?", stm ->
+                stm.setObject(1, enabledMapper.mapToJdbcFieldValue(this, RuleSetElementEntity.provider,
+                        new AbstractMap.SimpleEntry<>("enabled", new PojoField(RuleSetElementEntity.getEnabledProperty(), enabled))))
+        );
+    }
+
+    public Optional<RuleSetElementEntity> selectRuleSetElementByRuleSetIdAndRuleId(@NonNull String ruleSetId, @NonNull String ruleId) throws JdbcException {
+        return selectRuleSetElementAndWhere(ruleSetId, "AND `id`=?", stm -> {
+            stm.setString(1, ruleId);
+        }).entrySet().stream().findFirst().map(Map.Entry::getValue);
+    }
+
+
     public void mergeRule(List<AllowListRule> rules) throws JdbcException {
         if (rules.isEmpty()) return;
 
@@ -120,17 +141,7 @@ public class JdbcAgent implements AutoCloseable {
             createTableIfNeeded(rule.getType());
         }
 
-        Map<AllowListRuleType, List<JdbcDelegator.MappedRuleEntity>> mappedGroups = rules.stream().map(rule -> {
-            Map<String, PojoField> state = rule.getType().getState(rule);
-            Map<BeanProperty, EntityFieldMapper> mappers = getMappers(rule.getType());
-
-            Map<String, Object> mapped = new LinkedHashMap<>((int) (state.size() / 0.7));
-            for (Map.Entry<String, PojoField> entry : state.entrySet()) {
-                mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(this, rule.getType(), entry));
-            }
-
-            return new DefaultMappedRuleEntity(rule, mapped);
-        }).collect(Collectors.groupingBy(e -> e.getRule().getType()));
+        Map<AllowListRuleType, List<JdbcDelegator.MappedRuleEntity>> mappedGroups = rules.stream().map(rule -> new DefaultMappedRuleEntity(rule, mapToJdbcValues(rule.getType(), rule))).collect(Collectors.groupingBy(e -> e.getRule().getType()));
 
         executeInTransaction("mergeRule", () -> {
             Map<AllowListRuleType, PreparedStatement> stm = jdbcDelegator.generateMergeRuleEntity(this, mappedGroups);
@@ -205,7 +216,7 @@ public class JdbcAgent implements AutoCloseable {
                 for (int i = 0; i < size; i++) {
                     stm.setString(i, ruleSetIds.get(i));
                 }
-                try (Stream<RuleSetEntity> stream = map(stm.executeQuery(), RuleSetEntity.type)) {
+                try (Stream<RuleSetEntity> stream = map(stm.executeQuery(), RuleSetEntity.provider)) {
                     resultHolder.putAll(stream.collect(Collectors.toMap(RuleSetEntity::getId, Function.identity())));
                 }
             }
@@ -215,7 +226,20 @@ public class JdbcAgent implements AutoCloseable {
 
     public void mergeRuleSet(List<RuleSetEntity> entities) throws JdbcException {
         if (entities.isEmpty()) return;
-        executeInTransaction("mergeRuleSet", () -> jdbcDelegator.executeMergeRuleSetEntity(this, entities));
+
+        List<JdbcDelegator.MappedRuleSetEntity> mappedValues = entities.stream().map(entity -> new DefaultMappedRuleSetEntity(entity, mapToJdbcValues(RuleSetEntity.provider, entity))).collect(Collectors.toList());
+
+        executeInTransaction("mergeRuleSet", () -> jdbcDelegator.executeMergeRuleSetEntity(this, mappedValues));
+    }
+
+    protected <E> @NotNull Map<String, Object> mapToJdbcValues(EntityProvider<E> provider, E entity) {
+        Map<BeanProperty, EntityFieldMapper> mappers = getMappers(provider);
+        Map<String, PojoField> state = provider.getState(entity);
+        Map<String, Object> mapped = new LinkedHashMap<>((int) (state.size() / 0.7));
+        for (Map.Entry<String, PojoField> entry : state.entrySet()) {
+            mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(this, provider, entry));
+        }
+        return mapped;
     }
 
     /**
@@ -223,18 +247,41 @@ public class JdbcAgent implements AutoCloseable {
      */
     public Map<String, RuleSetElementEntity> selectRuleSetElement(String ruleSetId, List<String> ruleIds) throws JdbcException {
         if (ruleIds.isEmpty()) return Collections.emptyMap();
+        try {
+            return selectRuleSetElementAndWhere(ruleSetId, "AND " + ruleIds.stream().map(r -> "?").collect(Collectors.joining(",")),
+                    stm -> {
+                        int size = ruleIds.size();
+                        for (int i = 1; i <= size; i++) {
+                            stm.setString(i, ruleIds.get(i));
+                        }
+                    });
+        } catch (Throwable e) {
+            if (e.getCause() instanceof JdbcException) {
+                throw (JdbcException) e.getCause();
+            }
+            throw new JdbcException("Execute selectRuleSetElement fail: " + e.getMessage(), e);
+        }
+    }
 
+    protected interface SqlExceptionConsumer<I> {
+        void accept(I input) throws SQLException;
+    }
+
+    protected Map<String, RuleSetElementEntity> selectRuleSetElementAndWhere(String ruleSetId, String whereStm, SqlExceptionConsumer<PreparedStatement> stmConfigure) throws JdbcException {
         try (Connection con = getConnection();
              PreparedStatement stm = con.prepareStatement(String.format(
-                     "SELECT * FROM " + RuleSetElementEntity.tableName + " WHERE ruleId IN (%s)",
-                     ruleIds.stream().map(r -> "?").collect(Collectors.joining(","))
+                     "SELECT * FROM " + RuleSetElementEntity.tableName + " WHERE ruleSetId=? %s ORDER BY `order` ASC",
+                     whereStm
              ))) {
-            int size = ruleIds.size();
-            for (int i = 0; i < size; i++) {
-                stm.setString(i, ruleIds.get(i));
-            }
+
+            stm.setString(1, ruleSetId);
+
+            stmConfigure.accept(stm);
+
             try (Stream<RuleSetElementEntity> stream = map(stm.executeQuery(), RuleSetElementEntity.provider)) {
-                return stream.collect(Collectors.toMap(RuleSetElementEntity::getRuleId, Function.identity()));
+                return stream.collect(Collectors.toMap(RuleSetElementEntity::getRuleId, Function.identity(), (a, b) -> {
+                    throw new IllegalStateException();
+                }, LinkedHashMap::new));
             }
         } catch (SQLException e) {
             throw new JdbcException("Execute selectRuleSetElement fail: " + e.getMessage(), e);
@@ -243,20 +290,32 @@ public class JdbcAgent implements AutoCloseable {
 
     public void deleteElementInRuleSet(String ruleSetId, List<String> ruleIds) throws JdbcException {
         if (ruleIds.isEmpty()) return;
+
+        deleteElementInRuleSetAndWhere(ruleSetId, String.format("AND ruleId IN (%s)", ruleIds.stream().map(r -> "?").collect(Collectors.joining(","))), stm -> {
+            int size = ruleIds.size();
+            for (int i = 1; i <= size; i++) {
+                stm.setString(i, ruleIds.get(i));
+            }
+        });
+    }
+
+    public void deleteElementInRuleSet(String ruleSetId) throws JdbcException {
+        deleteElementInRuleSetAndWhere(ruleSetId, "", stm -> {
+        });
+    }
+
+    protected void deleteElementInRuleSetAndWhere(String ruleSetId, String whereStm, SqlExceptionConsumer<PreparedStatement> stmConfigure) throws JdbcException {
         executeInTransaction("deleteElementInRuleSet", () -> {
             try (Connection con = getConnection();
                  PreparedStatement stm = con.prepareStatement(String.format(
-                                 "DELETE " + RuleSetElementEntity.tableName + " WHERE ruleSetId=? AND ruleId IN (%s)",
-                                 ruleIds.stream().map(r -> "?").collect(Collectors.joining(","))
+                                 "DELETE " + RuleSetElementEntity.tableName + " WHERE ruleSetId=? %s",
+                                 whereStm
                          )
                  )) {
 
                 stm.setString(0, ruleSetId);
 
-                int size = ruleIds.size();
-                for (int i = 1; i <= size; i++) {
-                    stm.setString(i, ruleIds.get(i));
-                }
+                stmConfigure.accept(stm);
 
                 stm.execute();
             }
@@ -266,16 +325,7 @@ public class JdbcAgent implements AutoCloseable {
     public void mergeRuleSetElement(List<RuleSetElementEntity> entities) throws JdbcException {
         if (entities.isEmpty()) return;
 
-        List<DefaultMappedRuleSetElementEntity> mappedValues = entities.stream().map(entity -> {
-            Map<String, PojoField> state = RuleSetElementEntity.provider.getState(entity);
-            Map<BeanProperty, EntityFieldMapper> mappers = getMappers(RuleSetElementEntity.provider);
-
-            Map<String, Object> mapped = new LinkedHashMap<>((int) (state.size() / 0.7));
-            for (Map.Entry<String, PojoField> entry : state.entrySet()) {
-                mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(this, RuleSetElementEntity.provider, entry));
-            }
-            return new DefaultMappedRuleSetElementEntity(entity, mapped);
-        }).collect(Collectors.toList());
+        List<JdbcDelegator.MappedRuleSetElementEntity> mappedValues = entities.stream().map(entity -> new DefaultMappedRuleSetElementEntity(entity, mapToJdbcValues(RuleSetElementEntity.provider, entity))).collect(Collectors.toList());
 
         executeInTransaction("mergeRuleSetElement", () -> jdbcDelegator.executeMergeRuleSetElement(this, mappedValues));
     }
@@ -350,7 +400,7 @@ public class JdbcAgent implements AutoCloseable {
             @Override
             public E next() {
                 Map<BeanProperty, EntityFieldMapper> mappers = getMappers(entityProvider);
-                Map<String, PojoField> state = new HashMap<>();
+                Map<String, PojoField> state = new LinkedHashMap<>();
                 for (BeanProperty property : entityProvider.getSchema()) {
                     Object jdbcValue;
                     try {
@@ -393,11 +443,11 @@ public class JdbcAgent implements AutoCloseable {
         }
     }
 
-    protected void executeInTransaction(String transactionName, TransactionTask task) throws JdbcException {
+    protected void executeInTransaction(String transactionName, ThrowableTask task) throws JdbcException {
         executeInTransaction(transactionName, Throwable.class, task);
     }
 
-    protected void executeInTransaction(String transactionName, Class<? extends Throwable> rollbackEx, TransactionTask task) throws JdbcException {
+    protected void executeInTransaction(String transactionName, Class<? extends Throwable> rollbackEx, ThrowableTask task) throws JdbcException {
         startTransaction(transactionName);
         try {
             task.execute();
@@ -489,7 +539,7 @@ public class JdbcAgent implements AutoCloseable {
 
     protected void prepareBuiltinTable() throws JdbcException {
         createTable(RuleTypeEntity.type, RuleTypeEntity.tableName);
-        createTable(RuleSetEntity.type, RuleSetEntity.tableName);
+        createTable(RuleSetEntity.provider, RuleSetEntity.tableName);
         createTable(RuleSetElementEntity.provider, RuleSetElementEntity.tableName);
     }
 
@@ -558,7 +608,7 @@ public class JdbcAgent implements AutoCloseable {
 
     }
 
-    public interface TransactionTask {
+    public interface ThrowableTask {
 
         void execute() throws Throwable;
     }
@@ -579,6 +629,12 @@ public class JdbcAgent implements AutoCloseable {
     @Data
     protected static class DefaultMappedRuleSetElementEntity implements JdbcDelegator.MappedRuleSetElementEntity {
         protected final RuleSetElementEntity entity;
+        protected final Map<String, Object> mappedValues;
+    }
+
+    @Data
+    protected static class DefaultMappedRuleSetEntity implements JdbcDelegator.MappedRuleSetEntity {
+        protected final RuleSetEntity ruleSet;
         protected final Map<String, Object> mappedValues;
     }
 }

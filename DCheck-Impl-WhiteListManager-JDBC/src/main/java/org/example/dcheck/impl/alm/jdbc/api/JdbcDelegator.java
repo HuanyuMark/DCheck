@@ -29,13 +29,19 @@ public interface JdbcDelegator {
 
     void executeCreateTable(JdbcAgent agent, TableCreationContext creationContext) throws JdbcException;
 
-    void executeMergeRuleSetEntity(JdbcAgent agent, List<RuleSetEntity> entities) throws JdbcException;
+    void executeMergeRuleSetEntity(JdbcAgent agent, List<MappedRuleSetEntity> entities) throws JdbcException;
 
-    void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException;
+    void executeMergeRuleSetElement(JdbcAgent agent, List<MappedRuleSetElementEntity> entities) throws JdbcException;
 
 
     interface MappedRuleEntity {
         AllowListRule getRule();
+
+        Map<String, Object> getMappedValues();
+    }
+
+    interface MappedRuleSetEntity {
+        RuleSetEntity getRuleSet();
 
         Map<String, Object> getMappedValues();
     }

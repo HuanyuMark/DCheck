@@ -3,6 +3,7 @@ package org.example.dcheck.api;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -41,27 +42,20 @@ public interface AllowListRuleSet {
     /**
      * if the rule store in the set, the rule would be disabled
      */
-    void disableRule(String ruleId);
+    void disableRule(List<String> ruleIds);
 
     /**
      * if the rule store in the set, the rule would be disabled
      * and removed form the set
      */
-    void removeRule(String ruleId);
-
-    /**
-     * if the rule store in the set, the rule would be disabled
-     */
-    default void disableRule(AllowListRule rule) {
-        disableRule(rule.getId());
-    }
+    void removeRule(List<String> ruleIds);
 
     /**
      * if call this method with the same rule.
      * it will replace the old rule (delete old rule and add new rule)
      * and {@code enabled} the last rule
      */
-    void addRule(AllowListRule rule, boolean enabled);
+    void addRule(List<AddRuleContext> contexts);
 
     /**
      * get all rule stored in the set whether enabled or disabled.
