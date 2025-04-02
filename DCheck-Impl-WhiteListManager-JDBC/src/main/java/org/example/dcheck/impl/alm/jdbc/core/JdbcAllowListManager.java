@@ -2,10 +2,10 @@ package org.example.dcheck.impl.alm.jdbc.core;
 
 import org.example.dcheck.api.AllowListManager;
 import org.example.dcheck.api.AllowListRuleSet;
-import org.example.dcheck.api.DCheckConfig;
+import org.example.dcheck.impl.alm.jdbc.api.JdbcDataSourceProvider;
 import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
-import org.example.dcheck.spi.DCheckConfigProvider;
+import org.example.dcheck.spi.JdbcDataSourceProviderProvider;
 
 /**
  * Date: 2025/3/30
@@ -22,9 +22,8 @@ public class JdbcAllowListManager implements AllowListManager {
     }
 
     protected JdbcAgent buildJdbcAgent() throws JdbcException {
-        DCheckConfig config = DCheckConfigProvider.getInstance().getDCheckConfig();
-
-        return new JdbcAgent(config.required(JdbcConfigPropertyKey.JDBC_URL), config.nullable(JdbcConfigPropertyKey.JDBC_USERNAME), config.nullable(JdbcConfigPropertyKey.JDBC_PASSWORD));
+        JdbcDataSourceProvider provider = JdbcDataSourceProviderProvider.getInstance().getProvider();
+        return new JdbcAgent(provider.getDataSourceInfo(), provider.getDataSource());
     }
 
     @Override

@@ -58,7 +58,7 @@ public interface AllowListRuleSet {
 
     /**
      * if call this method with the same rule.
-     * it will replace the old rule
+     * it will replace the old rule (delete old rule and add new rule)
      * and {@code enabled} the last rule
      */
     void addRule(AllowListRule rule, boolean enabled);

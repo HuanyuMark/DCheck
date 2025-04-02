@@ -10,6 +10,9 @@ import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.impl.alm.jdbc.annotation.Index;
 import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
 import org.example.dcheck.impl.alm.jdbc.api.JdbcDelegator;
+import org.example.dcheck.impl.alm.jdbc.entity.RuleSetElementEntity;
+import org.example.dcheck.impl.alm.jdbc.entity.RuleSetEntity;
+import org.example.dcheck.impl.alm.jdbc.entity.RuleTypeEntity;
 import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
 import org.example.dcheck.impl.alm.jdbc.exception.UnsupportedFieldTypeException;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
@@ -34,8 +37,7 @@ import java.util.stream.Stream;
 public class MySqlJdbcDelegator implements JdbcDelegator {
     @Override
     public boolean support(JdbcAgent agent) {
-        String url = Objects.requireNonNull(agent.getJdbcProperties().getProperty("url"));
-        return url.startsWith("jdbc:mysql");
+        return agent.getDataSourceInfo().getDatabaseType().contains("mysql");
     }
 
     @Override
@@ -85,7 +87,7 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
                 + " VALUES {values}"
                 + "ON DUPLICATE KEY UPDATE ruleType=VALUES(ruleType);", new HashMap<String, Object>() {{
 
-            put("tableName", JdbcAgent.RuleTypeEntity.tableName);
+            put("tableName", RuleTypeEntity.tableName);
             put("values", rules.stream().map(rule -> "(" + rule.getId() + "," + rule.getType().name() + ")").collect(Collectors.joining(",")));
 
         }}));
@@ -128,8 +130,8 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
         ctx.put("tableSchema", Stream.concat(jdbcFieldTypes.entrySet().stream().map(p -> p.getKey().getName() + " " + p.getValue()), indexStatements).collect(Collectors.joining(",")));
         ctx.put("tableName", creationContext.getTableName());
         String sql = MessageFormat.format("CREATE TABLE IF NOT EXIST {tableName} ({tableSchema});", ctx);
-
-        try (Connection con = agent.getConnection(); Statement stm = con.createStatement()) {
+        try (Connection con = agent.getConnection(); Statement stm = con.prepareStatement(sql)) {
+            JdbcAgent.logSql(stm);
             stm.execute(sql);
         } catch (SQLException e) {
             throw new JdbcException("close connection fail: " + e.getMessage(), e);
@@ -137,27 +139,30 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
     }
 
     @Override
-    public void executeMergeRuleSetEntity(JdbcAgent agent, List<JdbcAgent.RuleSetEntity> entities) throws JdbcException {
+    public void executeMergeRuleSetEntity(JdbcAgent agent, List<RuleSetEntity> entities) throws JdbcException {
         String valuesSeg = entities.stream().map(entity -> "(?,?)").collect(Collectors.joining(","));
         try (Connection con = agent.getConnection();
-             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + JdbcAgent.RuleSetEntity.tableName + " (id,description) " +
+             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + RuleSetEntity.tableName + " (id,description) " +
                      "VALUES %s " +
                      "ON DUPLICATE KEY UPDATE description=VALUES(description);", valuesSeg))) {
             int size = entities.size();
             for (int i = 0; i < size; i += 2) {
-                JdbcAgent.RuleSetEntity entity = entities.get(i);
+                RuleSetEntity entity = entities.get(i);
                 stm.setString(i, entity.getId());
                 stm.setString(i + 1, entity.getDescription());
             }
+
+            JdbcAgent.logSql(stm);
+
             stm.execute();
         } catch (SQLException e) {
             throw new JdbcException("execute MergeRuleSetEntity fail: ", e);
         }
     }
 
-    protected static final String RULE_SET_ELEMENT_ENTITY_COLUMNS = JdbcAgent.RuleSetElementEntity.provider.getSchema().stream().map(BeanProperty::getName).collect(Collectors.joining(","));
+    protected static final String RULE_SET_ELEMENT_ENTITY_COLUMNS = RuleSetElementEntity.provider.getSchema().stream().map(BeanProperty::getName).collect(Collectors.joining(","));
 
-    protected static final String RULE_SET_ELEMENT_UPDATE_STM = JdbcAgent.RuleSetElementEntity.provider.getSchema().stream().map(p -> p.getName() + "=VALUES(" + p.getName() + ")").collect(Collectors.joining(","));
+    protected static final String RULE_SET_ELEMENT_UPDATE_STM = RuleSetElementEntity.provider.getSchema().stream().map(p -> p.getName() + "=VALUES(" + p.getName() + ")").collect(Collectors.joining(","));
 
     @Override
     public void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException {
@@ -165,7 +170,7 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
         String valuesSeg = mappedValues.stream().map(values -> "(" + values.values().stream().map(v -> v == null ? "NULL" : "?").collect(Collectors.joining(",")) + ")").collect(Collectors.joining(","));
 
         try (Connection con = agent.getConnection();
-             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + JdbcAgent.RuleSetElementEntity.tableName + " (%s) " +
+             PreparedStatement stm = con.prepareStatement(String.format("INSERT INTO " + RuleSetElementEntity.tableName + " (%s) " +
                              "VALUES %s " +
                              "ON DUPLICATE KEY UPDATE %s;",
                      RULE_SET_ELEMENT_ENTITY_COLUMNS,
@@ -174,6 +179,8 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
              ))) {
 
             setMappedValuesInStm(mappedValues, stm);
+
+            JdbcAgent.logSql(stm);
 
             stm.execute();
         } catch (SQLException e) {

@@ -4,6 +4,8 @@ import org.example.dcheck.api.AllowListRule;
 import org.example.dcheck.api.AllowListRuleType;
 import org.example.dcheck.api.EntityProvider;
 import org.example.dcheck.impl.alm.jdbc.annotation.Index;
+import org.example.dcheck.impl.alm.jdbc.entity.RuleSetElementEntity;
+import org.example.dcheck.impl.alm.jdbc.entity.RuleSetEntity;
 import org.example.dcheck.impl.alm.jdbc.exception.JdbcException;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 import org.example.dcheck.util.BeanProperty;
@@ -27,7 +29,7 @@ public interface JdbcDelegator {
 
     void executeCreateTable(JdbcAgent agent, TableCreationContext creationContext) throws JdbcException;
 
-    void executeMergeRuleSetEntity(JdbcAgent agent, List<JdbcAgent.RuleSetEntity> entities) throws JdbcException;
+    void executeMergeRuleSetEntity(JdbcAgent agent, List<RuleSetEntity> entities) throws JdbcException;
 
     void executeMergeRuleSetElement(JdbcAgent agent, List<? extends MappedRuleSetElementEntity> entities) throws JdbcException;
 
@@ -39,7 +41,7 @@ public interface JdbcDelegator {
     }
 
     interface MappedRuleSetElementEntity {
-        JdbcAgent.RuleSetElementEntity getEntity();
+        RuleSetElementEntity getEntity();
 
         Map<String, Object> getMappedValues();
     }

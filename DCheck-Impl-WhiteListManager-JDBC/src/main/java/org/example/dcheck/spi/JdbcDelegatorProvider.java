@@ -16,11 +16,14 @@ public class JdbcDelegatorProvider implements DCheckProvider {
         return INSTANCE;
     }
 
+    protected JdbcDelegatorProvider() {
+    }
+
     public JdbcDelegator find(JdbcAgent agent) {
         return Providers.findAllImplementations(JdbcDelegator.class)
                 .stream()
                 .filter(g -> g.support(agent))
                 .findFirst()
-                .orElseThrow(() -> new UnsupportedBatchOperationException("Unsupported Batch Operation for " + agent.getJdbcProperties()));
+                .orElseThrow(() -> new UnsupportedBatchOperationException("Unsupported Batch Operation for " + agent.getDataSourceInfo()));
     }
 }
