@@ -2,9 +2,9 @@ package org.example.dcheck.impl.alm.jdbc.mapper;
 
 import lombok.Getter;
 import org.example.dcheck.api.EntityProvider;
-import org.example.dcheck.api.PojoField;
 import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
+import org.example.dcheck.util.PropertyValue;
 
 import java.io.Serializable;
 
@@ -17,16 +17,16 @@ import java.io.Serializable;
 public class IntegerMapper implements EntityFieldMapper {
 
     @Override
-    public boolean support(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
+    public boolean support(JdbcAgent agent, EntityProvider<?> entity, PropertyValue kv) {
         return support(kv);
     }
 
-    protected boolean support(PojoField kv) {
+    protected boolean support(PropertyValue kv) {
         return kv.getProperty().getPropertyType().isAssignableFrom(Integer.class);
     }
 
     @Override
-    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
+    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PropertyValue kv) {
         return "INT";
     }
 

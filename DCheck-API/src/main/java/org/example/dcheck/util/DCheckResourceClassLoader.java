@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 @Slf4j
 public class DCheckResourceClassLoader extends ClassLoader implements Closeable {
 
-    public static final String UNJAR_LOCATION_PATTERN = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + "org/example/dcheck/class-resources/";
-    public static final String JAR_LOCATION_PATTERN = UNJAR_LOCATION_PATTERN + "**/*.jar";
+    public static final String UNPACK_LOCATION_PATTERN = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + "org/example/dcheck/class-resources/";
+    public static final String JAR_LOCATION_PATTERN = UNPACK_LOCATION_PATTERN + "**/*.jar";
     @Getter
     protected static DCheckResourceClassLoader shared = new DCheckResourceClassLoader();
 
@@ -46,7 +46,7 @@ public class DCheckResourceClassLoader extends ClassLoader implements Closeable 
 
     protected URL[] defineUrl() {
         try {
-            return Stream.concat(Arrays.stream(UtilConst.RESOLVER.getResources(UNJAR_LOCATION_PATTERN)), Arrays.stream(UtilConst.RESOLVER.getResources(JAR_LOCATION_PATTERN))).map(r -> {
+            return Stream.concat(Arrays.stream(UtilConst.RESOLVER.getResources(UNPACK_LOCATION_PATTERN)), Arrays.stream(UtilConst.RESOLVER.getResources(JAR_LOCATION_PATTERN))).map(r -> {
                 try {
                     return r.getURL();
                 } catch (IOException e) {

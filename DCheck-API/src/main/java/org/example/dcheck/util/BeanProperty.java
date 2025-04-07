@@ -3,7 +3,6 @@ package org.example.dcheck.util;
 import lombok.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.annotation.Annotation;
@@ -18,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author 三石而立Sunsy
  */
-@ToString(onlyExplicitlyIncluded = true)
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString
+@EqualsAndHashCode
 public class BeanProperty {
 
     @With
@@ -39,7 +38,7 @@ public class BeanProperty {
     private final Method getter;
 
     /**
-     * may be
+     * maybe
      * <p>
      * {@link SetterMode#ACCESSOR} setter, method signature:
      * <p>
@@ -79,17 +78,6 @@ public class BeanProperty {
     @EqualsAndHashCode.Exclude
     protected final Map<AnnotatedElement, AnnotationCache> annotationCaches = new ConcurrentHashMap<>(7);
 
-    @RequiredArgsConstructor
-    protected static class AnnotationCache {
-        private final AnnotatedElement annotatedElement;
-        private final Map<Class<? extends Annotation>, Annotation> cache = new ConcurrentHashMap<>();
-
-        @SuppressWarnings("unchecked")
-        public <A extends Annotation> A get(Class<A> annotationClass) {
-            return ((A) cache.computeIfAbsent(annotationClass, ann -> AnnotationUtils.findAnnotation(annotatedElement, ann)));
-        }
-    }
-
     protected BeanProperty(@NonNull Class<?> beanType, @NonNull String name, @Nullable Method getter, @Nullable Method setter, @Nullable Method wither, @NonNull Class<?> propertyType) {
         this(beanType, name, getter, setter, wither, getField(beanType, name), propertyType);
     }
@@ -114,22 +102,22 @@ public class BeanProperty {
 
     @Nullable
     public <A extends Annotation> A getSetterAnn(Class<A> annotationClass) {
-        return setter == null ? null : annotationCaches.computeIfAbsent(setter, AnnotationCache::new).get(annotationClass);
+        return setter == null ? null : annotationCaches.computeIfAbsent(setter, AnnotationCache::of).get(annotationClass);
     }
 
     @Nullable
     public <A extends Annotation> A getGetterAnn(Class<A> annotationClass) {
-        return getter == null ? null : annotationCaches.computeIfAbsent(getter, AnnotationCache::new).get(annotationClass);
+        return getter == null ? null : annotationCaches.computeIfAbsent(getter, AnnotationCache::of).get(annotationClass);
     }
 
     @Nullable
     public <A extends Annotation> A getWitherAnn(Class<A> annotationClass) {
-        return wither == null ? null : annotationCaches.computeIfAbsent(wither, AnnotationCache::new).get(annotationClass);
+        return wither == null ? null : annotationCaches.computeIfAbsent(wither, AnnotationCache::of).get(annotationClass);
     }
 
     @Nullable
     public <A extends Annotation> A getFieldAnn(Class<A> annotationClass) {
-        return field == null ? null : annotationCaches.computeIfAbsent(field, AnnotationCache::new).get(annotationClass);
+        return field == null ? null : annotationCaches.computeIfAbsent(field, AnnotationCache::of).get(annotationClass);
     }
 
     public boolean isAnyAnnPresent(Class<? extends Annotation> annotationClass) {
@@ -165,18 +153,25 @@ public class BeanProperty {
     }
 
     public Object get(Object target) {
-        if (getter != null) {
-            return ReflectionUtils.invokeMethod(getter, target);
+        if (getter == null) {
+            return null;
         }
-        if (field != null) {
-            return ReflectionUtils.getField(field, target);
-        }
-        return null;
+        return ReflectionUtils.invokeMethod(getter, target);
+    }
+
+    public Object getFromField(Object target) {
+        if (field == null) return null;
+        return ReflectionUtils.getField(field, target);
     }
 
     public void set(Object target, Object value) {
         if (setter == null) return;
         ReflectionUtils.invokeMethod(setter, target, value);
+    }
+
+    public void setByField(Object target, Object value) {
+        if (field == null) return;
+        ReflectionUtils.setField(field, target, value);
     }
 
     public Object with(Object target, Object value) {
@@ -186,7 +181,7 @@ public class BeanProperty {
 
     public enum SetterMode {
         /**
-         * {@code Self setMyProperty(Object value)}
+         * {@code Self_Or_BaseTypeOfSelf setMyProperty(Object value)}
          */
         ACCESSOR,
         /**

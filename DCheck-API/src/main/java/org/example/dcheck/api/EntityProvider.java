@@ -4,6 +4,7 @@ import lombok.experimental.ExtensionMethod;
 import org.example.dcheck.annotation.Ignore;
 import org.example.dcheck.util.BeanProperty;
 import org.example.dcheck.util.BeanUtils;
+import org.example.dcheck.util.PropertyValue;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
@@ -57,10 +58,10 @@ public interface EntityProvider<E> {
         return getDefaultSchema(getType());
     }
 
-    default Map<String, PojoField> getState(E entity) {
+    default Map<String, PropertyValue> getState(E entity) {
         return getSchema()
                 .stream()
-                .map(p -> new AbstractMap.SimpleEntry<>(p.getName(), new PojoField(p, p.get(entity))))
+                .map(p -> new AbstractMap.SimpleEntry<>(p.getName(), new PropertyValue(p, p.get(entity))))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (k1, k2) -> {
                     throw new IllegalStateException("duplicate state field '" + k1 + "' and '" + k2 + "'");
                 }, LinkedHashMap::new))
@@ -68,18 +69,18 @@ public interface EntityProvider<E> {
     }
 
     @SuppressWarnings("unchecked")
-    default E populateStates(E entity, Map<String, PojoField> state) {
+    default E populateStates(E entity, Map<String, PropertyValue> state) {
         List<BeanProperty> setterProperties = POPULATE_CACHE.computeIfAbsent(getClass(), this::computePopulateSchema);
         for (BeanProperty property : setterProperties) {
-            PojoField pojoField = state.get(property.getName());
-            if (pojoField == null) {
+            PropertyValue propertyValue = state.get(property.getName());
+            if (propertyValue == null) {
                 continue;
             }
-            if (property.getPropertyType().isInstance(pojoField.getValue())) {
+            if (property.getPropertyType().isInstance(propertyValue.getValue())) {
                 if (property.getSetter() != null) {
-                    property.set(entity, pojoField.getValue());
+                    property.set(entity, propertyValue.getValue());
                 } else if (property.getWither() != null) {
-                    entity = (E) property.with(entity, pojoField.getValue());
+                    entity = (E) property.with(entity, propertyValue.getValue());
                 }
             } else {
                 throw new IllegalArgumentException("restore property '" + property.getName() + "' fail: expected type is '" + property.getPropertyType() + "'");

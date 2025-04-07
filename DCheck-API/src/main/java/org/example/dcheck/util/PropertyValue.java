@@ -1,7 +1,6 @@
-package org.example.dcheck.api;
+package org.example.dcheck.util;
 
 import lombok.Data;
-import org.example.dcheck.util.BeanProperty;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -10,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
  * @author 三石而立Sunsy
  */
 @Data
-public class PojoField {
+public class PropertyValue {
     private final BeanProperty property;
     @Nullable
     private final Object value;

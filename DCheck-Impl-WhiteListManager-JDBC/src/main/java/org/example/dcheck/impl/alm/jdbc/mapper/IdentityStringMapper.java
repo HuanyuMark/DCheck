@@ -2,8 +2,8 @@ package org.example.dcheck.impl.alm.jdbc.mapper;
 
 import lombok.Getter;
 import org.example.dcheck.api.EntityProvider;
-import org.example.dcheck.api.PojoField;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
+import org.example.dcheck.util.PropertyValue;
 
 /**
  * Date: 2025/3/30
@@ -31,12 +31,12 @@ public class IdentityStringMapper extends StringMapper {
     }
 
     @Override
-    protected boolean support(PojoField kv) {
+    protected boolean support(PropertyValue kv) {
         return "id".equalsIgnoreCase(kv.getProperty().getName()) && kv.getProperty().getPropertyType().isAssignableFrom(String.class);
     }
 
     @Override
-    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
+    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PropertyValue kv) {
         return jdbcFieldType;
     }
 }

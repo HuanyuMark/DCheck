@@ -10,7 +10,6 @@ import org.example.dcheck.annotation.Ignore;
 import org.example.dcheck.api.AllowListRule;
 import org.example.dcheck.api.AllowListRuleType;
 import org.example.dcheck.api.EntityProvider;
-import org.example.dcheck.api.PojoField;
 import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.impl.alm.jdbc.annotation.Index;
 import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
@@ -23,6 +22,7 @@ import org.example.dcheck.impl.alm.jdbc.exception.UnsupportedFieldTypeException;
 import org.example.dcheck.spi.JdbcDelegatorProvider;
 import org.example.dcheck.spi.RuleEntityFieldMapperProvider;
 import org.example.dcheck.util.BeanProperty;
+import org.example.dcheck.util.PropertyValue;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Resource;
@@ -123,7 +123,7 @@ public class JdbcAgent implements AutoCloseable {
     public Map<String, RuleSetElementEntity> selectRuleSetElementByRuleSetIdAndEnabled(String ruleSetId, boolean enabled) throws JdbcException {
         return selectRuleSetElementAndWhere(ruleSetId, "AND `enabled`=?", stm ->
                 stm.setObject(1, enabledMapper.mapToJdbcFieldValue(this, RuleSetElementEntity.provider,
-                        new AbstractMap.SimpleEntry<>("enabled", new PojoField(RuleSetElementEntity.getEnabledProperty(), enabled))))
+                        new AbstractMap.SimpleEntry<>("enabled", new PropertyValue(RuleSetElementEntity.getEnabledProperty(), enabled))))
         );
     }
 
@@ -205,7 +205,7 @@ public class JdbcAgent implements AutoCloseable {
 
     public Map<String, RuleSetEntity> selectRuleSet(List<String> ruleSetIds) throws JdbcException {
         if (ruleSetIds.isEmpty()) return Collections.emptyMap();
-        Map<String, RuleSetEntity> resultHolder = new LinkedHashMap<>((int) (ruleSetIds.size() / 0.7));
+        Map<String, RuleSetEntity> resultHolder = new HashMap<>((int) (ruleSetIds.size() / 0.7));
         executeInTransaction("selectRuleSet", () -> {
             try (Connection con = getConnection();
                  PreparedStatement stm = con.prepareStatement(String.format(
@@ -234,9 +234,9 @@ public class JdbcAgent implements AutoCloseable {
 
     protected <E> @NotNull Map<String, Object> mapToJdbcValues(EntityProvider<E> provider, E entity) {
         Map<BeanProperty, EntityFieldMapper> mappers = getMappers(provider);
-        Map<String, PojoField> state = provider.getState(entity);
+        Map<String, PropertyValue> state = provider.getState(entity);
         Map<String, Object> mapped = new LinkedHashMap<>((int) (state.size() / 0.7));
-        for (Map.Entry<String, PojoField> entry : state.entrySet()) {
+        for (Map.Entry<String, PropertyValue> entry : state.entrySet()) {
             mapped.put(entry.getKey(), mappers.get(entry.getValue().getProperty()).mapToJdbcFieldValue(this, provider, entry));
         }
         return mapped;
@@ -400,7 +400,7 @@ public class JdbcAgent implements AutoCloseable {
             @Override
             public E next() {
                 Map<BeanProperty, EntityFieldMapper> mappers = getMappers(entityProvider);
-                Map<String, PojoField> state = new LinkedHashMap<>();
+                Map<String, PropertyValue> state = new LinkedHashMap<>();
                 for (BeanProperty property : entityProvider.getSchema()) {
                     Object jdbcValue;
                     try {
@@ -410,11 +410,11 @@ public class JdbcAgent implements AutoCloseable {
                         throw new RuntimeException(new JdbcException("get property from ResultSet fail: " + e.getMessage(), e));
                     }
                     Serializable value = mappers.get(property).mapToPojoFieldValue(JdbcAgent.this, new EntityFieldMapper.JdbcMapContext(
-                            new PojoField(property, null),
+                            new PropertyValue(property, null),
                             property.getName(),
                             jdbcValue
                     ));
-                    state.put(property.getName(), new PojoField(property, value));
+                    state.put(property.getName(), new PropertyValue(property, value));
                 }
                 return entityProvider.populateStates(entityProvider.createPlain(), state);
             }
@@ -511,7 +511,7 @@ public class JdbcAgent implements AutoCloseable {
         return fieldMappers.computeIfAbsent(provider, c ->
                 provider.getSchema().stream()
                         .map(p -> {
-                            PojoField field = new PojoField(p, null);
+                            PropertyValue field = new PropertyValue(p, null);
                             EntityFieldMapper mapper = RuleEntityFieldMapperProvider.getInstance().getMappers().stream()
                                     .filter(m -> m.support(this, provider, field))
                                     .findFirst()

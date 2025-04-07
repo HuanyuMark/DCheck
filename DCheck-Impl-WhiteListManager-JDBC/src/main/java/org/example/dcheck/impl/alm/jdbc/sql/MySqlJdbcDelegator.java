@@ -5,7 +5,6 @@ import org.example.dcheck.annotation.Ignore;
 import org.example.dcheck.api.AllowListRule;
 import org.example.dcheck.api.AllowListRuleType;
 import org.example.dcheck.api.EntityProvider;
-import org.example.dcheck.api.PojoField;
 import org.example.dcheck.common.util.MessageFormat;
 import org.example.dcheck.impl.alm.jdbc.annotation.Index;
 import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
@@ -18,6 +17,7 @@ import org.example.dcheck.impl.alm.jdbc.exception.UnsupportedFieldTypeException;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
 import org.example.dcheck.spi.RuleEntityFieldMapperProvider;
 import org.example.dcheck.util.BeanProperty;
+import org.example.dcheck.util.PropertyValue;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -115,9 +115,9 @@ public class MySqlJdbcDelegator implements JdbcDelegator {
                 .stream()
                 .filter(p -> !p.isGetterAnnPresent(Ignore.class))
                 .map(property -> {
-                    EntityFieldMapper mapper = mappers.stream().filter(m -> m.support(agent, creationContext.getEntityProvider(), new PojoField(property, null))).findFirst()
+                    EntityFieldMapper mapper = mappers.stream().filter(m -> m.support(agent, creationContext.getEntityProvider(), new PropertyValue(property, null))).findFirst()
                             .orElseThrow(() -> new UnsupportedFieldTypeException("Unsupported Property '" + property + "'."));
-                    String jdbcFieldType = mapper.getJdbcFieldType(agent, creationContext.getEntityProvider(), new PojoField(property, null));
+                    String jdbcFieldType = mapper.getJdbcFieldType(agent, creationContext.getEntityProvider(), new PropertyValue(property, null));
                     return new AbstractMap.SimpleEntry<>(property, jdbcFieldType);
                 }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (u, v) -> {
                     throw new IllegalStateException(String.format("Duplicate key %s", u));

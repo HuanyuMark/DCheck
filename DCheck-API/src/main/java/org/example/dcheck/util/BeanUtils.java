@@ -1,11 +1,14 @@
 package org.example.dcheck.util;
 
+import lombok.NonNull;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Date 2025/03/31
@@ -16,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BeanUtils {
 
     protected static final Map<Class<?>, List<BeanProperty>> propertyCache = new ConcurrentHashMap<>();
+
+    protected static final Map<Class<?>, Map<String, BeanProperty>> propertyMapCache = new ConcurrentHashMap<>();
 
     protected static String getPropertyName(Method method, int nameStartIdx) {
         String rawName = method.getName().substring(nameStartIdx);
@@ -67,7 +72,7 @@ public class BeanUtils {
                     } else if (valueType.isAssignableFrom(property.getPropertyType())) {
                         properties.put(propertyName, property.withSetter(method).withPropertyType(valueType));
                     }
-                } else if (isWitherName && method.getParameterCount() == 1 && target.isAssignableFrom(method.getReturnType())) {
+                } else if (isWitherName && method.getParameterCount() == 1 && method.getReturnType().isAssignableFrom(target)) {
                     BeanProperty property = properties.get(propertyName);
                     Class<?> valueType = method.getParameterTypes()[0];
                     if (property == null) {
@@ -86,7 +91,33 @@ public class BeanUtils {
         });
     }
 
+    public static Map<String, BeanProperty> getPropertiesMap(Class<?> clazz) {
+        return propertyMapCache.computeIfAbsent(clazz, target -> Collections.unmodifiableMap(getProperties(target).stream().collect(Collectors.toMap(BeanProperty::getName, Function.identity(), (a, b) -> {
+            throw new IllegalArgumentException(
+                    String.format("Duplicate property name [%s]", a.getName())
+            );
+        }, LinkedHashMap::new))));
+    }
+
     public void clearCache() {
         propertyCache.clear();
+        propertyMapCache.clear();
+    }
+
+    /**
+     * @return target
+     */
+    public <E> E copyProperties(@NonNull Object source, E target) {
+        if (target == null) return null;
+
+        List<BeanProperty> sourceProperty = getProperties(source.getClass());
+        Map<String, BeanProperty> targetProperty = getPropertiesMap(target.getClass());
+        for (BeanProperty property : sourceProperty) {
+            BeanProperty targetPro = targetProperty.get(property.getName());
+            if (targetPro == null) continue;
+            // todo impl: predicate.test() and check value type ...
+            targetPro.set(target, property.get(source));
+        }
+        return target;
     }
 }

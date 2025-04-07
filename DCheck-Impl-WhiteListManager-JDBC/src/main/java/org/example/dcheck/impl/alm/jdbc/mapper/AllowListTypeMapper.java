@@ -2,9 +2,9 @@ package org.example.dcheck.impl.alm.jdbc.mapper;
 
 import org.example.dcheck.api.AllowListRuleType;
 import org.example.dcheck.api.EntityProvider;
-import org.example.dcheck.api.PojoField;
 import org.example.dcheck.impl.alm.jdbc.api.EntityFieldMapper;
 import org.example.dcheck.impl.alm.jdbc.support.JdbcAgent;
+import org.example.dcheck.util.PropertyValue;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -16,16 +16,16 @@ import java.util.Map;
  */
 public class AllowListTypeMapper implements EntityFieldMapper {
     @Override
-    public boolean support(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
+    public boolean support(JdbcAgent agent, EntityProvider<?> entity, PropertyValue kv) {
         return support(kv);
     }
 
-    protected boolean support(PojoField kv) {
+    protected boolean support(PropertyValue kv) {
         return AllowListRuleType.class.isAssignableFrom(kv.getProperty().getPropertyType());
     }
 
     @Override
-    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PojoField kv) {
+    public String getJdbcFieldType(JdbcAgent agent, EntityProvider<?> entity, PropertyValue kv) {
         return "VARCHAR(255)";
     }
 
@@ -42,7 +42,7 @@ public class AllowListTypeMapper implements EntityFieldMapper {
     }
 
     @Override
-    public Object mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PojoField> pojoState) {
+    public Object mapToJdbcFieldValue(JdbcAgent agent, EntityProvider<?> entity, Map.Entry<String, PropertyValue> pojoState) {
         Object value = pojoState.getValue().getValue();
         return value instanceof AllowListRuleType ? ((AllowListRuleType) value).name() : null;
     }

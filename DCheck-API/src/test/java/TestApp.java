@@ -7,11 +7,13 @@ import org.example.dcheck.api.Content;
 import org.example.dcheck.api.Document;
 import org.example.dcheck.util.BeanProperty;
 import org.example.dcheck.util.BeanUtils;
+import org.example.dcheck.util.CollectionUtils;
 import org.example.dcheck.util.DCheckExecutorService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * Date 2025/02/25
@@ -58,6 +60,16 @@ public class TestApp {
 //        System.out.println(engine.eval("Thread.ofVirtual().name(\"v-\").factory()"));
     }
 
+    @Test
+    public void testPartitionStream() {
+//        Iterator<Integer> itr = IntStream.range(0, 100).boxed().parallel().iterator();
+////        IntStream.range(0,100).boxed().parallel().forEach(System.out::println);
+//        while (itr.hasNext()) {
+//            System.out.println(itr.next());
+//        }
+        CollectionUtils.partition(IntStream.range(0, 100).boxed().parallel(), 5).forEach(System.out::println);
+    }
+
 
     @Data
     static class Num {
@@ -71,12 +83,19 @@ public class TestApp {
     interface I {
         @Ignore
         String getId();
+
+        I withId(String id);
     }
 
     static class Obj implements I {
 
         public String getId() {
             return "ok";
+        }
+
+        @Override
+        public I withId(String id) {
+            return this;
         }
     }
 
